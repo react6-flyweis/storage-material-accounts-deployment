@@ -34,6 +34,10 @@ export const NAV_ITEMS: NavItem[] = [
         label: "Payment Overview",
         path: "/payment_overview",
       },
+      {
+        label: "Payment Approvals",
+        path: "/payment_approvals",
+      },
       { label: "Order & Payments", path: "/order_payments" },
     ],
   },
