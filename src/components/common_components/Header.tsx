@@ -4,6 +4,8 @@ import bellIcon from "../../assets/bellIcon.svg";
 import { useNavigate } from "react-router-dom";
 import UserIcon from "../../assets/icon/UserIcon";
 import { Search } from "lucide-react";
+import { useAppDispatch, useAppSelector } from "../../redux/hooks";
+import { logout } from "../../redux/slices/authSlice";
 
 interface HeaderProps {
   onMenuToggle: () => void;
@@ -15,6 +17,8 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const user = useAppSelector((state) => state.auth.user);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -33,7 +37,9 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
   }, []);
 
   const handleSignOut = () => {
-    navigate("/login");
+    dispatch(logout());
+    setIsProfileOpen(false);
+    navigate("/login", { replace: true });
   };
 
   return (
@@ -114,6 +120,19 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
 
           {isProfileOpen && (
             <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50 animate-in fade-in zoom-in-95 duration-100">
+              {user && (
+                <div className="px-4 py-2.5 border-b border-gray-100 bg-gray-50/50 rounded-t-xl">
+                  <p className="text-sm font-semibold text-gray-800 truncate">
+                    {user.name || "Accounts User"}
+                  </p>
+                  <p className="text-xs text-gray-500 truncate">
+                    {user.email || ""}
+                  </p>
+                  <span className="inline-block mt-1 px-2 py-0.5 text-[10px] font-medium bg-blue-100 text-blue-800 rounded-full capitalize">
+                    {user.role || "Accounts"}
+                  </span>
+                </div>
+              )}
               <div className="px-2 pb-2 border-b border-gray-100">
                 <button
                   className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors text-left"
