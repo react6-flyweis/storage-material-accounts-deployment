@@ -1,54 +1,70 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 
-interface User {
-  id: string;
-  fullName: string;
+export interface AuthUser {
+  _id: string;
+  name: string;
   email: string;
-  phone: string;
   role: string;
-  avatar: string;
+  phone?: string;
+  avatar?: string;
 }
 
-interface AuthState {
-  user: User | null;
+export interface AuthState {
+  user: AuthUser | null;
+  accessToken: string | null;
+  refreshToken: string | null;
+  role: string | null;
   isAuthenticated: boolean;
-  loading: boolean;
-  error: string | null;
 }
 
 const initialState: AuthState = {
   user: null,
+  accessToken: null,
+  refreshToken: null,
+  role: null,
   isAuthenticated: false,
-  loading: false,
-  error: null,
 };
 
 const authSlice = createSlice({
   name: "auth",
   initialState,
   reducers: {
-    loginStart: (state) => {
-      state.loading = true;
-      state.error = null;
-    },
-    loginSuccess: (state, action: PayloadAction<User>) => {
-      state.loading = false;
+    loginSuccess: (
+      state,
+      action: PayloadAction<{
+        user: AuthUser;
+        accessToken: string;
+        refreshToken: string;
+        role: string;
+      }>,
+    ) => {
       state.isAuthenticated = true;
-      state.user = action.payload;
-      state.error = null;
+      state.user = action.payload.user;
+      state.accessToken = action.payload.accessToken;
+      state.refreshToken = action.payload.refreshToken;
+      state.role = action.payload.role;
     },
-    loginFailure: (state, action: PayloadAction<string>) => {
-      state.loading = false;
-      state.isAuthenticated = false;
-      state.user = null;
-      state.error = action.payload;
+    updateTokens: (
+      state,
+      action: PayloadAction<{
+        accessToken: string | null;
+        refreshToken?: string | null;
+      }>,
+    ) => {
+      state.accessToken = action.payload.accessToken;
+
+      if (action.payload.refreshToken !== undefined) {
+        state.refreshToken = action.payload.refreshToken;
+      }
     },
     logout: (state) => {
       state.user = null;
       state.isAuthenticated = false;
-      state.error = null;
+      state.accessToken = null;
+      state.refreshToken = null;
+      state.role = null;
     },
-    updateUser: (state, action: PayloadAction<Partial<User>>) => {
+    updateUser: (state, action: PayloadAction<Partial<AuthUser>>) => {
       if (state.user) {
         state.user = { ...state.user, ...action.payload };
       }
@@ -56,6 +72,6 @@ const authSlice = createSlice({
   },
 });
 
-export const { loginStart, loginSuccess, loginFailure, logout, updateUser } =
+export const { loginSuccess, updateTokens, logout, updateUser } =
   authSlice.actions;
 export default authSlice.reducer;
