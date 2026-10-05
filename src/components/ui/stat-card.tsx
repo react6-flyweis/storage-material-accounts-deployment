@@ -9,7 +9,9 @@ type StatCardProps = {
   icon?: React.ReactNode;
   color?: string;
   className?: string;
-  navigateTo?:any
+  navigateTo?: string;
+  onClick?: () => void;
+  iconClassName?: string;
 };
 
 export default function StatCard({
@@ -18,9 +20,20 @@ export default function StatCard({
   icon,
   color,
   className,
-  navigateTo
+  navigateTo,
+  onClick,
+  iconClassName,
 }: StatCardProps) {
   const navigation = useNavigate();
+
+  const handleClick = () => {
+    if (onClick) {
+      onClick();
+    } else if (navigateTo) {
+      navigation(navigateTo);
+    }
+  };
+
   return (
     <Card
       className={cn(
@@ -28,17 +41,21 @@ export default function StatCard({
         className,
         color
       )}
-      onClick={()=>navigateTo && navigation(navigateTo)}
+      onClick={handleClick}
     >
       <div className="flex items-center justify-between">
         <div>
           <p className="md:text-base text-xs opacity-90">{title}</p>
-          <p className="md:text-2xl text-base mt-1 w-[70px] sm:w-auto overflow-y-hidden overflow-x-auto">
+          <p className="md:text-2xl text-base mt-1 w-17.5 sm:w-auto overflow-y-hidden overflow-x-auto">
             {value}
           </p>
         </div>
 
-        <div className="bg-white sm:p-2 p-1 rounded-md">{icon}</div>
+        {icon && (
+          <div className={cn("bg-white sm:p-2 p-1 rounded-md", iconClassName)}>
+            {icon}
+          </div>
+        )}
       </div>
     </Card>
   );
