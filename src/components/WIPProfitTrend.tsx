@@ -1,5 +1,3 @@
-"use client";
-
 import {
   Line,
   LineChart,
@@ -15,15 +13,9 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
-
-const chartData = [
-  { month: "Jan", profit: 180, cogs: 120 },
-  { month: "Feb", profit: 220, cogs: 140 },
-  { month: "Mar", profit: 195, cogs: 135 },
-  { month: "Apr", profit: 240, cogs: 160 },
-  { month: "May", profit: 280, cogs: 180 },
-  { month: "Jun", profit: 320, cogs: 200 },
-];
+import { useGetRevenueTrendQuery, useGetExpenseTrendQuery } from "@/redux/api/dashboardApi";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useMemo } from "react";
 
 const chartConfig = {
   profit: {
@@ -36,76 +28,120 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-const CustomLegend = () => {
-  return (
-    <div className="flex justify-end gap-6 mb-4 ml-auto">
-      <div className="flex items-center gap-2 md:text-sm text-xs font-medium text-gray-600">
-        <div className="w-3 h-3 rounded-full bg-[#3B82F6]"></div>
-        WIP Profit
-      </div>
-      <div className="flex items-center gap-2 md:text-sm text-xs font-medium text-gray-600">
-        <div className="w-3 h-3 rounded-full bg-[#EF4444]"></div>
-        COGS
-      </div>
-    </div>
-  );
-};
-
 export function WIPProfitTrend() {
+  const { data: revData, isLoading: revLoading } = useGetRevenueTrendQuery();
+  const { data: expData, isLoading: expLoading } = useGetExpenseTrendQuery();
+
+  const isLoading = revLoading || expLoading;
+
+  const chartData = useMemo(() => {
+    const revPoints = revData?.points || [];
+    const expPoints = expData?.points || [];
+
+    if (revPoints.length === 0 && expPoints.length === 0) {
+      return [];
+    }
+
+    const monthMap = new Map<string, { month: string; profit: number; cogs: number }>();
+
+    revPoints.forEach((p) => {
+      const profitVal = p.amount > 1000 ? Math.round(p.amount / 1000) : p.amount;
+      monthMap.set(p.month, {
+        month: p.month,
+        profit: profitVal,
+        cogs: 0,
+      });
+    });
+
+    expPoints.forEach((p) => {
+      const cogsVal = p.amount > 1000 ? Math.round(p.amount / 1000) : p.amount;
+      const existing = monthMap.get(p.month);
+      if (existing) {
+        existing.cogs = cogsVal;
+      } else {
+        monthMap.set(p.month, {
+          month: p.month,
+          profit: 0,
+          cogs: cogsVal,
+        });
+      }
+    });
+
+    return Array.from(monthMap.values());
+  }, [revData, expData]);
+
   return (
-    <Card className="flex flex-col h-full border-none shadow-none bg-white p-6 rounded-md">
-      <CardHeader className="flex flex-wrap items-center justify-between p-0 mb-8">
-        <h3 className="xl:text-xl text-md font-medium text-black tracking-tight">
+    <Card className="flex flex-col h-full border border-gray-200/80 shadow-none bg-white p-6 rounded-xl justify-between">
+      <CardHeader className="flex flex-row items-center justify-between p-0 mb-6 space-y-0">
+        <h3 className="text-lg font-bold text-gray-900 tracking-tight">
           WIP Profit vs COGS Trend
         </h3>
-        <CustomLegend />
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
+            <span className="w-3 h-3 rounded-full bg-[#3B82F6]" />
+            <span>WIP Profit</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
+            <span className="w-3 h-3 rounded-full bg-[#EF4444]" />
+            <span>COGS</span>
+          </div>
+        </div>
       </CardHeader>
-      <CardContent className="flex-1 p-0">
-        <ChartContainer config={chartConfig} className="h-[300px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart
-              data={chartData}
-              margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-            >
-              <CartesianGrid vertical={false} stroke="#f0f0f0" />
-              <XAxis
-                dataKey="month"
-                tickLine={{ stroke: "#e2e8f0" }}
-                axisLine={{ stroke: "#e2e8f0", strokeWidth: 3 }}
-                tick={{ fill: "#94a3b8", fontSize: 12 }}
-                tickMargin={12}
-              />
-              <YAxis
-                tickLine={{ stroke: "#e2e8f0" }}
-                axisLine={{ stroke: "#e2e8f0", strokeWidth: 3 }}
-                tick={{ fill: "#94a3b8", fontSize: 12 }}
-                tickFormatter={(value) => `$${value}K`}
-                domain={[0, 400]}
-                ticks={[0, 64, 128, 192, 256, 320]}
-              />
-              <ChartTooltip
-                cursor={{ stroke: "#e2e8f0", strokeWidth: 1 }}
-                content={<ChartTooltipContent indicator="dot" />}
-              />
-              <Line
-                type="monotone"
-                dataKey="profit"
-                stroke="#3B82F6"
-                strokeWidth={3}
-                dot={{ r: 4, fill: "#3B82F6", strokeWidth: 2, stroke: "#fff" }}
-                activeDot={{ r: 6, strokeWidth: 0 }}
-              />
-              <Line
-                type="monotone"
-                dataKey="cogs"
-                stroke="#EF4444"
-                strokeWidth={3}
-                dot={{ r: 4, fill: "#EF4444", strokeWidth: 2, stroke: "#fff" }}
-                activeDot={{ r: 6, strokeWidth: 0 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </ChartContainer>
+      <CardContent className="flex-1 p-0 flex flex-col justify-end">
+        {isLoading ? (
+          <div className="h-95 w-full flex flex-col justify-end gap-3 p-4">
+            <Skeleton className="h-82.5 w-full rounded-xl" />
+            <Skeleton className="h-4 w-full" />
+          </div>
+        ) : chartData.length === 0 ? (
+          <div className="h-95 w-full flex items-center justify-center text-gray-400 text-sm">
+            No WIP profit vs COGS trend data recorded
+          </div>
+        ) : (
+          <ChartContainer config={chartConfig} className="h-95 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={chartData}
+                margin={{ top: 15, right: 15, left: -10, bottom: 5 }}
+              >
+                <CartesianGrid vertical={false} stroke="#F1F5F9" />
+                <XAxis
+                  dataKey="month"
+                  tickLine={{ stroke: "#CBD5E1", strokeWidth: 1.5 }}
+                  axisLine={{ stroke: "#CBD5E1", strokeWidth: 1.5 }}
+                  tick={{ fill: "#64748B", fontSize: 12, fontWeight: 500 }}
+                  tickMargin={10}
+                />
+                <YAxis
+                  tickLine={{ stroke: "#CBD5E1", strokeWidth: 1.5 }}
+                  axisLine={{ stroke: "#CBD5E1", strokeWidth: 1.5 }}
+                  tick={{ fill: "#64748B", fontSize: 12, fontWeight: 500 }}
+                  tickFormatter={(value) => `$${value}K`}
+                />
+                <ChartTooltip
+                  cursor={{ stroke: "#E2E8F0", strokeWidth: 1 }}
+                  content={<ChartTooltipContent indicator="dot" />}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="profit"
+                  stroke="#3B82F6"
+                  strokeWidth={3}
+                  dot={{ r: 4.5, fill: "#3B82F6", stroke: "#3B82F6", strokeWidth: 1 }}
+                  activeDot={{ r: 6.5, fill: "#3B82F6" }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="cogs"
+                  stroke="#EF4444"
+                  strokeWidth={3}
+                  dot={{ r: 4.5, fill: "#EF4444", stroke: "#EF4444", strokeWidth: 1 }}
+                  activeDot={{ r: 6.5, fill: "#EF4444" }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </ChartContainer>
+        )}
       </CardContent>
     </Card>
   );
