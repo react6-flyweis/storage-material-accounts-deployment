@@ -2,6 +2,9 @@ import { cn } from "@/lib/utils";
 import { Badge } from "./ui/badge";
 import SectionHeaderWithAction from "./common_components/SectionHeaderWithAction";
 import { useNavigate } from "react-router-dom";
+import type { UpcomingPayment } from "@/redux/api/dashboardApi";
+import { formatCurrency, formatDate } from "@/lib/dashboardFormatters";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface PaymentItemProps {
   company: string;
@@ -22,6 +25,21 @@ function PaymentItem({
   invoice,
   priority,
 }: PaymentItemProps) {
+  const navigate = useNavigate();
+
+  const getPriorityStyle = (p: "High" | "Medium" | "Low") => {
+    switch (p) {
+      case "High":
+        return "bg-[#FEE2E2] text-[#EF4444]";
+      case "Medium":
+        return "bg-amber-100 text-amber-700";
+      case "Low":
+        return "bg-blue-100 text-blue-700";
+      default:
+        return "bg-gray-100 text-gray-500";
+    }
+  };
+
   return (
     <div className="p-4 md:p-6 rounded-md border border-gray-200 bg-white mb-4 last:mb-0 w-full overflow-x-auto">
       <div className="flex flex-row md:items-center justify-between gap-6">
@@ -70,7 +88,10 @@ function PaymentItem({
             <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">
               Invoice
             </p>
-            <button className="text-(--button-bg-primary-color) font-regular text-xs md:text-sm hover:underline text-left block truncate w-full">
+            <button
+              onClick={() => navigate("/payment_overview")}
+              className="text-(--button-bg-primary-color) font-regular text-xs md:text-sm hover:underline text-left block truncate w-full cursor-pointer"
+            >
               {invoice}
             </button>
           </div>
@@ -81,9 +102,7 @@ function PaymentItem({
           <Badge
             className={cn(
               "font-normal text-[10px] px-4 py-1 rounded-full border-none h-6",
-              priority === "High"
-                ? "bg-[#FEE2E2] text-[#EF4444]"
-                : "bg-gray-100 text-gray-500"
+              getPriorityStyle(priority)
             )}
           >
             {priority}
@@ -94,50 +113,38 @@ function PaymentItem({
   );
 }
 
-export default function UpcomingPayments() {
-  const payments: PaymentItemProps[] = [
-    {
-      company: "ABC Industries",
-      category: "Progress Payment",
-      amount: "$1,35,000",
-      date: "25-0102924", // Matching the typo from the image for consistency or fixing it? I'll fix it to 25-01-2024
-      salesRep: "John Doe",
-      invoice: "INV 2024-001",
-      priority: "High",
-    },
-    {
-      company: "ABC Industries",
-      category: "Progress Payment",
-      amount: "$1,35,000",
-      date: "25-01-2024",
-      salesRep: "John Doe",
-      invoice: "INV 2024-001",
-      priority: "High",
-    },
-    {
-      company: "ABC Industries",
-      category: "Progress Payment",
-      amount: "$1,35,000",
-      date: "25-01-2024",
-      salesRep: "John Doe",
-      invoice: "INV 2024-001",
-      priority: "High",
-    },
-    {
-      company: "ABC Industries",
-      category: "Progress Payment",
-      amount: "$1,35,000",
-      date: "25-01-2024",
-      salesRep: "John Doe",
-      invoice: "INV 2024-001",
-      priority: "High",
-    },
-  ];
+interface UpcomingPaymentsProps {
+  upcomingPayments?: UpcomingPayment[];
+  isLoading?: boolean;
+}
 
+export default function UpcomingPayments({
+  upcomingPayments,
+  isLoading,
+}: UpcomingPaymentsProps) {
   const navigate = useNavigate();
 
+  const items: PaymentItemProps[] = upcomingPayments
+    ? upcomingPayments.map((p) => {
+        let priority: "High" | "Medium" | "Low" = "Medium";
+        const rawPriority = (p.priority || "").toLowerCase();
+        if (rawPriority === "high") priority = "High";
+        else if (rawPriority === "low") priority = "Low";
+
+        return {
+          company: p.companyName || p.customerId?.company || "Unknown Company",
+          category: p.paymentDescription || p.description || "Payment Due",
+          amount: formatCurrency(p.amount || p.totalAmount),
+          date: formatDate(p.dueDate),
+          salesRep: p.salesRep || p.leadId?.assignedSales?.name || "-",
+          invoice: p.invoiceNumber || "N/A",
+          priority,
+        };
+      })
+    : [];
+
   return (
-    <div className="bg-white rounded-md xl:p-6 p-4  border border-gray-100/50">
+    <div className="bg-white rounded-md xl:p-6 p-4 border border-gray-100/50">
       <SectionHeaderWithAction
         title="Upcoming Payments"
         subtitle="From Sales Team"
@@ -147,9 +154,46 @@ export default function UpcomingPayments() {
         containerClassName="mb-6"
       />
       <div className="space-y-4 overflow-y-auto border-t border-gray-300 pt-4">
-        {payments.map((payment, index) => (
-          <PaymentItem key={index} {...payment} />
-        ))}
+        {isLoading ? (
+          Array.from({ length: 3 }).map((_, idx) => (
+            <div
+              key={idx}
+              className="p-4 md:p-6 rounded-md border border-gray-100 bg-white mb-4 flex flex-col md:flex-row md:items-center justify-between gap-4"
+            >
+              <div className="md:flex-1 min-w-[150px]">
+                <Skeleton className="h-5 w-40 mb-2" />
+                <Skeleton className="h-3 w-28" />
+              </div>
+              <div className="flex flex-4 gap-4 items-center">
+                <div className="flex-1">
+                  <Skeleton className="h-3 w-14 mb-1" />
+                  <Skeleton className="h-5 w-20" />
+                </div>
+                <div className="flex-1">
+                  <Skeleton className="h-3 w-14 mb-1" />
+                  <Skeleton className="h-4 w-20" />
+                </div>
+                <div className="flex-1">
+                  <Skeleton className="h-3 w-14 mb-1" />
+                  <Skeleton className="h-4 w-20" />
+                </div>
+                <div className="flex-1">
+                  <Skeleton className="h-3 w-14 mb-1" />
+                  <Skeleton className="h-4 w-20" />
+                </div>
+              </div>
+              <Skeleton className="h-6 w-16 rounded-full" />
+            </div>
+          ))
+        ) : items.length === 0 ? (
+          <div className="p-8 text-center text-sm text-gray-400">
+            No upcoming payments scheduled
+          </div>
+        ) : (
+          items.map((payment, index) => (
+            <PaymentItem key={index} {...payment} />
+          ))
+        )}
       </div>
     </div>
   );
