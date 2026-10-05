@@ -3,6 +3,19 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { OrderVsPlantCosts } from "@/redux/api/dashboardApi";
 import { formatCurrency } from "@/lib/dashboardFormatters";
+import type { TabType } from "@/pages/Dashboard";
+
+export interface AnalysisCardItem {
+  label: string;
+  value: string;
+  bgColor: string;
+  textColor: string;
+}
+
+export type AnalysisCardsByFilterType = Record<
+  TabType,
+  readonly AnalysisCardItem[]
+>;
 
 interface AnalysisCardProps {
   label: string;

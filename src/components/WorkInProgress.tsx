@@ -6,10 +6,28 @@ import { useNavigate } from "react-router-dom";
 import type { ProjectBudgetVsActual } from "@/redux/api/dashboardApi";
 import { formatCurrency } from "@/lib/dashboardFormatters";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { TabType } from "@/pages/Dashboard";
+
+export type ProjectStatus =
+  | "In Progress"
+  | "Planning"
+  | "Execution"
+  | "Completed";
+
+export interface ProjectItemData {
+  name: string;
+  status: ProjectStatus;
+  margin: string;
+  revenue: string;
+  costs: string;
+  profit: string;
+}
+
+export type ProjectsByFilter = Record<TabType, readonly ProjectItemData[]>;
 
 interface ProjectItemProps {
   name: string;
-  status: "In Progress" | "Planning" | "Execution" | "Completed";
+  status: ProjectStatus;
   margin: string;
   revenue: string;
   costs: string;
