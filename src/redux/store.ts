@@ -2,6 +2,7 @@ import { configureStore } from "@reduxjs/toolkit";
 import { persistReducer, persistStore } from "redux-persist";
 import storage from "redux-persist/lib/storage";
 import { authApi } from "./api/authApi";
+import { customerApi } from "./api/customerApi";
 import { dashboardApi } from "./api/dashboardApi";
 import { paymentsApi } from "./api/paymentsApi";
 import authReducer from "./slices/authSlice";
@@ -22,6 +23,7 @@ export const store = configureStore({
     inventory: inventoryReducer,
     maintenance: maintenanceReducer,
     [authApi.reducerPath]: authApi.reducer,
+    [customerApi.reducerPath]: customerApi.reducer,
     [dashboardApi.reducerPath]: dashboardApi.reducer,
     [paymentsApi.reducerPath]: paymentsApi.reducer,
   },
@@ -39,6 +41,7 @@ export const store = configureStore({
       },
     }).concat(
       authApi.middleware,
+      customerApi.middleware,
       dashboardApi.middleware,
       paymentsApi.middleware
     ),
