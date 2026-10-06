@@ -13,6 +13,8 @@ import PaymentOverview from "./pages/PaymentOverview";
 import PaymentApprovalsPage from "./pages/PaymentApprovalsPage";
 import UpdatePaymentPage from "./pages/UpdatePaymentPage";
 import OrdersAndPaymentsPage from "./pages/OrdersAndPaymentsPage";
+import MarginAnalysisPage from "./pages/MarginAnalysisPage";
+import ProjectBudgetDetailsPage from "./pages/ProjectBudgetDetailsPage";
 import WipProfitPage from "./pages/analysis/WipProfitPage";
 import CogsAnalysis from "./pages/analysis/CogsAnalysis";
 import ExpensesPage from "./pages/management/ExpensesPage";
@@ -29,6 +31,31 @@ const FinancialReportPage = lazy(
   () => import("@/pages/management/FinancialReportPage")
 );
 const TaxationPage = lazy(() => import("@/pages/management/TaxationPage"));
+const CustomersPage = lazy(() => import("@/pages/customers/CustomersPage"));
+const CustomerProjectsPage = lazy(
+  () => import("@/pages/customers/CustomerProjectsPage")
+);
+const CustomerDetailPage = lazy(
+  () => import("@/pages/customers/CustomerDetailPage")
+);
+const ProjectDetailsPage = lazy(
+  () => import("@/pages/customers/customer-detail/project-details")
+);
+const ProjectQuotationPage = lazy(
+  () => import("@/pages/customers/customer-detail/project-quotation")
+);
+const ContractDetailPage = lazy(
+  () => import("@/pages/customers/contract-detail")
+);
+const ProjectInvoicesPage = lazy(
+  () => import("@/pages/customers/customer-detail/project-invoices")
+);
+const ProjectPaymentsPage = lazy(
+  () => import("@/pages/customers/customer-detail/project-payments")
+);
+const ProjectBomPage = lazy(
+  () => import("@/pages/customers/customer-detail/project-bom")
+);
 
 export const routes: RouteObject[] = [
   {
@@ -70,6 +97,110 @@ export const routes: RouteObject[] = [
           {
             path: "/order_payments",
             element: <OrdersAndPaymentsPage />,
+          },
+          {
+            path: "/margin_analysis",
+            element: <MarginAnalysisPage />,
+          },
+          {
+            path: "/payments/margin-analysis",
+            element: <MarginAnalysisPage />,
+          },
+          {
+            path: "/project_budget_details",
+            element: <ProjectBudgetDetailsPage />,
+          },
+          {
+            path: "/project-details",
+            element: <ProjectBudgetDetailsPage />,
+          },
+          {
+            path: "/payments/project-details",
+            element: <ProjectBudgetDetailsPage />,
+          },
+          {
+            path: "/customers",
+            element: <CustomersPage />,
+          },
+          {
+            path: "/customers/projects",
+            element: <CustomerProjectsPage />,
+          },
+          {
+            path: "/customers/projects/:id",
+            element: <ProjectDetailsPage />,
+          },
+          {
+            path: "/customers/projects/:id/project-quotation",
+            element: <ProjectQuotationPage />,
+          },
+          {
+            path: "/customers/projects/:id/contracts",
+            element: <ContractDetailPage />,
+          },
+          {
+            path: "/customers/projects/:id/project-invoices",
+            element: <ProjectInvoicesPage />,
+          },
+          {
+            path: "/customers/projects/:id/project-payments",
+            element: <ProjectPaymentsPage />,
+          },
+          {
+            path: "/customers/projects/:id/bom",
+            element: <ProjectBomPage />,
+          },
+          {
+            path: "/customers/:customerId",
+            element: <CustomerDetailPage />,
+          },
+          {
+            path: "/customers/:customerId/projects",
+            element: <CustomerProjectsPage />,
+          },
+          {
+            path: "/customers/:customerId/projects/:projectId",
+            element: <ProjectDetailsPage />,
+          },
+          {
+            path: "/customers/:customerId/projects/:projectId/project-quotation",
+            element: <ProjectQuotationPage />,
+          },
+          {
+            path: "/customers/:customerId/project-quotation",
+            element: <ProjectQuotationPage />,
+          },
+          {
+            path: "/customers/:customerId/projects/:projectId/contracts",
+            element: <ContractDetailPage />,
+          },
+          {
+            path: "/customers/:customerId/contracts",
+            element: <ContractDetailPage />,
+          },
+          {
+            path: "/customers/:customerId/projects/:projectId/project-invoices",
+            element: <ProjectInvoicesPage />,
+          },
+          {
+            path: "/customers/:customerId/project-invoices",
+            element: <ProjectInvoicesPage />,
+          },
+          {
+            path: "/customers/:customerId/projects/:projectId/project-payments",
+            element: <ProjectPaymentsPage />,
+          },
+          {
+            path: "/customers/:customerId/projects/:projectId/bom",
+            element: <ProjectBomPage />,
+          },
+          {
+            path: "/customers/:customerId/bom",
+            element: <ProjectBomPage />,
+          },
+          {
+            path: "/customers/:customerId/project-payments",
+            element: <ProjectPaymentsPage />,
           },
           {
             path: "/cogs_analysis",
