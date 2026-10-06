@@ -4,6 +4,7 @@ import MenuIcon3 from "@/assets/sidebar_icons/analyticsSideIcon.svg";
 import MenuIcon4 from "@/assets/sidebar_icons/BoltIcon.svg";
 import MenuIcon5 from "@/assets/sidebar_icons/CallIcon.svg";
 import MenuIcon6 from "@/assets/sidebar_icons/BellIcon.svg";
+import CustomerIcon from "@/assets/sidebar_icons/CustomerIcon.svg";
 
 export type SubNavItem = {
   label: string;
@@ -25,6 +26,17 @@ export const NAV_ITEMS: NavItem[] = [
     icon: MenuIcon1,
     path: "/dashboard",
   },
+    {
+    title: "Customer",
+    color: "bg-[#EAB308]",
+    icon: CustomerIcon,
+    items: [
+      {
+        label: "Customers",
+        path: "/customers",
+      },
+    ],
+  },
   {
     title: "Payments",
     color: "bg-[#A855F7]",
@@ -38,9 +50,12 @@ export const NAV_ITEMS: NavItem[] = [
         label: "Payment Approvals",
         path: "/payment_approvals",
       },
-      { label: "Order & Payments", path: "/order_payments" },
+      // { label: "Order & Payments", path: "/order_payments" },
+      { label: "Margin Analysis", path: "/margin_analysis" },
+      { label: "Project Details", path: "/project_budget_details" },
     ],
   },
+
   {
     title: "Analytics",
     color: "bg-[#EAB308]",
