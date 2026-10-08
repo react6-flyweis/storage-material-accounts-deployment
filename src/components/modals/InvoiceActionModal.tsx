@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Modal from "../common_components/Modal";
 import { Button } from "@/components/ui/button";
-import Input from "@/components/ui/Input";
+import Input from "@/components/common_components/Input";
 
 export type InvoiceActionType = "markup" | "discount" | "deposit";
 
