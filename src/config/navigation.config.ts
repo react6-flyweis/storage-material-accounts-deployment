@@ -5,6 +5,7 @@ import MenuIcon4 from "@/assets/sidebar_icons/BoltIcon.svg";
 import MenuIcon5 from "@/assets/sidebar_icons/CallIcon.svg";
 import MenuIcon6 from "@/assets/sidebar_icons/BellIcon.svg";
 import CustomerIcon from "@/assets/sidebar_icons/CustomerIcon.svg";
+// import TaxFilingIcon from "@/assets/sidebar_icons/tax-filing.svg";
 
 export type SubNavItem = {
   label: string;
@@ -57,24 +58,28 @@ export const NAV_ITEMS: NavItem[] = [
   },
 
   {
-    title: "Analytics",
+    title: "Project-wise Income",
     color: "bg-[#EAB308]",
     icon: MenuIcon3,
     items: [
-      { label: "WIP Profit", path: "/wip_profit" },
-      { label: "COGS Analysis", path: "/cogs_analysis" },
+      { label: "Project-wise Income", path: "/project-wise-income" },
+      { label: "Project-wise Expense", path: "/project-wise-expense" },
+      { label: "Profit & Loss", path: "/profit-loss" },
     ],
   },
   {
-    title: "Management",
+    title: "Tax & Filing",
     color: "bg-[#FD8D5B]",
+    path: "/tax-and-filing",
     icon: MenuIcon4,
     items: [
-      { label: "Expenses", path: "/expenses" },
-      { label: "Reports", path: "/reports" },
-      { label: "Taxation", path: "/taxation" },
-      { label: "Income", path: "/income" },
-      { label: "Labor Expenses", path: "/labor_expenses" },
+            { label: "State Wise Tax", path: "/state-wise-tax" },
+      { label: "Project Wise Tax", path: "/project-wise-tax" },
+      // { label: "Expenses", path: "/expenses" },
+      // { label: "Reports", path: "/reports" },
+      // { label: "Taxation", path: "/tax-and-filing" },
+      // { label: "Income", path: "/income" },
+      // { label: "Labor Expenses", path: "/labor_expenses" },
     ],
   },
   {
