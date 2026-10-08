@@ -62,13 +62,13 @@ const SidePanel: React.FC<SidePanelProps> = ({
         {/* Title */}
         <button
           onClick={() => {
-            if (currentNav.items?.length) {
+            if (currentNav.path) {
+              onSubTabClick("", currentNav.path);
+            } else if (currentNav.items?.length) {
               onSubTabClick(
                 currentNav.items[0].label,
                 currentNav.items[0].path,
               );
-            } else if (currentNav.path) {
-              onSubTabClick("", currentNav.path);
             }
           }}
           className={`w-full text-sm text-white rounded-lg md:py-3 py-2 font-medium shadow-sm mb-3 cursor-pointer ${currentNav.color}`}
