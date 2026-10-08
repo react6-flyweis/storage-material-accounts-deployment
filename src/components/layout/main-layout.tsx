@@ -11,10 +11,17 @@ function getActiveNavFromPath(pathname: string) {
   let longestMatchLen = -1;
 
   NAV_ITEMS.forEach((tab, tabIndex) => {
-    if (tab.path === pathname) {
+    const isDirectMatch =
+      tab.path === pathname ||
+      (tab.title === "Tax & Filing" &&
+        (pathname === "/sales-tax-filing" ||
+          pathname === "/taxation" ||
+          pathname === "/payments/sales-tax-filing"));
+
+    if (isDirectMatch) {
       matchedTab = tabIndex;
       matchedSubTab = "";
-      longestMatchLen = tab.path.length;
+      longestMatchLen = tab.path?.length || 0;
     }
 
     tab.items?.forEach((sub) => {
@@ -23,7 +30,9 @@ function getActiveNavFromPath(pathname: string) {
         (sub.path !== "/" &&
           (pathname === sub.path ||
             pathname.startsWith(sub.path + "/") ||
-            pathname.startsWith(sub.path)));
+            pathname.startsWith(sub.path))) ||
+        (sub.label === "State Wise Tax" && pathname === "/payments/state-wise-tax") ||
+        (sub.label === "Project Wise Tax" && pathname === "/payments/project-wise-tax");
 
       if (isMatch && sub.path.length > longestMatchLen) {
         matchedTab = tabIndex;
