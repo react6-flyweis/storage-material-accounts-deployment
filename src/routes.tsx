@@ -21,6 +21,21 @@ import ExpensesPage from "./pages/management/ExpensesPage";
 import IncomePage from "./pages/management/IncomePage";
 import LaborExpensesPage from "./pages/management/LaborExpensesPage";
 
+const ProjectWiseIncomePage = lazy(
+  () => import("@/pages/ProjectWiseIncomePage")
+);
+const ProjectWiseIncomeDetailPage = lazy(
+  () => import("@/pages/ProjectWiseIncomeDetailPage")
+);
+const ProjectWiseExpensePage = lazy(
+  () => import("@/pages/ProjectWiseExpensePage")
+);
+const ProjectWiseExpenseDetailPage = lazy(
+  () => import("@/pages/ProjectWiseExpenseDetailPage")
+);
+const ProfitLossStatementPage = lazy(
+  () => import("@/pages/ProfitLossStatementPage")
+);
 const Login = lazy(() => import("@/pages/Login"));
 const ForgotPassword = lazy(() => import("@/pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
@@ -31,6 +46,9 @@ const FinancialReportPage = lazy(
   () => import("@/pages/management/FinancialReportPage")
 );
 const TaxationPage = lazy(() => import("@/pages/management/TaxationPage"));
+const SalesTaxFiling = lazy(() => import("@/pages/payments/sales-tax-filing"));
+const StateWiseTax = lazy(() => import("@/pages/payments/state-wise-tax"));
+const ProjectWiseTax = lazy(() => import("@/pages/payments/project-wise-tax"));
 const CustomersPage = lazy(() => import("@/pages/customers/CustomersPage"));
 const CustomerProjectsPage = lazy(
   () => import("@/pages/customers/CustomerProjectsPage")
@@ -203,6 +221,74 @@ export const routes: RouteObject[] = [
             element: <ProjectPaymentsPage />,
           },
           {
+            path: "/project-wise-income",
+            element: <ProjectWiseIncomePage />,
+          },
+          {
+            path: "/project-wise-income/:projectId",
+            element: <ProjectWiseIncomeDetailPage />,
+          },
+          {
+            path: "/project-wise-income/detail",
+            element: <ProjectWiseIncomeDetailPage />,
+          },
+          {
+            path: "/project_wise_income",
+            element: <ProjectWiseIncomePage />,
+          },
+          {
+            path: "/project_wise_income/:projectId",
+            element: <ProjectWiseIncomeDetailPage />,
+          },
+          {
+            path: "/project-wise-expense",
+            element: <ProjectWiseExpensePage />,
+          },
+          {
+            path: "/project-wise-expense/:projectId",
+            element: <ProjectWiseExpenseDetailPage />,
+          },
+          {
+            path: "/project-wise-expense/detail",
+            element: <ProjectWiseExpenseDetailPage />,
+          },
+          {
+            path: "/project_wise_expense",
+            element: <ProjectWiseExpensePage />,
+          },
+          {
+            path: "/project_wise_expense/:projectId",
+            element: <ProjectWiseExpenseDetailPage />,
+          },
+          {
+            path: "/project-expense",
+            element: <ProjectWiseExpensePage />,
+          },
+          {
+            path: "/project-expense/:projectId",
+            element: <ProjectWiseExpenseDetailPage />,
+          },
+          {
+            path: "/profit-loss",
+            element: <ProfitLossStatementPage />,
+          },
+          {
+            path: "/profit-and-loss",
+            element: <ProfitLossStatementPage />,
+          },
+          {
+            path: "/profit_loss",
+            element: <ProfitLossStatementPage />,
+          },
+          {
+            path: "/profit-loss-statement",
+            element: <ProfitLossStatementPage />,
+          },
+          {
+            path: "/analytics",
+            element: <ProjectWiseIncomePage />,
+          },
+          {
             path: "/cogs_analysis",
             element: <CogsAnalysis />,
           },
@@ -223,7 +309,39 @@ export const routes: RouteObject[] = [
             element: <FinancialReportPage />,
           },
           {
+            path: "/tax-and-filing",
+            element: <SalesTaxFiling />,
+          },
+          {
+            path: "/sales-tax-filing",
+            element: <SalesTaxFiling />,
+          },
+          {
+            path: "/payments/sales-tax-filing",
+            element: <SalesTaxFiling />,
+          },
+          {
+            path: "/state-wise-tax",
+            element: <StateWiseTax />,
+          },
+          {
+            path: "/payments/state-wise-tax",
+            element: <StateWiseTax />,
+          },
+          {
+            path: "/project-wise-tax",
+            element: <ProjectWiseTax />,
+          },
+          {
+            path: "/payments/project-wise-tax",
+            element: <ProjectWiseTax />,
+          },
+          {
             path: "/taxation",
+            element: <SalesTaxFiling />,
+          },
+          {
+            path: "/taxation-old",
             element: <TaxationPage />,
           },
           {
