@@ -7,6 +7,9 @@ import MenuIcon6 from "@/assets/sidebar_icons/BellIcon.svg";
 import CustomerIcon from "@/assets/sidebar_icons/CustomerIcon.svg";
 // import TaxFilingIcon from "@/assets/sidebar_icons/tax-filing.svg";
 
+import CostIcon from "@/assets/sidebar_icons/costIcon.svg";
+import InvoiceIcon from "@/assets/sidebar_icons/InvoiceIcon.svg";
+
 export type SubNavItem = {
   label: string;
   path: string;
@@ -68,18 +71,34 @@ export const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
+    title: "Cost",
+    color: "bg-[#10B981]",
+    icon: CostIcon,
+    items: [
+      { label: "Salary Cost", path: "/cost/salary-cost" },
+      { label: "Manpower Cost", path: "/cost/manpower-cost" },
+    ],
+  },
+  {
     title: "Tax & Filing",
     color: "bg-[#FD8D5B]",
     path: "/tax-and-filing",
     icon: MenuIcon4,
     items: [
-            { label: "State Wise Tax", path: "/state-wise-tax" },
+      { label: "State Wise Tax", path: "/state-wise-tax" },
       { label: "Project Wise Tax", path: "/project-wise-tax" },
-      // { label: "Expenses", path: "/expenses" },
-      // { label: "Reports", path: "/reports" },
-      // { label: "Taxation", path: "/tax-and-filing" },
-      // { label: "Income", path: "/income" },
-      // { label: "Labor Expenses", path: "/labor_expenses" },
+    ],
+  },
+  {
+    title: "Project Invoices",
+    color: "bg-[#2D2D2D]",
+    icon: InvoiceIcon,
+    path: "/invoices/project-invoices",
+    items: [
+      { label: "Vendor Invoices", path: "/invoices/vendor-invoices" },
+      { label: "Carrier Invoices", path: "/invoices/carrier-invoices" },
+      { label: "Miscellaneous Inv", path: "/invoices/miscellaneous-invoices" },
+      { label: "Quotation-wise Profit / Loss", path: "/invoices/quotation-profit-loss" },
     ],
   },
   {
