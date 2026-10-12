@@ -1,4 +1,4 @@
-import type { RouteObject } from "react-router-dom";
+import { Navigate, type RouteObject } from "react-router-dom";
 import { lazy } from "react";
 import { NotFound } from "@/pages/not-found";
 import { MainLayout } from "./components/layout/main-layout";
@@ -73,6 +73,25 @@ const ProjectPaymentsPage = lazy(
 );
 const ProjectBomPage = lazy(
   () => import("@/pages/customers/customer-detail/project-bom")
+);
+const SalaryCostPage = lazy(() => import("@/pages/SalaryCostPage"));
+const AddSalaryPage = lazy(() => import("@/pages/cost/AddSalaryPage"));
+const ManpowerCostPage = lazy(() => import("@/pages/ManpowerCostPage"));
+const AddManpowerPage = lazy(() => import("@/pages/cost/AddManpowerPage"));
+const InvoiceManagementPage = lazy(
+  () => import("@/pages/invoices/ProjectInvoicesPage")
+);
+const VendorInvoicesPage = lazy(
+  () => import("@/pages/invoices/VendorInvoicesPage")
+);
+const CarrierInvoicesPage = lazy(
+  () => import("@/pages/invoices/CarrierInvoicesPage")
+);
+const MiscellaneousInvoicesPage = lazy(
+  () => import("@/pages/invoices/MiscellaneousInvoicesPage")
+);
+const QuotationProfitLossPage = lazy(
+  () => import("@/pages/invoices/QuotationProfitLossPage")
 );
 
 export const routes: RouteObject[] = [
@@ -293,6 +312,86 @@ export const routes: RouteObject[] = [
             element: <CogsAnalysis />,
           },
           {
+            path: "/salary-cost",
+            element: <SalaryCostPage />,
+          },
+          {
+            path: "/salary-cost/add",
+            element: <AddSalaryPage />,
+          },
+          {
+            path: "/salary/add",
+            element: <AddSalaryPage />,
+          },
+          {
+            path: "/cost",
+            element: <Navigate to="/cost/salary-cost" replace />,
+          },
+          {
+            path: "/cost/salary-cost",
+            element: <SalaryCostPage />,
+          },
+          {
+            path: "/cost/salary-cost/add",
+            element: <AddSalaryPage />,
+          },
+          {
+            path: "/cost/manpower-cost",
+            element: <ManpowerCostPage />,
+          },
+          {
+            path: "/cost/manpower-cost/add",
+            element: <AddManpowerPage />,
+          },
+          {
+            path: "/cost/manpower-cost/edit/:id?",
+            element: <AddManpowerPage />,
+          },
+          {
+            path: "/cost/manpower-cost/edit",
+            element: <AddManpowerPage />,
+          },
+          {
+            path: "/salary-cost",
+            element: <SalaryCostPage />,
+          },
+          {
+            path: "/salary-cost/add",
+            element: <AddSalaryPage />,
+          },
+          {
+            path: "/salary/add",
+            element: <AddSalaryPage />,
+          },
+          {
+            path: "/manpower-cost",
+            element: <ManpowerCostPage />,
+          },
+          {
+            path: "/manpower-cost/add",
+            element: <AddManpowerPage />,
+          },
+          {
+            path: "/manpower-cost/edit/:id?",
+            element: <AddManpowerPage />,
+          },
+          {
+            path: "/manpower-cost/edit",
+            element: <AddManpowerPage />,
+          },
+          {
+            path: "/manpower/add",
+            element: <AddManpowerPage />,
+          },
+          {
+            path: "/manpower/edit/:id?",
+            element: <AddManpowerPage />,
+          },
+          {
+            path: "/manpower/edit",
+            element: <AddManpowerPage />,
+          },
+          {
             path: "/expenses",
             element: <ExpensesPage />,
           },
@@ -347,6 +446,50 @@ export const routes: RouteObject[] = [
           {
             path: "/income",
             element: <IncomePage />,
+          },
+          {
+            path: "/invoices",
+            element: <InvoiceManagementPage />,
+          },
+          {
+            path: "/invoices/project-invoices",
+            element: <InvoiceManagementPage />,
+          },
+          {
+            path: "/project-invoices",
+            element: <InvoiceManagementPage />,
+          },
+          {
+            path: "/invoices/vendor-invoices",
+            element: <VendorInvoicesPage />,
+          },
+          {
+            path: "/vendor-invoices",
+            element: <VendorInvoicesPage />,
+          },
+          {
+            path: "/invoices/carrier-invoices",
+            element: <CarrierInvoicesPage />,
+          },
+          {
+            path: "/carrier-invoices",
+            element: <CarrierInvoicesPage />,
+          },
+          {
+            path: "/invoices/freight-invoices",
+            element: <CarrierInvoicesPage />,
+          },
+          {
+            path: "/freight-invoices",
+            element: <CarrierInvoicesPage />,
+          },
+          {
+            path: "/invoices/miscellaneous-invoices",
+            element: <MiscellaneousInvoicesPage />,
+          },
+          {
+            path: "/invoices/quotation-profit-loss",
+            element: <QuotationProfitLossPage />,
           },
           {
             path: "/labor_expenses",
