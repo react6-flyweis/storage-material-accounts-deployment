@@ -13,6 +13,11 @@ function getActiveNavFromPath(pathname: string) {
   NAV_ITEMS.forEach((tab, tabIndex) => {
     const isDirectMatch =
       tab.path === pathname ||
+      (tab.title === "Project Invoices" &&
+        (pathname === "/invoices/project-invoices" ||
+          pathname === "/project-invoices" ||
+          pathname === "/invoices" ||
+          pathname.startsWith("/invoices/project-invoices"))) ||
       (tab.title === "Tax & Filing" &&
         (pathname === "/sales-tax-filing" ||
           pathname === "/taxation" ||
@@ -31,6 +36,10 @@ function getActiveNavFromPath(pathname: string) {
           (pathname === sub.path ||
             pathname.startsWith(sub.path + "/") ||
             pathname.startsWith(sub.path))) ||
+        (sub.label === "Vendor Invoices" && pathname === "/invoices/vendor-invoices") ||
+        (sub.label === "Carrier Invoices" && pathname === "/invoices/carrier-invoices") ||
+        (sub.label === "Miscellaneous Inv" && pathname === "/invoices/miscellaneous-invoices") ||
+        (sub.label === "Quotation-wise Profit / Loss" && pathname === "/invoices/quotation-profit-loss") ||
         (sub.label === "State Wise Tax" && pathname === "/payments/state-wise-tax") ||
         (sub.label === "Project Wise Tax" && pathname === "/payments/project-wise-tax");
 
@@ -61,10 +70,10 @@ export function MainLayout() {
   // 🔹 Main tab click
   const handleTabChange = (index: number) => {
     const tab = NAV_ITEMS[index];
-    if (tab.items?.length) {
-      navigate(tab.items[0].path);
-    } else if (tab.path) {
+    if (tab.path) {
       navigate(tab.path);
+    } else if (tab.items?.length) {
+      navigate(tab.items[0].path);
     }
   };
 
