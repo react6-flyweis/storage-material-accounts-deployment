@@ -34,25 +34,29 @@ const BANK_ACCOUNTS = [
   "Bank of America Capital A/C (****1204)",
 ];
 
-export function RecordPaymentModal({
-  isOpen,
+interface RecordPaymentFormProps {
+  onClose: () => void;
+  invoice: PayableInvoiceEntry;
+  onConfirmPayment: RecordPaymentModalProps["onConfirmPayment"];
+}
+
+function RecordPaymentForm({
   onClose,
   invoice,
   onConfirmPayment,
-}: RecordPaymentModalProps) {
+}: RecordPaymentFormProps) {
   const [paymentAmount, setPaymentAmount] = useState<string>(
-    String(invoice.amount),
+    String(invoice.amount)
   );
   const [paymentDate, setPaymentDate] = useState(
-    () => new Date().toISOString().split("T")[0],
+    () => new Date().toISOString().split("T")[0]
   );
   const [paymentMethod, setPaymentMethod] = useState(PAYMENT_METHODS[0]);
   const [referenceNumber, setReferenceNumber] = useState(
-    `TXN-${Math.floor(100000 + Math.random() * 900000)}`,
+    () => `TXN-${Date.now().toString().slice(-6)}`
   );
   const [bankAccount, setBankAccount] = useState(BANK_ACCOUNTS[0]);
   const [notes, setNotes] = useState("");
-  if (!isOpen || !invoice) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -242,6 +246,23 @@ export function RecordPaymentModal({
         </form>
       </div>
     </div>
+  );
+}
+
+export function RecordPaymentModal({
+  isOpen,
+  onClose,
+  invoice,
+  onConfirmPayment,
+}: RecordPaymentModalProps) {
+  if (!isOpen || !invoice) return null;
+
+  return (
+    <RecordPaymentForm
+      onClose={onClose}
+      invoice={invoice}
+      onConfirmPayment={onConfirmPayment}
+    />
   );
 }
 
