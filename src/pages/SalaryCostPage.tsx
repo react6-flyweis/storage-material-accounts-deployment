@@ -31,7 +31,8 @@ const INITIAL_SALARY_DATA: SalaryEntry[] = [
     empId: "Emp-001",
     name: "Anthony Lewis",
     designation: "Finance",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80",
+    avatar:
+      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80",
     basicSalary: 40000,
     deductions: 1000,
     netSalary: 40000,
@@ -44,7 +45,8 @@ const INITIAL_SALARY_DATA: SalaryEntry[] = [
     empId: "Emp-002",
     name: "Brian Villalobos",
     designation: "Production",
-    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80",
+    avatar:
+      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80",
     basicSalary: 35000,
     deductions: 1000,
     netSalary: 35000,
@@ -57,7 +59,8 @@ const INITIAL_SALARY_DATA: SalaryEntry[] = [
     empId: "Emp-003",
     name: "Harvey Smith",
     designation: "Production",
-    avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&auto=format&fit=crop&q=80",
+    avatar:
+      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&auto=format&fit=crop&q=80",
     basicSalary: 20000,
     deductions: 1000,
     netSalary: 20000,
@@ -70,7 +73,8 @@ const INITIAL_SALARY_DATA: SalaryEntry[] = [
     empId: "Emp-004",
     name: "Stephan Peralt",
     designation: "Executive Officer",
-    avatar: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=100&auto=format&fit=crop&q=80",
+    avatar:
+      "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=100&auto=format&fit=crop&q=80",
     basicSalary: 22000,
     deductions: 1000,
     netSalary: 22000,
@@ -83,7 +87,8 @@ const INITIAL_SALARY_DATA: SalaryEntry[] = [
     empId: "Emp-005",
     name: "Doglas Martini",
     designation: "Manager",
-    avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=100&auto=format&fit=crop&q=80",
+    avatar:
+      "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=100&auto=format&fit=crop&q=80",
     basicSalary: 25000,
     deductions: 1000,
     netSalary: 25000,
@@ -96,7 +101,8 @@ const INITIAL_SALARY_DATA: SalaryEntry[] = [
     empId: "Emp-006",
     name: "Linda Ray",
     designation: "Finance",
-    avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=100&auto=format&fit=crop&q=80",
+    avatar:
+      "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=100&auto=format&fit=crop&q=80",
     basicSalary: 30000,
     deductions: 1000,
     netSalary: 30000,
@@ -109,7 +115,8 @@ const INITIAL_SALARY_DATA: SalaryEntry[] = [
     empId: "Emp-007",
     name: "Elliot Murray",
     designation: "Production",
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80",
+    avatar:
+      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80",
     basicSalary: 35000,
     deductions: 1000,
     netSalary: 35000,
@@ -122,7 +129,8 @@ const INITIAL_SALARY_DATA: SalaryEntry[] = [
     empId: "Emp-008",
     name: "Rebecca Smtih",
     designation: "Executive",
-    avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&auto=format&fit=crop&q=80",
+    avatar:
+      "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&auto=format&fit=crop&q=80",
     basicSalary: 45000,
     deductions: 1000,
     netSalary: 45000,
@@ -135,7 +143,8 @@ const INITIAL_SALARY_DATA: SalaryEntry[] = [
     empId: "Emp-009",
     name: "Connie Waters",
     designation: "Production",
-    avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=100&auto=format&fit=crop&q=80",
+    avatar:
+      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=100&auto=format&fit=crop&q=80",
     basicSalary: 50000,
     deductions: 1000,
     netSalary: 50000,
@@ -148,7 +157,8 @@ const INITIAL_SALARY_DATA: SalaryEntry[] = [
     empId: "Emp-010",
     name: "Lori Broaddus",
     designation: "Finance",
-    avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&auto=format&fit=crop&q=80",
+    avatar:
+      "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&auto=format&fit=crop&q=80",
     basicSalary: 25000,
     deductions: 1000,
     netSalary: 25000,
@@ -161,7 +171,8 @@ const INITIAL_SALARY_DATA: SalaryEntry[] = [
     empId: "Emp-011",
     name: "Lucas Scott",
     designation: "Production",
-    avatar: "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=100&auto=format&fit=crop&q=80",
+    avatar:
+      "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=100&auto=format&fit=crop&q=80",
     basicSalary: 32000,
     deductions: 1000,
     netSalary: 31000,
@@ -174,7 +185,8 @@ const INITIAL_SALARY_DATA: SalaryEntry[] = [
     empId: "Emp-012",
     name: "Sophia Martinez",
     designation: "Finance",
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80",
+    avatar:
+      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80",
     basicSalary: 42000,
     deductions: 1500,
     netSalary: 40500,
@@ -187,7 +199,8 @@ const INITIAL_SALARY_DATA: SalaryEntry[] = [
     empId: "Emp-013",
     name: "James Wilson",
     designation: "Executive Officer",
-    avatar: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=100&auto=format&fit=crop&q=80",
+    avatar:
+      "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=100&auto=format&fit=crop&q=80",
     basicSalary: 48000,
     deductions: 2000,
     netSalary: 46000,
@@ -200,7 +213,8 @@ const INITIAL_SALARY_DATA: SalaryEntry[] = [
     empId: "Emp-014",
     name: "Emma Davis",
     designation: "Manager",
-    avatar: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=100&auto=format&fit=crop&q=80",
+    avatar:
+      "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=100&auto=format&fit=crop&q=80",
     basicSalary: 28000,
     deductions: 800,
     netSalary: 27200,
@@ -213,7 +227,8 @@ const INITIAL_SALARY_DATA: SalaryEntry[] = [
     empId: "Emp-015",
     name: "Oliver Brown",
     designation: "Executive",
-    avatar: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100&auto=format&fit=crop&q=80",
+    avatar:
+      "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100&auto=format&fit=crop&q=80",
     basicSalary: 36000,
     deductions: 1200,
     netSalary: 34800,
@@ -226,7 +241,8 @@ const INITIAL_SALARY_DATA: SalaryEntry[] = [
     empId: "Emp-016",
     name: "Ava Taylor",
     designation: "Finance",
-    avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&auto=format&fit=crop&q=80",
+    avatar:
+      "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&auto=format&fit=crop&q=80",
     basicSalary: 39000,
     deductions: 1100,
     netSalary: 37900,
@@ -249,11 +265,13 @@ export const SalaryCostPage: React.FC = () => {
         const parsed = JSON.parse(stored) as Record<string, unknown>[];
         const mapped: SalaryEntry[] = parsed.map((item, idx: number) => ({
           id: `custom-${idx}`,
-          empId: String(item.empId || `Emp-${String(idx + 20).padStart(3, "0")}`),
+          empId: String(
+            item.empId || `Emp-${String(idx + 20).padStart(3, "0")}`,
+          ),
           name: String(item.name || "Employee"),
           designation: String(item.designation || "Production"),
           avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(
-            String(item.name || "Employee")
+            String(item.name || "Employee"),
           )}&background=1D51A4&color=fff&size=100`,
           basicSalary: Number(item.basicSalary) || 40000,
           deductions: Number(item.deduction) || 1000,
@@ -284,7 +302,8 @@ export const SalaryCostPage: React.FC = () => {
 
   // Dialog states
   const [entryToDelete, setEntryToDelete] = useState<SalaryEntry | null>(null);
-  const [selectedDetailEntry, setSelectedDetailEntry] = useState<SalaryEntry | null>(null);
+  const [selectedDetailEntry, setSelectedDetailEntry] =
+    useState<SalaryEntry | null>(null);
   const [successDialogConfig, setSuccessDialogConfig] = useState<{
     isOpen: boolean;
     title: string;
@@ -309,8 +328,8 @@ export const SalaryCostPage: React.FC = () => {
   const handleMarkPaid = (entry: SalaryEntry) => {
     setData((prev) =>
       prev.map((item) =>
-        item.id === entry.id ? { ...item, status: "Paid" } : item
-      )
+        item.id === entry.id ? { ...item, status: "Paid" } : item,
+      ),
     );
 
     setSuccessDialogConfig({
@@ -361,14 +380,15 @@ export const SalaryCostPage: React.FC = () => {
         (item) =>
           item.empId.toLowerCase().includes(q) ||
           item.name.toLowerCase().includes(q) ||
-          item.designation.toLowerCase().includes(q)
+          item.designation.toLowerCase().includes(q),
       );
     }
 
     // Designation filter
     if (selectedDesignation !== "All") {
       result = result.filter(
-        (item) => item.designation.toLowerCase() === selectedDesignation.toLowerCase()
+        (item) =>
+          item.designation.toLowerCase() === selectedDesignation.toLowerCase(),
       );
     }
 
@@ -377,11 +397,11 @@ export const SalaryCostPage: React.FC = () => {
       result = result.filter((item) => item.basicSalary < 25000);
     } else if (selectedSalaryRange === "25k-35k") {
       result = result.filter(
-        (item) => item.basicSalary >= 25000 && item.basicSalary <= 35000
+        (item) => item.basicSalary >= 25000 && item.basicSalary <= 35000,
       );
     } else if (selectedSalaryRange === "35k-50k") {
       result = result.filter(
-        (item) => item.basicSalary > 35000 && item.basicSalary <= 50000
+        (item) => item.basicSalary > 35000 && item.basicSalary <= 50000,
       );
     } else if (selectedSalaryRange === "50k+") {
       result = result.filter((item) => item.basicSalary > 50000);
@@ -423,18 +443,24 @@ export const SalaryCostPage: React.FC = () => {
   const handleExport = (type: string) => {
     setIsExportMenuOpen(false);
     if (type === "csv") {
-      const headers = "Emp ID,Name,Designation,Basic Salary,Deductions,Net Salary,Status,Admin Approval,Date\n";
+      const headers =
+        "Emp ID,Name,Designation,Basic Salary,Deductions,Net Salary,Status,Admin Approval,Date\n";
       const rows = data
         .map(
           (d) =>
-            `"${d.empId}","${d.name}","${d.designation}",${d.basicSalary},${d.deductions},${d.netSalary},"${d.status}","${d.adminApproval}","${d.date}"`
+            `"${d.empId}","${d.name}","${d.designation}",${d.basicSalary},${d.deductions},${d.netSalary},"${d.status}","${d.adminApproval}","${d.date}"`,
         )
         .join("\n");
-      const blob = new Blob([headers + rows], { type: "text/csv;charset=utf-8;" });
+      const blob = new Blob([headers + rows], {
+        type: "text/csv;charset=utf-8;",
+      });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `Salary_Cost_${new Date().toISOString().slice(0, 10)}.csv`);
+      link.setAttribute(
+        "download",
+        `Salary_Cost_${new Date().toISOString().slice(0, 10)}.csv`,
+      );
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -442,13 +468,14 @@ export const SalaryCostPage: React.FC = () => {
       setSuccessDialogConfig({
         isOpen: true,
         title: `Export to ${type.toUpperCase()} Started`,
-        message: "Your export document is being processed and will download shortly.",
+        message:
+          "Your export document is being processed and will download shortly.",
       });
     }
   };
 
   return (
-    <div className="p-3 sm:p-5 lg:p-6 space-y-5 bg-[#EEF2FB] min-h-full">
+    <div className="space-y-5">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -460,7 +487,8 @@ export const SalaryCostPage: React.FC = () => {
           <div className="flex items-center gap-1.5 text-xs sm:text-sm text-slate-500 font-normal mt-1">
             <Home className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             <span>
-              Track employee salaries, payroll expenses, deductions, overtime, and monthly salary trends.
+              Track employee salaries, payroll expenses, deductions, overtime,
+              and monthly salary trends.
             </span>
           </div>
         </div>
@@ -777,7 +805,7 @@ export const SalaryCostPage: React.FC = () => {
                           alt={row.name}
                           onError={(e) => {
                             e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                              row.name
+                              row.name,
                             )}&background=1D51A4&color=fff&size=100`;
                           }}
                           className="w-8 h-8 rounded-full object-cover shrink-0 ring-1 ring-slate-100"
@@ -901,7 +929,8 @@ export const SalaryCostPage: React.FC = () => {
         <div className="px-4 sm:px-5 py-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-xs text-slate-500 font-normal">
             Showing {Math.min(1, totalEntries)} to{" "}
-            {Math.min(displayRows.length, totalEntries)} of {totalEntries} entries
+            {Math.min(displayRows.length, totalEntries)} of {totalEntries}{" "}
+            entries
           </div>
 
           {/* Pagination Controls */}
