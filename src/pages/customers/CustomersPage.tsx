@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Check, Eye, Search, UserPlus } from "lucide-react";
 import {
@@ -14,76 +14,7 @@ import { cn } from "@/lib/utils";
 import {
   useGetCustomerStatsQuery,
   useGetCustomersQuery,
-  type CustomerListItem,
 } from "@/redux/api/customerApi";
-
-// 8 fallback customer items matching the exact mockup image
-const FALLBACK_CUSTOMERS: CustomerListItem[] = [
-  {
-    _id: "67a1b2c3d4e5f67890123451",
-    customerId: "ID-2025-1047",
-    customerName: "John Doe",
-    phone: "+39 02 8945 2231",
-    email: "luca.moretti@eurobuild.it",
-    status: "Active",
-  },
-  {
-    _id: "67a1b2c3d4e5f67890123452",
-    customerId: "ID-2025-1047",
-    customerName: "John Doe",
-    phone: "+39 02 8945 2231",
-    email: "luca.moretti@eurobuild.it",
-    status: "Active",
-  },
-  {
-    _id: "67a1b2c3d4e5f67890123453",
-    customerId: "ID-2025-1047",
-    customerName: "John Doe",
-    phone: "+39 02 8945 2231",
-    email: "luca.moretti@eurobuild.it",
-    status: "Active",
-  },
-  {
-    _id: "67a1b2c3d4e5f67890123454",
-    customerId: "ID-2025-1047",
-    customerName: "John Doe",
-    phone: "+39 02 8945 2231",
-    email: "luca.moretti@eurobuild.it",
-    status: "Active",
-  },
-  {
-    _id: "67a1b2c3d4e5f67890123455",
-    customerId: "ID-2025-1047",
-    customerName: "John Doe",
-    phone: "+39 02 8945 2231",
-    email: "luca.moretti@eurobuild.it",
-    status: "Active",
-  },
-  {
-    _id: "67a1b2c3d4e5f67890123456",
-    customerId: "ID-2025-1047",
-    customerName: "John Doe",
-    phone: "+39 02 8945 2231",
-    email: "luca.moretti@eurobuild.it",
-    status: "Active",
-  },
-  {
-    _id: "67a1b2c3d4e5f67890123457",
-    customerId: "ID-2025-1047",
-    customerName: "John Doe",
-    phone: "+39 02 8945 2231",
-    email: "luca.moretti@eurobuild.it",
-    status: "Active",
-  },
-  {
-    _id: "67a1b2c3d4e5f67890123458",
-    customerId: "ID-2025-1047",
-    customerName: "John Doe",
-    phone: "+39 02 8945 2231",
-    email: "luca.moretti@eurobuild.it",
-    status: "Active",
-  },
-];
 
 export default function CustomersPage() {
   const navigate = useNavigate();
@@ -113,29 +44,8 @@ export default function CustomersPage() {
       limit,
     });
 
-  const rawCustomers = customerListData?.customers?.length
-    ? customerListData.customers
-    : FALLBACK_CUSTOMERS;
-
-  const totalCount = customerListData?.total || rawCustomers.length;
-
-  // Filter customers by search term
-  const filteredCustomers = useMemo(() => {
-    if (!debouncedSearch.trim()) return rawCustomers;
-    const term = debouncedSearch.toLowerCase().trim();
-    return rawCustomers.filter((customer) => {
-      const name = customer.customerName?.toLowerCase() || "";
-      const id = customer.customerId?.toLowerCase() || "";
-      const email = customer.email?.toLowerCase() || "";
-      const phone = customer.phone?.toLowerCase() || "";
-      return (
-        name.includes(term) ||
-        id.includes(term) ||
-        email.includes(term) ||
-        phone.includes(term)
-      );
-    });
-  }, [rawCustomers, debouncedSearch]);
+  const totalCount = customerListData?.total || 0;
+  const customers = customerListData?.customers || [];
 
   const statCards = [
     {
@@ -170,7 +80,7 @@ export default function CustomersPage() {
   ];
 
   return (
-    <div className="p-6 lg:p-8 space-y-6">
+    <div className="space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-3xl font-semibold text-slate-900 tracking-tight">
@@ -190,11 +100,13 @@ export default function CustomersPage() {
               key={card.title}
               className={cn(
                 "rounded-xl p-5 text-white flex items-center justify-between shadow-xs transition-transform hover:scale-[1.01]",
-                card.bg
+                card.bg,
               )}
             >
               <div>
-                <p className="text-sm font-normal text-white/90">{card.title}</p>
+                <p className="text-sm font-normal text-white/90">
+                  {card.title}
+                </p>
                 <p className="text-3xl font-bold text-white mt-1.5 tracking-tight">
                   {card.value}
                 </p>
@@ -271,7 +183,7 @@ export default function CustomersPage() {
                     </TableCell>
                   </TableRow>
                 ))
-              ) : filteredCustomers.length === 0 ? (
+              ) : customers.length === 0 ? (
                 <TableRow className="border-0">
                   <TableCell
                     colSpan={5}
@@ -281,11 +193,11 @@ export default function CustomersPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredCustomers.map((customer, index) => {
+                customers?.map((customer) => {
                   const targetId = customer.customerId || customer._id;
                   return (
                     <TableRow
-                      key={customer._id || `${targetId}-${index}`}
+                      key={customer._id}
                       className="border-b border-slate-100/90 last:border-b-0 even:bg-[#FAFAFB]/60 hover:bg-slate-50/80 transition-colors cursor-pointer"
                       onClick={() => navigate(`/customers/${targetId}`)}
                     >
