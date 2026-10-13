@@ -21,20 +21,35 @@ import StatCard from "@/components/ui/stat-card";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import FilterTabs from "@/components/common_components/FilterTabs";
+import FilterTabs, {
+  type Period,
+  type DateRange,
+  getPeriodRange,
+} from "@/components/FilterTabs";
 import { useState, useMemo } from "react";
 import { useGetDashboardOverviewQuery } from "@/redux/api/dashboardApi";
-import { getDateRangeForTab, formatCurrency } from "@/lib/dashboardFormatters";
+import { formatDateToIso, formatCurrency } from "@/lib/dashboardFormatters";
 import { cn } from "@/lib/utils";
 
 export type TabType = "today" | "week" | "month";
 
 const FinancePage = () => {
-  const [activeTab, setActiveTab] = useState<TabType>("today");
+  const [selectedRange, setSelectedRange] = useState<DateRange>(() =>
+    getPeriodRange("week")
+  );
   const [isInvoiceOpen, setIsInvoiceOpen] = useState(true);
 
   // Compute inclusive startDate & endDate for API query
-  const dateRange = useMemo(() => getDateRangeForTab(activeTab), [activeTab]);
+  const dateRange = useMemo(() => {
+    return {
+      startDate: selectedRange.startDate
+        ? formatDateToIso(selectedRange.startDate)
+        : undefined,
+      endDate: selectedRange.endDate
+        ? formatDateToIso(selectedRange.endDate)
+        : undefined,
+    };
+  }, [selectedRange]);
 
   // Single-load overview pattern (Option A from Figma alignment spec)
   const {
@@ -59,28 +74,52 @@ const FinancePage = () => {
       {
         title: "Total Revenue",
         value: formatCurrency(fo?.totalRevenue ?? 0),
-        icon: <img src={StorageIcon} alt="total-revenue" className="md:size-7 size-5 p-1" />,
+        icon: (
+          <img
+            src={StorageIcon}
+            alt="total-revenue"
+            className="md:size-7 size-5 p-1"
+          />
+        ),
         color: "bg-[#1D51A4]",
         navigateTo: "/income",
       },
       {
         title: "Total Expenses",
         value: formatCurrency(fo?.totalExpenses ?? 0),
-        icon: <img src={MoneyIcon} alt="total-expenses" className="md:size-7 size-5 p-1" />,
+        icon: (
+          <img
+            src={MoneyIcon}
+            alt="total-expenses"
+            className="md:size-7 size-5 p-1"
+          />
+        ),
         color: "bg-[#3AB449]",
         navigateTo: "/expenses",
       },
       {
         title: "Net Profit",
         value: formatCurrency(fo?.netProfit ?? 0),
-        icon: <img src={ChartLineIcon} alt="net-profit" className="md:size-7 size-5 p-1" />,
+        icon: (
+          <img
+            src={ChartLineIcon}
+            alt="net-profit"
+            className="md:size-7 size-5 p-1"
+          />
+        ),
         color: "bg-[#F59E0B]",
         navigateTo: "/wip_profit",
       },
       {
         title: "Outstanding Payments",
         value: formatCurrency(fo?.outstandingPayments ?? fo?.outstanding ?? 0),
-        icon: <img src={Clock} alt="outstanding-payments" className="md:size-7 size-5 p-1" />,
+        icon: (
+          <img
+            src={Clock}
+            alt="outstanding-payments"
+            className="md:size-7 size-5 p-1"
+          />
+        ),
         color: "bg-[#FD8D5B]",
         navigateTo: "/payment_overview",
       },
@@ -88,8 +127,15 @@ const FinancePage = () => {
   }, [overview]);
 
   return (
-    <div className="xl:px-0 px-2 pb-10 space-y-6">
-      <FilterTabs activeTab={activeTab} onChange={setActiveTab} />
+    <div className="space-y-6">
+      <div className="-mt-4 -mx-4">
+        <FilterTabs
+          initialPeriod="week"
+          onPeriodChange={(_period: Period, range: DateRange) =>
+            setSelectedRange(range)
+          }
+        />
+      </div>
       <TitleSubtitle
         title="Financial Overview"
         subtitle="Monitor your business financial performance and key metrics"
@@ -97,33 +143,31 @@ const FinancePage = () => {
 
       {/* Top 4 Stat Cards */}
       <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
-        {isLoading ? (
-          Array.from({ length: 4 }).map((_, idx) => (
-            <Card
-              key={idx}
-              className="sm:p-5 px-3 py-4 rounded-md bg-white border border-gray-100 shadow-none"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex flex-col gap-2 flex-1">
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-7 w-28" />
+        {isLoading
+          ? Array.from({ length: 4 }).map((_, idx) => (
+              <Card
+                key={idx}
+                className="sm:p-5 px-3 py-4 rounded-md bg-white border border-gray-100 shadow-none"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-2 flex-1">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-7 w-28" />
+                  </div>
+                  <Skeleton className="w-10 h-10 rounded-md shrink-0" />
                 </div>
-                <Skeleton className="w-10 h-10 rounded-md shrink-0" />
-              </div>
-            </Card>
-          ))
-        ) : (
-          statsCards.map((stat, index) => (
-            <StatCard
-              key={index}
-              title={stat.title}
-              value={stat.value}
-              icon={stat.icon}
-              color={stat.color}
-              navigateTo={stat.navigateTo}
-            />
-          ))
-        )}
+              </Card>
+            ))
+          : statsCards.map((stat, index) => (
+              <StatCard
+                key={index}
+                title={stat.title}
+                value={stat.value}
+                icon={stat.icon}
+                color={stat.color}
+                navigateTo={stat.navigateTo}
+              />
+            ))}
       </div>
 
       {/* Invoice Report Section */}
@@ -140,7 +184,10 @@ const FinancePage = () => {
             title="Refresh Dashboard"
           >
             <RefreshCcw
-              className={cn("h-4 w-4 text-gray-500", isFetching && "animate-spin")}
+              className={cn(
+                "h-4 w-4 text-gray-500",
+                isFetching && "animate-spin",
+              )}
             />
           </Button>
           <Button
@@ -216,10 +263,7 @@ const FinancePage = () => {
           transactions={overview?.recentTransactions}
           isLoading={isLoading}
         />
-        <AlertNotification
-          alerts={overview?.alerts}
-          isLoading={isLoading}
-        />
+        <AlertNotification alerts={overview?.alerts} isLoading={isLoading} />
       </div>
 
       {/* Top Partners: Carriers & Vendors */}

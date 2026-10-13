@@ -12,8 +12,7 @@ const periodLabels: Record<Exclude<Period, undefined>, string> = {
   quarter: "This Quarter",
 };
 
-const getPeriodLabel = (period: Period) =>
-  period ? periodLabels[period] : "All Time";
+const getPeriodLabel = (period: Period) => (period ? periodLabels[period] : "All Time");
 
 type Props = {
   initialPeriod?: Period;
@@ -48,7 +47,7 @@ export const getPeriodRange = (period?: Period) => {
   };
 };
 
-export default function FilterTabs({ initialPeriod = "month", onPeriodChange }: Props) {
+export default function FilterTabs({ initialPeriod, onPeriodChange }: Props) {
   const [period, setPeriod] = useState<Period>(initialPeriod);
 
   const handleChange = (p: Period) => {
@@ -62,13 +61,11 @@ export default function FilterTabs({ initialPeriod = "month", onPeriodChange }: 
 
   const button = (p: Period, bg: string, z: string) => (
     <button
-      type="button"
       onClick={() => handleChange(p)}
-      className={`relative w-44 sm:w-64 px-4 sm:px-8 font-medium -ml-7.5 ${z} ${bg} text-xs sm:text-sm cursor-pointer transition-all ${
-        period === p
-          ? "ring-2 ring-white/60 text-black font-semibold"
-          : "text-white opacity-80 hover:opacity-100"
-      }`}
+      className={`relative w-64 px-8 font-medium -ml-7.5 ${z} ${bg} ${period === p
+        ? "ring-2 ring-white/40 text-black"
+        : "text-white opacity-60"
+        }`}
       style={{
         clipPath: "polygon(0 0, calc(100% - 30px) 0, 100% 100%, 30px 100%)",
       }}
@@ -78,15 +75,13 @@ export default function FilterTabs({ initialPeriod = "month", onPeriodChange }: 
   );
 
   return (
-    <div className="relative flex h-10 bg-[#89D5DC] overflow-hidden rounded-t-sm shadow-xs">
+    <div className="relative flex h-10 bg-[#89D5DC] overflow-hidden">
       <button
-        type="button"
         onClick={() => handleChange("week")}
-        className={`relative w-44 sm:w-64 px-4 sm:px-8 font-medium z-40 bg-[#89D5DC] text-xs sm:text-sm cursor-pointer transition-all ${
-          period === "week"
-            ? "ring-2 ring-white/60 text-black font-semibold"
-            : "text-white opacity-80 hover:opacity-100"
-        }`}
+        className={`relative w-64 px-8 font-medium z-40 bg-[#89D5DC] ${period === "week"
+          ? "ring-2 ring-white/40 text-black"
+          : "text-white opacity-60"
+          }`}
         style={{
           clipPath: "polygon(0 0, calc(100% - 30px) 0, 100% 100%, 0 100%)",
         }}

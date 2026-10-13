@@ -29,144 +29,91 @@ import PaymentApprovalDetailsModal, {
   type ApprovalStatus,
   type InvoiceType,
 } from "@/components/modals/PaymentApprovalDetailsModal";
+import {
+  useGetPaymentApprovalsQuery,
+  type PaymentApprovalApiItem,
+} from "@/redux/api/paymentApprovalsApi";
 
-const initialApprovalItems: PaymentApprovalItem[] = [
-  {
-    id: "1",
-    invoiceType: "Carrier",
-    companyName: "FastTruck Logistics",
-    invoiceNumber: "INV-2024-0345",
-    project: "Downtown Plaza",
-    amount: "$4500",
-    rawAmount: 4500,
-    dueDate: "April 1, 2026",
-    linkedTo: "Load: LD-0789",
-    status: "Pending",
+// ─── Field mappers ────────────────────────────────────────────────────────────
+
+// API status codes → UI label
+const STATUS_LABEL_MAP: Record<string, ApprovalStatus> = {
+  pending: "Pending",
+  under_review: "Under Review",
+  approved: "Approved",
+  disputed: "Disputed",
+  paid: "Paid",
+};
+
+// API invoiceTypeCode → UI label
+const TYPE_LABEL_MAP: Record<string, InvoiceType> = {
+  carrier: "Carrier",
+  delivery_company: "Delivery Company",
+  vendor: "Vendor",
+};
+
+// UI filter value → API status param
+const UI_TO_API_STATUS: Record<string, string> = {
+  Pending: "pending",
+  "Under Review": "under_review",
+  Approved: "approved",
+  Disputed: "disputed",
+  Paid: "paid",
+};
+
+// UI filter value → API payeeType param
+const UI_TO_API_TYPE: Record<string, string> = {
+  Carrier: "carrier",
+  "Delivery Company": "delivery_company",
+  Vendor: "vendor",
+};
+
+function mapApiItemToUi(item: PaymentApprovalApiItem): PaymentApprovalItem {
+  const status: ApprovalStatus =
+    STATUS_LABEL_MAP[item.status?.toLowerCase()] ??
+    (item.statusLabel as ApprovalStatus) ??
+    "Pending";
+
+  const invoiceType: InvoiceType =
+    TYPE_LABEL_MAP[item.invoiceTypeCode?.toLowerCase()] ??
+    (item.invoiceType as InvoiceType) ??
+    "Vendor";
+
+  const formatted = item.dueDate
+    ? new Intl.DateTimeFormat("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }).format(new Date(item.dueDate))
+    : "";
+
+  return {
+    id: item.approvalId,
+    invoiceType,
+    companyName: item.companyName,
+    invoiceNumber: item.invoiceNumber,
+    project: item.project?.projectName ?? "",
+    amount: `$${item.amount?.toLocaleString()}`,
+    rawAmount: item.amount,
+    dueDate: formatted,
+    linkedTo: item.linkedTo,
+    status,
     priority: "Medium",
-    deliveryDate: "Wednesday, March 25, 2026",
-    deliveryId: "DEL-1001",
-    baseFreight: "$4000",
-    fuelSurcharge: "$300",
-    handlingFee: "$200",
-    freightRequestId: "Freight Request ID",
-    loadId: "LD-09876",
-    linkedDeliveryId: "DEL-9876",
-    route: "Austin → Houston",
-  },
-  {
-    id: "2",
-    invoiceType: "Delivery Company",
-    companyName: "Swift Delivery Solutions",
-    invoiceNumber: "INV-2024-0346",
-    project: "Riverside Complex",
-    amount: "$2800",
-    rawAmount: 2800,
-    dueDate: "April 18, 2026",
-    linkedTo: "Delivery: DEL-1235",
-    status: "Under Review",
-    priority: "High",
-    deliveryDate: "Monday, April 14, 2026",
-    deliveryId: "DEL-1002",
-    baseFreight: "$2400",
-    fuelSurcharge: "$250",
-    handlingFee: "$150",
-    freightRequestId: "FR-2024-0891",
-    loadId: "LD-09877",
-    linkedDeliveryId: "DEL-1235",
-    route: "Dallas → Fort Worth",
-  },
-  {
-    id: "3",
-    invoiceType: "Vendor",
-    companyName: "ABC Concrete Suppliers",
-    invoiceNumber: "INV-2024-0347",
-    project: "Tech Park Development",
-    amount: "$15000",
-    rawAmount: 15000,
-    dueDate: "April 20, 2026",
-    linkedTo: "Delivery: DEL-1236",
-    status: "Pending",
-    priority: "High",
-    deliveryDate: "Thursday, April 16, 2026",
-    deliveryId: "DEL-1003",
-    baseFreight: "$13500",
-    fuelSurcharge: "$1000",
-    handlingFee: "$500",
-    freightRequestId: "FR-2024-0892",
-    loadId: "LD-09878",
-    linkedDeliveryId: "DEL-1236",
-    route: "San Antonio → Austin",
-  },
-  {
-    id: "4",
-    invoiceType: "Carrier",
-    companyName: "QuickHaul Transport",
-    invoiceNumber: "INV-2024-0348",
-    project: "Medical Center Expansion",
-    amount: "$7200",
-    rawAmount: 7200,
-    dueDate: "April 22, 2026",
-    linkedTo: "Load: LD-0792",
-    status: "Disputed",
-    priority: "Low",
-    deliveryDate: "Saturday, April 18, 2026",
-    deliveryId: "DEL-1004",
-    baseFreight: "$6500",
-    fuelSurcharge: "$450",
-    handlingFee: "$250",
-    freightRequestId: "FR-2024-0893",
-    loadId: "LD-0792",
-    linkedDeliveryId: "DEL-9880",
-    route: "El Paso → Lubbock",
-  },
-  {
-    id: "5",
-    invoiceType: "Vendor",
-    companyName: "Elite Steel Supply",
-    invoiceNumber: "INV-2024-0349",
-    project: "Green Valley Homes",
-    amount: "$28500",
-    rawAmount: 28500,
-    dueDate: "April 25, 2026",
-    linkedTo: "Delivery: DEL-1238",
-    status: "Approved",
-    priority: "Medium",
-    deliveryDate: "Tuesday, April 21, 2026",
-    deliveryId: "DEL-1005",
-    baseFreight: "$26000",
-    fuelSurcharge: "$1800",
-    handlingFee: "$700",
-    freightRequestId: "FR-2024-0894",
-    loadId: "LD-09881",
-    linkedDeliveryId: "DEL-1238",
-    route: "Houston → San Antonio",
-  },
-  {
-    id: "6",
-    invoiceType: "Delivery Company",
-    companyName: "ProLogistics Inc",
-    invoiceNumber: "INV-2024-0350",
-    project: "Downtown Plaza",
-    amount: "$3200",
-    rawAmount: 3200,
-    dueDate: "April 28, 2026",
-    linkedTo: "Delivery: DEL-1239",
-    status: "Under Review",
-    priority: "Medium",
-    deliveryDate: "Friday, April 24, 2026",
-    deliveryId: "DEL-1006",
-    baseFreight: "$2800",
-    fuelSurcharge: "$250",
-    handlingFee: "$150",
-    freightRequestId: "FR-2024-0895",
-    loadId: "LD-09882",
-    linkedDeliveryId: "DEL-1239",
-    route: "Austin → Waco",
-  },
-];
+    deliveryDate: "",
+    deliveryId: "",
+    baseFreight: "",
+    fuelSurcharge: "",
+    handlingFee: "",
+    freightRequestId: "",
+    loadId: "",
+    linkedDeliveryId: item.linkedId ?? "",
+    route: "",
+  };
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 const PaymentApprovalsPage = () => {
-  const [items, setItems] = useState<PaymentApprovalItem[]>(initialApprovalItems);
   const [searchQuery, setSearchQuery] = useState("");
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>("All");
   const [typeFilter, setTypeFilter] = useState<string>("All");
@@ -177,48 +124,33 @@ const PaymentApprovalsPage = () => {
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [successModalTitle, setSuccessModalTitle] = useState("");
 
-  // Counts for the 4 stat cards
-  const pendingCount = items.filter((item) => item.status === "Pending").length;
-  const underReviewCount = items.filter((item) => item.status === "Under Review").length;
-  const approvedCount = items.filter((item) => item.status === "Approved").length;
-  const disputedCount = items.filter((item) => item.status === "Disputed").length;
+  // B2 – Approval queue (also embeds stats)
+  const { data: listData, isLoading, isError } = useGetPaymentApprovalsQuery({
+    search: searchQuery.trim() || undefined,
+    status: paymentStatusFilter !== "All" ? UI_TO_API_STATUS[paymentStatusFilter] : undefined,
+    payeeType: typeFilter !== "All" ? UI_TO_API_TYPE[typeFilter] : undefined,
+    project: projectFilter !== "All" ? projectFilter : undefined,
+  });
 
-  const filteredItems = useMemo(() => {
-    return items.filter((item) => {
-      const query = searchQuery.trim().toLowerCase();
-      const matchesSearch =
-        query === "" ||
-        item.companyName.toLowerCase().includes(query) ||
-        item.invoiceNumber.toLowerCase().includes(query) ||
-        item.project.toLowerCase().includes(query) ||
-        item.linkedTo.toLowerCase().includes(query) ||
-        item.amount.toLowerCase().includes(query);
+  // Stats from B2 response (falls back to zeros while loading)
+  const stats = listData?.stats ?? {
+    pendingApproval: 0,
+    underReview: 0,
+    approved: 0,
+    disputed: 0,
+  };
 
-      const matchesPaymentStatus =
-        paymentStatusFilter === "All" ||
-        item.status.toLowerCase() === paymentStatusFilter.toLowerCase();
-
-      const matchesType =
-        typeFilter === "All" ||
-        item.invoiceType.toLowerCase() === typeFilter.toLowerCase();
-
-      const matchesProject =
-        projectFilter === "All" ||
-        item.project.toLowerCase() === projectFilter.toLowerCase();
-
-      return matchesSearch && matchesPaymentStatus && matchesType && matchesProject;
-    });
-  }, [items, searchQuery, paymentStatusFilter, typeFilter, projectFilter]);
+  const uiItems: PaymentApprovalItem[] = useMemo(
+    () => (listData?.approvals ?? []).map(mapApiItemToUi),
+    [listData]
+  );
 
   const handleOpenDetail = (item: PaymentApprovalItem) => {
     setSelectedItem(item);
     setIsDetailModalOpen(true);
   };
 
-  const handleStatusChange = (id: string, newStatus: ApprovalStatus) => {
-    setItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, status: newStatus } : item))
-    );
+  const handleStatusChange = (_id: string, newStatus: ApprovalStatus) => {
     setIsDetailModalOpen(false);
     setSuccessModalTitle(`Status Updated to ${newStatus}`);
     setIsSuccessModalOpen(true);
@@ -301,7 +233,7 @@ const PaymentApprovalsPage = () => {
       <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
         <StatCard
           title="Pending Approval"
-          value={pendingCount}
+          value={stats.pendingApproval}
           icon={<Clock className="md:size-5 size-4 text-[#FF5700]" />}
           color="bg-[#FF5700]"
           onClick={() =>
@@ -317,7 +249,7 @@ const PaymentApprovalsPage = () => {
 
         <StatCard
           title="Under Review"
-          value={underReviewCount}
+          value={stats.underReview}
           icon={<AlertCircle className="md:size-5 size-4 text-[#2563EB]" />}
           color="bg-[#2563EB]"
           onClick={() =>
@@ -333,7 +265,7 @@ const PaymentApprovalsPage = () => {
 
         <StatCard
           title="Approved"
-          value={approvedCount}
+          value={stats.approved}
           icon={<Check className="md:size-5 size-4 text-[#00B948] stroke-3" />}
           color="bg-[#00B948]"
           onClick={() =>
@@ -349,7 +281,7 @@ const PaymentApprovalsPage = () => {
 
         <StatCard
           title="Disputed"
-          value={disputedCount}
+          value={stats.disputed}
           icon={<X className="md:size-5 size-4 text-[#EF1428] stroke-3" />}
           color="bg-[#EF1428]"
           onClick={() =>
@@ -397,7 +329,7 @@ const PaymentApprovalsPage = () => {
             </SelectContent>
           </Select>
 
-          {/* Status (Type) Dropdown */}
+          {/* Payee Type Dropdown */}
           <Select value={typeFilter} onValueChange={setTypeFilter}>
             <SelectTrigger className="w-full sm:w-35 h-10 text-sm text-gray-700 bg-[#F3F4F6] border-none rounded-xl px-3.5 focus:ring-1 focus:ring-blue-500 shadow-none cursor-pointer">
               <SelectValue placeholder="Status">
@@ -475,7 +407,7 @@ const PaymentApprovalsPage = () => {
             Payment Approval Queue
           </h2>
           <span className="bg-gray-100 text-gray-600 text-xs px-2.5 py-0.5 rounded-full font-medium border border-gray-200">
-            {filteredItems.length} items
+            {listData?.total ?? uiItems.length} items
           </span>
         </div>
 
@@ -496,14 +428,26 @@ const PaymentApprovalsPage = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 text-sm">
-              {filteredItems.length === 0 ? (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={9} className="py-8 text-center text-gray-400 text-sm">
+                    Loading…
+                  </td>
+                </tr>
+              ) : isError ? (
+                <tr>
+                  <td colSpan={9} className="py-8 text-center text-red-400 text-sm">
+                    Failed to load payment approvals. Please try again.
+                  </td>
+                </tr>
+              ) : uiItems.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="py-8 text-center text-gray-400 text-sm">
                     No payment requests match the current filters.
                   </td>
                 </tr>
               ) : (
-                filteredItems.map((item) => (
+                uiItems.map((item) => (
                   <tr
                     key={item.id}
                     className="hover:bg-gray-50/50 transition-colors"

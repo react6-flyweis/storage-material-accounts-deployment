@@ -1,785 +1,773 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import {
-  Download,
   Upload,
-  Eye,
-  FileText,
-  DollarSign,
-  CheckCircle2,
+  Search,
+  Calendar,
+  Filter,
+  ArrowUpDown,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  Eye,
+  Download,
 } from "lucide-react";
-import PayableStatCards, {
-  type PayableStatsData,
-} from "@/components/invoices/PayableStatCards";
-import PayableFilters from "@/components/invoices/PayableFilters";
-import PayableStatusBadge from "@/components/invoices/PayableStatusBadge";
-import ManualPayableUploadDialog, {
-  type PayableInvoiceEntry,
-} from "@/components/invoices/ManualPayableUploadDialog";
-import RecordPaymentModal from "@/components/invoices/RecordPaymentModal";
-import PayableDetailModal from "@/components/invoices/PayableDetailModal";
+import { CalendarRangePickerModal } from "@/components/common_components/CalendarRangePickerModal";
+import { InvoiceStatsCards } from "@/components/invoices/InvoiceStatsCards";
+import {
+  UploadInvoiceDialog,
+  type NewInvoiceData,
+} from "@/components/invoices/UploadInvoiceDialog";
 import SuccessModal from "@/components/common_components/SuccessModal";
-import type { DateRange } from "@/components/ui/date-range-filter";
 
-const INITIAL_VENDOR_INVOICES: PayableInvoiceEntry[] = [
+export interface VendorInvoiceItem {
+  id: string;
+  invoiceNumber: string;
+  vendorName: string;
+  project: string;
+  amount: number;
+  amountFormatted: string;
+  dueDate: string;
+  verificationStatus: "Verified" | "Pending";
+  paymentStatus: "Pending" | "Completed";
+}
+
+const DEFAULT_VENDOR_INVOICES: VendorInvoiceItem[] = [
   {
     id: "vnd-1",
-    invoiceNumber: "VND-4091",
-    type: "vendor",
-    payeeName: "Jindal Steel Pvt Ltd",
-    project: "ABC Logistic Warehouse",
-    jobId: "JOB-2025-01",
-    amount: 24500,
-    date: "2025-02-15",
-    dueDate: "2025-03-15",
-    payableStatus: "pending_admin_approval",
+    invoiceNumber: "INC00025",
+    vendorName: "Steel Supplier Ltd",
+    project: "ABC Warehouse",
+    amount: 10000,
+    amountFormatted: "$10,000",
+    dueDate: "22 Feb 2025",
+    verificationStatus: "Verified",
     paymentStatus: "Pending",
-    category: "Raw Steel Beams",
-    documentUrl:
-      "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-    notes: "Structural raw material delivery batch 1",
   },
   {
     id: "vnd-2",
-    invoiceNumber: "VND-4092",
-    type: "vendor",
-    payeeName: "Tata Steel Corp",
-    project: "SMDT Warehouse Expansion",
-    jobId: "JOB-2025-02",
-    amount: 48200,
-    date: "2025-02-10",
-    dueDate: "2025-03-10",
-    payableStatus: "paid",
-    paymentStatus: "Paid",
-    category: "Fabricated Columns",
-    documentUrl:
-      "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-    notes: "Main columns and truss steel supply",
-    paymentDetails: {
-      paidAt: "2025-02-28",
-      method: "Wire Transfer",
-      referenceNumber: "TXN-884912",
-      notes: "Settled against milestone 2",
-    },
+    invoiceNumber: "INC00024",
+    vendorName: "Concrete Solutions",
+    project: "Industrial Park",
+    amount: 25750,
+    amountFormatted: "$25,750",
+    dueDate: "07 Feb 2025",
+    verificationStatus: "Verified",
+    paymentStatus: "Pending",
   },
   {
     id: "vnd-3",
-    invoiceNumber: "VND-4093",
-    type: "vendor",
-    payeeName: "Apex Fasteners & Fittings",
-    project: "Steel Unit Complex",
-    jobId: "JOB-2025-03",
-    amount: 9800,
-    date: "2025-02-02",
-    dueDate: "2025-03-02",
-    payableStatus: "approved_for_payment",
-    paymentStatus: "Pending",
-    category: "Hardware & Anchors",
-    documentUrl:
-      "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-    notes: "High strength grade 8.8 bolts",
+    invoiceNumber: "INC00023",
+    vendorName: "Electrical Systems",
+    project: "Office Complex",
+    amount: 50125,
+    amountFormatted: "$50,125",
+    dueDate: "30 Jan 2025",
+    verificationStatus: "Verified",
+    paymentStatus: "Completed",
   },
   {
     id: "vnd-4",
-    invoiceNumber: "VND-4094",
-    type: "vendor",
-    payeeName: "ABC Concrete Suppliers",
-    project: "Industrial Storage Shed",
-    jobId: "JOB-2025-04",
-    amount: 15000,
-    date: "2025-01-28",
-    dueDate: "2025-02-28",
-    payableStatus: "pending_admin_approval",
+    invoiceNumber: "INC00022",
+    vendorName: "Steel Supplier Ltd",
+    project: "ABC Warehouse",
+    amount: 75900,
+    amountFormatted: "$75,900",
+    dueDate: "17 Jan 2025",
+    verificationStatus: "Pending",
     paymentStatus: "Pending",
-    category: "Foundation Concrete",
-    documentUrl:
-      "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-    notes: "Pouring phase 1 slab",
   },
   {
     id: "vnd-5",
-    invoiceNumber: "VND-4095",
-    type: "vendor",
-    payeeName: "Omega Industrial Panels",
-    project: "Warehouse Expansion Ph-2",
-    jobId: "JOB-2025-05",
-    amount: 32450,
-    date: "2025-01-22",
-    dueDate: "2025-02-22",
-    payableStatus: "paid",
-    paymentStatus: "Paid",
-    category: "Insulated Panels",
-    documentUrl:
-      "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-    notes: "Roof & wall sandwich panels",
-    paymentDetails: {
-      paidAt: "2025-02-20",
-      method: "Bank Transfer (ACH / NEFT)",
-      referenceNumber: "ACH-991204",
-      notes: "Full payment released",
-    },
+    invoiceNumber: "INC00021",
+    vendorName: "Concrete Solutions",
+    project: "Industrial Park",
+    amount: 99999,
+    amountFormatted: "$99,999",
+    dueDate: "04 Jan 2025",
+    verificationStatus: "Verified",
+    paymentStatus: "Pending",
   },
   {
     id: "vnd-6",
-    invoiceNumber: "VND-4096",
-    type: "vendor",
-    payeeName: "Steel Building Depot",
-    project: "ABC Logistic Warehouse",
-    jobId: "JOB-2025-01",
-    amount: 18900,
-    date: "2025-01-18",
-    dueDate: "2025-02-18",
-    payableStatus: "approved_for_payment",
+    invoiceNumber: "INC00020",
+    vendorName: "Electrical Systems",
+    project: "Office Complex",
+    amount: 120500,
+    amountFormatted: "$1,20,500",
+    dueDate: "09 Dec 2024",
+    verificationStatus: "Verified",
+    paymentStatus: "Completed",
+  },
+  {
+    id: "vnd-7",
+    invoiceNumber: "INC00019",
+    vendorName: "Steel Supplier Ltd",
+    project: "ABC Warehouse",
+    amount: 250000,
+    amountFormatted: "$2,50,000",
+    dueDate: "02 Dec 2024",
+    verificationStatus: "Verified",
     paymentStatus: "Pending",
-    category: "Roofing Sheets",
-    documentUrl:
-      "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-    notes: "Galvalume standing seam sheets",
+  },
+  {
+    id: "vnd-8",
+    invoiceNumber: "INC00018",
+    vendorName: "Concrete Solutions",
+    project: "Industrial Park",
+    amount: 500750,
+    amountFormatted: "$5,00,750",
+    dueDate: "15 Nov 2024",
+    verificationStatus: "Pending",
+    paymentStatus: "Pending",
   },
 ];
 
 export default function VendorInvoicesPage() {
-  // State for data
-  const [invoices, setInvoices] = useState<PayableInvoiceEntry[]>(() => {
+  const navigate = useNavigate();
+  const [invoices, setInvoices] = useState<VendorInvoiceItem[]>(() => {
     try {
-      const stored = localStorage.getItem("custom_vendor_invoices");
+      const stored = localStorage.getItem("vendor_invoices_table_data");
       if (stored) {
-        const parsed = JSON.parse(stored) as PayableInvoiceEntry[];
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const customIds = new Set(parsed.map((p) => p.id));
-          const remainder = INITIAL_VENDOR_INVOICES.filter(
-            (item) => !customIds.has(item.id)
-          );
-          return [...parsed, ...remainder];
-        }
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
     } catch {
       // ignore
     }
-    return INITIAL_VENDOR_INVOICES;
+    return DEFAULT_VENDOR_INVOICES;
   });
 
-  // Filter states
-  const [searchQuery, setSearchQuery] = useState("");
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  // Filters state
+  const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
-  const [payableStatusFilter, setPayableStatusFilter] = useState("All");
   const [projectFilter, setProjectFilter] = useState("All");
-
-  // Selection states
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-
-  // Pagination states
-  const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-
-  // Modal states
+  const [dateRangeLabel, setDateRangeLabel] = useState(
+    "01 Jan 2025 - 31 Jan 2025",
+  );
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
-  const [paymentTarget, setPaymentTarget] = useState<PayableInvoiceEntry | null>(
-    null
-  );
-  const [detailTarget, setDetailTarget] = useState<PayableInvoiceEntry | null>(
-    null
-  );
-  const [successConfig, setSuccessConfig] = useState<{
-    open: boolean;
-    title: string;
-    message?: string;
-  }>({
-    open: false,
-    title: "",
-    message: "",
+  const [isSuccessOpen, setIsSuccessOpen] = useState(false);
+  const [successModalContent, setSuccessModalContent] = useState({
+    title: "Invoice Uploaded Successfully",
+    subTitle: "The invoice has been recorded and submitted for verification.",
   });
+  const [showStatusMenu, setShowStatusMenu] = useState(false);
+  const [showProjectMenu, setShowProjectMenu] = useState(false);
 
-  // Unique projects list
+  // Sorting
+  const [sortField, setSortField] = useState<"amount" | "dueDate" | null>(null);
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
+  // Pagination
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
+
   const projectsList = useMemo(() => {
-    const set = new Set<string>();
-    invoices.forEach((inv) => {
-      if (inv.project) set.add(inv.project);
-    });
-    return Array.from(set);
+    return Array.from(new Set(invoices.map((inv) => inv.project)));
   }, [invoices]);
 
-  // Statistics calculation
-  const stats: PayableStatsData = useMemo(() => {
-    let totalInvoiced = 0;
-    let paidAmount = 0;
-    let paidCount = 0;
-    let pendingApprovalAmount = 0;
-    let pendingApprovalCount = 0;
-    let outstandingAmount = 0;
-    let outstandingCount = 0;
-
-    invoices.forEach((inv) => {
-      totalInvoiced += inv.amount;
-      if (
-        inv.paymentStatus.toLowerCase() === "paid" ||
-        inv.payableStatus.toLowerCase() === "paid"
-      ) {
-        paidAmount += inv.amount;
-        paidCount++;
-      } else {
-        outstandingAmount += inv.amount;
-        outstandingCount++;
-        if (inv.payableStatus.toLowerCase().includes("pending")) {
-          pendingApprovalAmount += inv.amount;
-          pendingApprovalCount++;
-        }
-      }
-    });
-
-    return {
-      totalInvoiced,
-      totalInvoicesCount: invoices.length,
-      paidAmount,
-      paidCount,
-      pendingApprovalAmount,
-      pendingApprovalCount,
-      outstandingAmount,
-      outstandingCount,
-    };
-  }, [invoices]);
-
-  // Filtered invoices
+  // Filter & sort
   const filteredInvoices = useMemo(() => {
-    return invoices.filter((inv) => {
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
+    let result = invoices.filter((inv) => {
+      if (searchTerm.trim()) {
+        const q = searchTerm.toLowerCase().trim();
         const matchNumber = inv.invoiceNumber.toLowerCase().includes(q);
-        const matchPayee = inv.payeeName.toLowerCase().includes(q);
+        const matchVendor = inv.vendorName.toLowerCase().includes(q);
         const matchProject = inv.project.toLowerCase().includes(q);
-        const matchJob = inv.jobId.toLowerCase().includes(q);
-        if (!matchNumber && !matchPayee && !matchProject && !matchJob)
+        const matchAmount = inv.amountFormatted.toLowerCase().includes(q);
+        if (!matchNumber && !matchVendor && !matchProject && !matchAmount) {
           return false;
+        }
       }
 
       if (statusFilter !== "All") {
-        if (inv.paymentStatus.toLowerCase() !== statusFilter.toLowerCase())
+        if (
+          inv.paymentStatus !== statusFilter &&
+          inv.verificationStatus !== statusFilter
+        ) {
           return false;
-      }
-
-      if (payableStatusFilter !== "All") {
-        if (inv.payableStatus.toLowerCase() !== payableStatusFilter.toLowerCase())
-          return false;
+        }
       }
 
       if (projectFilter !== "All") {
         if (inv.project !== projectFilter) return false;
       }
 
-      if (dateRange?.from) {
-        const invDate = new Date(inv.date);
-        if (invDate < dateRange.from) return false;
-        if (dateRange.to && invDate > dateRange.to) return false;
-      }
-
       return true;
     });
-  }, [
-    invoices,
-    searchQuery,
-    statusFilter,
-    payableStatusFilter,
-    projectFilter,
-    dateRange,
-  ]);
 
-  // Pagination calculation
-  const totalItems = filteredInvoices.length;
-  const totalPages = Math.max(1, Math.ceil(totalItems / rowsPerPage));
+    if (sortField) {
+      result = [...result].sort((a, b) => {
+        if (sortField === "amount") {
+          return sortOrder === "asc"
+            ? a.amount - b.amount
+            : b.amount - a.amount;
+        } else {
+          const dateA = new Date(a.dueDate).getTime() || 0;
+          const dateB = new Date(b.dueDate).getTime() || 0;
+          return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
+        }
+      });
+    }
+
+    return result;
+  }, [invoices, searchTerm, statusFilter, projectFilter, sortField, sortOrder]);
+
+  const handleSort = (field: "amount" | "dueDate") => {
+    if (sortField === field) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortOrder("desc");
+    }
+  };
+
+  const handleExport = () => {
+    const headers = [
+      "INVOICE NUMBER",
+      "VENDOR NAME",
+      "PROJECT",
+      "AMOUNT",
+      "DUE DATE",
+      "VERIFICATION",
+      "PAYMENT",
+    ];
+    const rows = filteredInvoices.map((inv) => [
+      inv.invoiceNumber,
+      `"${inv.vendorName}"`,
+      `"${inv.project}"`,
+      inv.amountFormatted,
+      inv.dueDate,
+      inv.verificationStatus,
+      inv.paymentStatus,
+    ]);
+
+    const csvContent =
+      "data:text/csv;charset=utf-8," +
+      [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `vendor_invoices.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleUploadInvoice = (data: NewInvoiceData) => {
+    // Format date if needed e.g. "2025-02-28" to "28 Feb 2025"
+    let formattedDate = data.dueDate;
+    try {
+      if (data.dueDate) {
+        const d = new Date(data.dueDate);
+        if (!isNaN(d.getTime())) {
+          formattedDate = d.toLocaleDateString("en-GB", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+          });
+        }
+      }
+    } catch {
+      // keep as is
+    }
+
+    const newInv: VendorInvoiceItem = {
+      id: `vnd-${Date.now()}`,
+      invoiceNumber: data.invoiceNumber,
+      vendorName: data.vendorName,
+      project: data.linkedDelivery
+        ? data.linkedDelivery.split(" - ")[1] || "ABC Warehouse"
+        : "ABC Warehouse",
+      amount: data.amount,
+      amountFormatted: `$${data.amount.toLocaleString()}`,
+      dueDate: formattedDate,
+      verificationStatus: "Pending",
+      paymentStatus: data.paymentStatus === "Paid" ? "Completed" : "Pending",
+    };
+
+    const updated = [newInv, ...invoices];
+    setInvoices(updated);
+    localStorage.setItem("vendor_invoices_table_data", JSON.stringify(updated));
+
+    setIsUploadOpen(false);
+    setSuccessModalContent({
+      title: "Invoice Uploaded Successfully",
+      subTitle: "The invoice has been recorded and submitted for verification.",
+    });
+    setIsSuccessOpen(true);
+  };
+
+  const handleTogglePaymentStatus = (id: string) => {
+    let markedAsPaid = false;
+    let invNum = "";
+    const updated = invoices.map((inv) => {
+      if (inv.id === id) {
+        invNum = inv.invoiceNumber;
+        const nextStatus: "Completed" | "Pending" =
+          inv.paymentStatus === "Completed" ? "Pending" : "Completed";
+        if (nextStatus === "Completed") {
+          markedAsPaid = true;
+        }
+        return { ...inv, paymentStatus: nextStatus };
+      }
+      return inv;
+    });
+    setInvoices(updated);
+    localStorage.setItem("vendor_invoices_table_data", JSON.stringify(updated));
+
+    if (markedAsPaid) {
+      setSuccessModalContent({
+        title: "Payment Recorded",
+        subTitle: `Invoice ${invNum || id} has been successfully marked as Paid.`,
+      });
+      setIsSuccessOpen(true);
+    }
+  };
+
   const paginatedInvoices = useMemo(() => {
     const start = (currentPage - 1) * rowsPerPage;
     return filteredInvoices.slice(start, start + rowsPerPage);
   }, [filteredInvoices, currentPage, rowsPerPage]);
 
-  // Checkbox handling
-  const isAllSelected =
-    paginatedInvoices.length > 0 &&
-    paginatedInvoices.every((i) => selectedIds.includes(i.id));
-
-  const toggleSelectAll = () => {
-    const pageIds = paginatedInvoices.map((i) => i.id);
-    if (isAllSelected) {
-      setSelectedIds((prev) => prev.filter((id) => !pageIds.includes(id)));
-    } else {
-      setSelectedIds((prev) => Array.from(new Set([...prev, ...pageIds])));
-    }
-  };
-
-  const toggleSelect = (id: string) => {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
-    );
-  };
-
-  // Save changes to localStorage
-  const persistInvoices = (updated: PayableInvoiceEntry[]) => {
-    setInvoices(updated);
-    try {
-      localStorage.setItem("custom_vendor_invoices", JSON.stringify(updated));
-    } catch {
-      // ignore
-    }
-  };
-
-  // Add new invoice handler
-  const handleAddInvoice = (newEntry: PayableInvoiceEntry) => {
-    const updated = [newEntry, ...invoices];
-    persistInvoices(updated);
-    setSuccessConfig({
-      open: true,
-      title: "Vendor Invoice Uploaded!",
-      message: `Invoice #${newEntry.invoiceNumber} for ${newEntry.payeeName} has been queued for approval.`,
-    });
-  };
-
-  // Confirm payment handler
-  const handleConfirmPayment = (
-    invoiceId: string,
-    paymentData: {
-      amount: number;
-      date: string;
-      method: string;
-      referenceNumber: string;
-      bankAccount: string;
-      notes: string;
-    }
-  ) => {
-    const updated = invoices.map((inv) => {
-      if (inv.id === invoiceId) {
-        return {
-          ...inv,
-          paymentStatus: "Paid" as const,
-          payableStatus: "paid" as const,
-          paymentDetails: {
-            paidAt: paymentData.date,
-            method: paymentData.method,
-            referenceNumber: paymentData.referenceNumber,
-            notes: paymentData.notes,
-          },
-        };
-      }
-      return inv;
-    });
-
-    persistInvoices(updated);
-    const target = invoices.find((i) => i.id === invoiceId);
-    setSuccessConfig({
-      open: true,
-      title: "Payment Recorded Successfully!",
-      message: `Disbursement of $${paymentData.amount.toLocaleString()} for ${
-        target?.payeeName || "Vendor"
-      } (Ref: ${paymentData.referenceNumber}) has been recorded.`,
-    });
-  };
-
-  // CSV Export
-  const handleExportCsv = (rowsToExport: PayableInvoiceEntry[] = filteredInvoices) => {
-    const headers = [
-      "Invoice Number",
-      "Vendor Name",
-      "Project",
-      "Job ID",
-      "Amount",
-      "Invoice Date",
-      "Due Date",
-      "Workflow Status",
-      "Payment Status",
-      "Category",
-    ];
-
-    const csvContent = [
-      headers.join(","),
-      ...rowsToExport.map((row) =>
-        [
-          `"${row.invoiceNumber}"`,
-          `"${row.payeeName}"`,
-          `"${row.project}"`,
-          `"${row.jobId}"`,
-          row.amount,
-          `"${row.date}"`,
-          `"${row.dueDate}"`,
-          `"${row.payableStatus}"`,
-          `"${row.paymentStatus}"`,
-          `"${row.category || ""}"`,
-        ].join(",")
-      ),
-    ].join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute(
-      "download",
-      `vendor-invoices-${new Date().toISOString().split("T")[0]}.csv`
-    );
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-  };
-
-  const handleResetFilters = () => {
-    setSearchQuery("");
-    setDateRange(undefined);
-    setStatusFilter("All");
-    setPayableStatusFilter("All");
-    setProjectFilter("All");
-    setCurrentPage(1);
-  };
-
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-6 bg-[#EEF2FB] min-h-full">
-      {/* Header & Primary Actions */}
+    <div className="space-y-5">
+      {/* 1. Header Toolbar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
-            Vendor Invoices
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+            Invoice Management
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Manage vendor bills, verify job allocations, and record payments
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5 font-normal">
+            Upload, approve, and track invoice payments
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => handleExportCsv()}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-semibold shadow-xs transition-colors cursor-pointer"
+            onClick={handleExport}
+            className="inline-flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
           >
-            <Download className="w-4 h-4 text-slate-500" />
-            <span>Export CSV</span>
+            <Upload className="w-3.5 h-3.5 text-slate-600 rotate-90" />
+            <span>Export</span>
           </button>
 
           <button
             type="button"
             onClick={() => setIsUploadOpen(true)}
-            className="flex items-center gap-2 px-4.5 py-2.5 rounded-xl bg-[#1D51A4] hover:bg-[#163e7c] text-white text-xs sm:text-sm font-semibold shadow-xs transition-colors cursor-pointer"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-[#3B66BD] hover:bg-[#2F54A0] text-white rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
           >
-            <Upload className="w-4 h-4 text-white" />
+            <Upload className="w-3.5 h-3.5 text-white" />
             <span>Upload Invoice</span>
           </button>
         </div>
       </div>
 
-      {/* Top 4 KPI Stat Cards */}
-      <PayableStatCards stats={stats} />
+      {/* 2. Top 4 Stat Cards */}
+      <InvoiceStatsCards />
 
-      {/* Search and Filters Bar */}
-      <PayableFilters
-        searchQuery={searchQuery}
-        onSearchChange={(q) => {
-          setSearchQuery(q);
-          setCurrentPage(1);
-        }}
-        dateRange={dateRange}
-        onDateRangeChange={(dr) => {
-          setDateRange(dr);
-          setCurrentPage(1);
-        }}
-        statusFilter={statusFilter}
-        onStatusFilterChange={(s) => {
-          setStatusFilter(s);
-          setCurrentPage(1);
-        }}
-        payableStatusFilter={payableStatusFilter}
-        onPayableStatusFilterChange={(ps) => {
-          setPayableStatusFilter(ps);
-          setCurrentPage(1);
-        }}
-        projectFilter={projectFilter}
-        onProjectFilterChange={(p) => {
-          setProjectFilter(p);
-          setCurrentPage(1);
-        }}
-        projectsList={projectsList}
-        onReset={handleResetFilters}
-      />
+      {/* 3. Main Invoices Table Card */}
+      <div className="bg-white rounded-2xl shadow-xs border border-slate-100 p-5 sm:p-6 space-y-5">
+        {/* Table Card Header Toolbar */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <h2 className="text-base sm:text-lg font-bold text-slate-900">
+            Vendor Invoices
+          </h2>
 
-      {/* Bulk Action Bar (when selected) */}
-      {selectedIds.length > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-center justify-between animate-in fade-in duration-200">
-          <span className="text-xs sm:text-sm font-semibold text-blue-900">
-            {selectedIds.length} invoice(s) selected
-          </span>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+            {/* Search */}
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search"
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="h-8.5 pl-8 pr-3 w-36 sm:w-48 rounded-lg border border-slate-200 text-xs text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 bg-white"
+              />
+            </div>
+
+            {/* Date Range Filter */}
             <button
-              type="button"
-              onClick={() => {
-                const selectedRows = invoices.filter((i) =>
-                  selectedIds.includes(i.id)
-                );
-                handleExportCsv(selectedRows);
-              }}
-              className="px-3 py-1.5 rounded-lg bg-white border border-blue-300 text-blue-900 text-xs font-semibold hover:bg-blue-100 transition-colors cursor-pointer"
+              onClick={() => setIsCalendarOpen(true)}
+              className="inline-flex items-center gap-1.5 h-8.5 px-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold cursor-pointer shadow-xs transition-colors"
             >
-              Export Selected
+              <Calendar className="w-3.5 h-3.5 text-slate-500" />
+              <span>{dateRangeLabel}</span>
             </button>
-            <button
-              type="button"
-              onClick={() => setSelectedIds([])}
-              className="px-3 py-1.5 rounded-lg text-blue-700 hover:text-blue-950 text-xs font-medium cursor-pointer"
-            >
-              Clear
-            </button>
+
+            {/* Status Filter */}
+            <div className="relative">
+              <button
+                onClick={() => {
+                  setShowStatusMenu(!showStatusMenu);
+                  setShowProjectMenu(false);
+                }}
+                className={`inline-flex items-center gap-1.5 h-8.5 px-3 bg-white border rounded-lg text-xs font-semibold cursor-pointer shadow-xs transition-colors ${
+                  statusFilter !== "All"
+                    ? "border-blue-500 text-blue-600 bg-blue-50/40"
+                    : "border-slate-200 text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                <Filter className="w-3.5 h-3.5 text-slate-500" />
+                <span>{statusFilter === "All" ? "Status" : statusFilter}</span>
+              </button>
+
+              {showStatusMenu && (
+                <div className="absolute right-0 mt-1.5 w-36 bg-white border border-slate-200 rounded-xl shadow-lg p-1 z-30 space-y-0.5">
+                  {["All", "Pending", "Completed", "Verified"].map((st) => (
+                    <button
+                      key={st}
+                      onClick={() => {
+                        setStatusFilter(st);
+                        setShowStatusMenu(false);
+                        setCurrentPage(1);
+                      }}
+                      className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors cursor-pointer ${
+                        statusFilter === st
+                          ? "bg-blue-50 text-blue-600 font-semibold"
+                          : "text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      {st === "All" ? "All Statuses" : st}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Project Filter */}
+            <div className="relative">
+              <button
+                onClick={() => {
+                  setShowProjectMenu(!showProjectMenu);
+                  setShowStatusMenu(false);
+                }}
+                className={`inline-flex items-center gap-1.5 h-8.5 px-3 bg-white border rounded-lg text-xs font-semibold cursor-pointer shadow-xs transition-colors ${
+                  projectFilter !== "All"
+                    ? "border-blue-500 text-blue-600 bg-blue-50/40"
+                    : "border-slate-200 text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                <Filter className="w-3.5 h-3.5 text-slate-500" />
+                <span>
+                  {projectFilter === "All" ? "Project" : projectFilter}
+                </span>
+              </button>
+
+              {showProjectMenu && (
+                <div className="absolute right-0 mt-1.5 w-48 bg-white border border-slate-200 rounded-xl shadow-lg p-1 z-30 space-y-0.5">
+                  <button
+                    onClick={() => {
+                      setProjectFilter("All");
+                      setShowProjectMenu(false);
+                      setCurrentPage(1);
+                    }}
+                    className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors cursor-pointer ${
+                      projectFilter === "All"
+                        ? "bg-blue-50 text-blue-600 font-semibold"
+                        : "text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    All Projects
+                  </button>
+                  {projectsList.map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => {
+                        setProjectFilter(p);
+                        setShowProjectMenu(false);
+                        setCurrentPage(1);
+                      }}
+                      className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors cursor-pointer truncate ${
+                        projectFilter === p
+                          ? "bg-blue-50 text-blue-600 font-semibold"
+                          : "text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      )}
 
-      {/* Invoices Table Card */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+        {/* Table Content */}
+        <div className="overflow-x-auto -mx-5 sm:mx-0">
+          <table className="w-full text-left border-collapse min-w-190">
             <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/70 text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                <th className="py-3.5 px-4 w-10 text-center">
-                  <input
-                    type="checkbox"
-                    checked={isAllSelected}
-                    onChange={toggleSelectAll}
-                    className="rounded border-slate-300 text-[#1D51A4] focus:ring-0 cursor-pointer"
-                  />
+              <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                <th className="px-5 py-3.5">INVOICE NUMBER</th>
+                <th className="px-5 py-3.5">VENDOR NAME</th>
+                <th className="px-5 py-3.5">PROJECT</th>
+                <th
+                  className="px-5 py-3.5 cursor-pointer select-none"
+                  onClick={() => handleSort("amount")}
+                >
+                  <div className="inline-flex items-center gap-1">
+                    <span>AMOUNT</span>
+                    <ArrowUpDown className="h-3 w-3 text-slate-400" />
+                  </div>
                 </th>
-                <th className="py-3.5 px-4">Invoice #</th>
-                <th className="py-3.5 px-4">Vendor Name</th>
-                <th className="py-3.5 px-4">Project</th>
-                <th className="py-3.5 px-4">Job ID</th>
-                <th className="py-3.5 px-4 text-right">Amount</th>
-                <th className="py-3.5 px-4">Due Date</th>
-                <th className="py-3.5 px-4">Workflow Status</th>
-                <th className="py-3.5 px-4">Payment</th>
-                <th className="py-3.5 px-4 text-center">Actions</th>
+                <th
+                  className="px-5 py-3.5 cursor-pointer select-none"
+                  onClick={() => handleSort("dueDate")}
+                >
+                  <div className="inline-flex items-center gap-1">
+                    <span>DUE DATE</span>
+                    <ArrowUpDown className="h-3 w-3 text-slate-400" />
+                  </div>
+                </th>
+                <th className="px-5 py-3.5">VERIFICATION</th>
+                <th className="px-5 py-3.5">PAYMENT</th>
+                <th className="px-5 py-3.5">ACTION</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
+            <tbody className="divide-y divide-slate-100 text-xs">
               {paginatedInvoices.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-12 text-center text-slate-400">
-                    No vendor invoices found matching current criteria.
+                  <td
+                    colSpan={8}
+                    className="px-5 py-12 text-center text-slate-400"
+                  >
+                    No vendor invoices found.
                   </td>
                 </tr>
               ) : (
-                paginatedInvoices.map((row) => {
-                  const isPaid =
-                    row.paymentStatus.toLowerCase() === "paid" ||
-                    row.payableStatus.toLowerCase() === "paid";
-
-                  return (
-                    <tr
-                      key={row.id}
-                      className="hover:bg-slate-50/80 transition-colors"
+                paginatedInvoices.map((inv) => (
+                  <tr
+                    key={inv.id}
+                    className="hover:bg-slate-50/70 transition-colors"
+                  >
+                    {/* INVOICE NUMBER */}
+                    <td
+                      onClick={() =>
+                        navigate(`/vendor-invoices/${inv.id}`, {
+                          state: { invoice: inv },
+                        })
+                      }
+                      className="px-5 py-4 text-slate-400 font-normal hover:text-blue-600 hover:underline cursor-pointer"
                     >
-                      {/* Checkbox */}
-                      <td className="py-3.5 px-4 text-center">
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.includes(row.id)}
-                          onChange={() => toggleSelect(row.id)}
-                          className="rounded border-slate-300 text-[#1D51A4] focus:ring-0 cursor-pointer"
-                        />
-                      </td>
+                      {inv.invoiceNumber}
+                    </td>
 
-                      {/* Invoice Number & PDF link */}
-                      <td className="py-3.5 px-4 font-semibold text-slate-900 whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
-                          <span>{row.invoiceNumber}</span>
-                          {row.documentUrl && (
-                            <a
-                              href={row.documentUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              title="View Invoice PDF"
-                              className="text-blue-600 hover:text-blue-800 p-0.5 rounded transition-colors"
-                            >
-                              <FileText className="w-3.5 h-3.5" />
-                            </a>
-                          )}
-                        </div>
-                      </td>
+                    {/* VENDOR NAME */}
+                    <td className="px-5 py-4 font-bold text-slate-900">
+                      {inv.vendorName}
+                    </td>
 
-                      {/* Vendor Name */}
-                      <td className="py-3.5 px-4 font-medium text-slate-800 whitespace-nowrap">
-                        {row.payeeName}
-                      </td>
+                    {/* PROJECT */}
+                    <td className="px-5 py-4 text-slate-600 font-normal">
+                      {inv.project}
+                    </td>
 
-                      {/* Project */}
-                      <td className="py-3.5 px-4 text-slate-600 whitespace-nowrap">
-                        {row.project}
-                      </td>
+                    {/* AMOUNT */}
+                    <td className="px-5 py-4">
+                      <span
+                        onClick={() =>
+                          navigate(`/vendor-invoices/${inv.id}`, {
+                            state: { invoice: inv },
+                          })
+                        }
+                        className="font-bold text-[#2563EB] underline underline-offset-2 cursor-pointer hover:text-blue-700"
+                      >
+                        {inv.amountFormatted}
+                      </span>
+                    </td>
 
-                      {/* Job ID */}
-                      <td className="py-3.5 px-4 text-slate-500 whitespace-nowrap font-mono text-[11px]">
-                        {row.jobId}
-                      </td>
+                    {/* DUE DATE */}
+                    <td className="px-5 py-4 text-slate-600 font-normal whitespace-nowrap">
+                      {inv.dueDate}
+                    </td>
 
-                      {/* Amount */}
-                      <td className="py-3.5 px-4 text-right font-bold text-slate-900 whitespace-nowrap">
-                        ${row.amount.toLocaleString()}
-                      </td>
+                    {/* VERIFICATION */}
+                    <td className="px-5 py-4 whitespace-nowrap">
+                      <span
+                        className={`font-semibold ${
+                          inv.verificationStatus === "Verified"
+                            ? "text-[#16A34A]"
+                            : "text-[#D97706]"
+                        }`}
+                      >
+                        {inv.verificationStatus}
+                      </span>
+                    </td>
 
-                      {/* Due Date */}
-                      <td className="py-3.5 px-4 text-slate-600 whitespace-nowrap">
-                        {row.dueDate}
-                      </td>
+                    {/* PAYMENT */}
+                    <td className="px-5 py-4 whitespace-nowrap">
+                      <span
+                        className={`font-semibold ${
+                          inv.paymentStatus === "Completed"
+                            ? "text-[#16A34A]"
+                            : "text-[#D97706]"
+                        }`}
+                      >
+                        {inv.paymentStatus}
+                      </span>
+                    </td>
 
-                      {/* Workflow Status */}
-                      <td className="py-3.5 px-4 whitespace-nowrap">
-                        <PayableStatusBadge status={row.payableStatus} />
-                      </td>
-
-                      {/* Payment Status */}
-                      <td className="py-3.5 px-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${
-                            isPaid
-                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                              : "bg-slate-100 text-slate-700 border border-slate-200"
-                          }`}
+                    {/* ACTION */}
+                    <td className="px-5 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-3">
+                        {/* View Eye Icon */}
+                        <button
+                          type="button"
+                          title="View Invoice"
+                          onClick={() =>
+                            navigate(`/vendor-invoices/${inv.id}`, {
+                              state: { invoice: inv },
+                            })
+                          }
+                          className="text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
                         >
-                          {isPaid ? "Completed" : "Pending"}
-                        </span>
-                      </td>
+                          <Eye className="w-4 h-4" />
+                        </button>
 
-                      {/* Actions */}
-                      <td className="py-3.5 px-4 whitespace-nowrap text-center">
-                        <div className="flex items-center justify-center gap-1.5">
-                          {/* View Modal */}
+                        {/* Download Icon */}
+                        <button
+                          type="button"
+                          title="Download Invoice"
+                          className="text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+                        >
+                          <Download className="w-4 h-4" />
+                        </button>
+
+                        {/* Payment Toggle Button */}
+                        {inv.paymentStatus === "Completed" ? (
                           <button
                             type="button"
-                            onClick={() => setDetailTarget(row)}
-                            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors cursor-pointer"
-                            title="View Details"
+                            onClick={() => handleTogglePaymentStatus(inv.id)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#00A859] hover:bg-[#008f4c] text-white text-xs font-semibold rounded-lg shadow-2xs transition-colors cursor-pointer"
                           >
-                            <Eye className="w-4 h-4" />
+                            <span className="text-xs font-bold">$</span>
+                            <span>Paid</span>
                           </button>
-
-                          {/* Download CSV */}
+                        ) : (
                           <button
                             type="button"
-                            onClick={() => handleExportCsv([row])}
-                            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors cursor-pointer"
-                            title="Download CSV"
+                            onClick={() => handleTogglePaymentStatus(inv.id)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-semibold rounded-lg shadow-2xs transition-colors cursor-pointer"
                           >
-                            <Download className="w-4 h-4" />
-                          </button>
-
-                          {/* Accounts Action: Record Payment */}
-                          {!isPaid ? (
-                            <button
-                              type="button"
-                              onClick={() => setPaymentTarget(row)}
-                              className="px-2.5 py-1 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold shadow-xs transition-colors cursor-pointer flex items-center gap-1"
-                              title="Record Disbursement"
-                            >
-                              <DollarSign className="w-3 h-3" />
-                              <span>Record Pay</span>
-                            </button>
-                          ) : (
-                            <span className="text-[11px] font-medium text-emerald-600 inline-flex items-center gap-0.5 px-2 py-1">
-                              <CheckCircle2 className="w-3 h-3" />
-                              <span>Paid</span>
+                            <span className="w-3.5 h-3.5 rounded-full border border-white flex items-center justify-center text-[9px] leading-none">
+                              ✓
                             </span>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
+                            <span>Mark Paid</span>
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
         </div>
 
-        {/* Pagination Footer */}
-        <div className="px-4 sm:px-5 py-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="text-xs text-slate-500 font-normal">
-            Showing {Math.min(1, totalItems)} to{" "}
-            {Math.min(paginatedInvoices.length, totalItems)} of {totalItems} entries
-          </div>
-
-          <div className="flex items-center gap-4 text-xs">
-            {/* Rows Per Page */}
-            <div className="flex items-center gap-2">
-              <span className="text-slate-500">Rows per page:</span>
+        {/* 4. Pagination matching screenshot */}
+        <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+          {/* Showing 10 v Results */}
+          <div className="flex items-center gap-2">
+            <span>Showing</span>
+            <div className="relative">
               <select
                 value={rowsPerPage}
                 onChange={(e) => {
                   setRowsPerPage(Number(e.target.value));
                   setCurrentPage(1);
                 }}
-                className="border border-slate-200 rounded-lg px-2 py-1 bg-white text-slate-800 focus:outline-none cursor-pointer"
+                className="appearance-none bg-white border border-slate-200 rounded-md pl-2 pr-6 py-1 text-xs text-slate-700 font-medium cursor-pointer focus:outline-none focus:border-blue-500"
               >
-                <option value={5}>5</option>
                 <option value={10}>10</option>
                 <option value={20}>20</option>
                 <option value={50}>50</option>
               </select>
+              <ChevronDown className="w-3 h-3 text-slate-400 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
+            <span>Results</span>
+          </div>
 
-            {/* Pagination Controls */}
-            <div className="flex items-center gap-1.5">
+          {/* Pagination buttons: < 1 2 3 ... 15 > */}
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage <= 1}
+              className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+
+            {[1, 2, 3].map((page) => (
               <button
+                key={page}
                 type="button"
-                disabled={currentPage <= 1}
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                onClick={() => setCurrentPage(page)}
+                className={`w-7 h-7 flex items-center justify-center rounded-lg text-xs font-semibold transition-colors ${
+                  currentPage === page
+                    ? "border border-purple-500 text-purple-600 bg-purple-50/30"
+                    : "border border-slate-200 text-slate-600 hover:bg-slate-50"
+                }`}
               >
-                <ChevronLeft className="w-4 h-4" />
+                {page}
               </button>
+            ))}
 
-              <span className="text-xs font-semibold text-slate-700 px-2">
-                {currentPage} / {totalPages}
-              </span>
+            <span className="px-1 text-slate-400">...</span>
 
-              <button
-                type="button"
-                disabled={currentPage >= totalPages}
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setCurrentPage(15)}
+              className={`w-7 h-7 flex items-center justify-center rounded-lg text-xs font-semibold transition-colors ${
+                currentPage === 15
+                  ? "border border-purple-500 text-purple-600 bg-purple-50/30"
+                  : "border border-slate-200 text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              15
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.min(15, p + 1))}
+              disabled={currentPage >= 15}
+              className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Manual Upload Dialog */}
-      <ManualPayableUploadDialog
-        open={isUploadOpen}
+      {/* Date Range Modal */}
+      <CalendarRangePickerModal
+        isOpen={isCalendarOpen}
+        onClose={() => setIsCalendarOpen(false)}
+        onSelectRange={(range) => setDateRangeLabel(range)}
+      />
+
+      {/* Upload Invoice Dialog */}
+      <UploadInvoiceDialog
+        isOpen={isUploadOpen}
         onClose={() => setIsUploadOpen(false)}
-        type="vendor"
-        onSuccess={handleAddInvoice}
-        existingProjects={projectsList}
+        onSubmit={handleUploadInvoice}
+        vendorSuggestions={Array.from(
+          new Set(invoices.map((inv) => inv.vendorName)),
+        )}
       />
 
-      {/* Record Payment Modal */}
-      <RecordPaymentModal
-        isOpen={!!paymentTarget}
-        onClose={() => setPaymentTarget(null)}
-        invoice={paymentTarget}
-        onConfirmPayment={handleConfirmPayment}
-      />
-
-      {/* Detail Modal */}
-      <PayableDetailModal
-        isOpen={!!detailTarget}
-        onClose={() => setDetailTarget(null)}
-        invoice={detailTarget}
-        onRecordPayment={(inv) => {
-          setDetailTarget(null);
-          setPaymentTarget(inv);
-        }}
-        onDownloadCsv={(inv) => handleExportCsv([inv])}
-      />
-
-      {/* Success Notification Modal */}
+      {/* Success Modal */}
       <SuccessModal
-        isOpen={successConfig.open}
-        onClose={() => setSuccessConfig((prev) => ({ ...prev, open: false }))}
-        title={successConfig.title}
-        subTitle={successConfig.message}
+        isOpen={isSuccessOpen}
+        onClose={() => setIsSuccessOpen(false)}
+        title={successModalContent.title}
+        subTitle={successModalContent.subTitle}
       />
     </div>
   );
