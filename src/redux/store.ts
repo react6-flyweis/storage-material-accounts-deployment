@@ -5,12 +5,16 @@ import { authApi } from "./api/authApi";
 import { customerApi } from "./api/customerApi";
 import { dashboardApi } from "./api/dashboardApi";
 import { paymentsApi } from "./api/paymentsApi";
+import { paymentApprovalsApi } from "./api/paymentApprovalsApi";
+import { notificationsApi } from "./api/notificationsApi";
+import { teamChatApi } from "./api/teamChatApi";
+import { customerDirectChatApi } from "./api/customerDirectChatApi";
 import authReducer from "./slices/authSlice";
 import inventoryReducer from "./slices/inventorySlice";
 import maintenanceReducer from "./slices/maintenanceSlice";
 
 const authPersistConfig = {
-  key: "auth",
+  key: "sm-accounts-auth",
   storage,
   whitelist: ["user", "accessToken", "refreshToken", "role", "isAuthenticated"],
 };
@@ -26,6 +30,10 @@ export const store = configureStore({
     [customerApi.reducerPath]: customerApi.reducer,
     [dashboardApi.reducerPath]: dashboardApi.reducer,
     [paymentsApi.reducerPath]: paymentsApi.reducer,
+    [paymentApprovalsApi.reducerPath]: paymentApprovalsApi.reducer,
+    [notificationsApi.reducerPath]: notificationsApi.reducer,
+    [teamChatApi.reducerPath]: teamChatApi.reducer,
+    [customerDirectChatApi.reducerPath]: customerDirectChatApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -43,7 +51,11 @@ export const store = configureStore({
       authApi.middleware,
       customerApi.middleware,
       dashboardApi.middleware,
-      paymentsApi.middleware
+      paymentsApi.middleware,
+      paymentApprovalsApi.middleware,
+      notificationsApi.middleware,
+      teamChatApi.middleware,
+      customerDirectChatApi.middleware
     ),
 });
 
