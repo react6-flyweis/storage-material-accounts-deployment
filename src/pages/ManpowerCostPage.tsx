@@ -37,7 +37,9 @@ export const ManpowerCostPage: React.FC = () => {
         const parsed = JSON.parse(stored) as ManpowerCostEntry[];
         if (Array.isArray(parsed) && parsed.length > 0) {
           const customIds = new Set(parsed.map((p) => p.id));
-          const remainder = INITIAL_MANPOWER_DATA.filter((item) => !customIds.has(item.id));
+          const remainder = INITIAL_MANPOWER_DATA.filter(
+            (item) => !customIds.has(item.id),
+          );
           return [...parsed, ...remainder];
         }
       }
@@ -61,7 +63,9 @@ export const ManpowerCostPage: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   // Modal states
-  const [entryToDelete, setEntryToDelete] = useState<ManpowerCostEntry | null>(null);
+  const [entryToDelete, setEntryToDelete] = useState<ManpowerCostEntry | null>(
+    null,
+  );
   const [successDialogConfig, setSuccessDialogConfig] = useState<{
     isOpen: boolean;
     title: string;
@@ -71,7 +75,6 @@ export const ManpowerCostPage: React.FC = () => {
     title: "",
     message: "",
   });
-
 
   // Handle Sort
   const handleSort = (col: SortColumn) => {
@@ -87,10 +90,13 @@ export const ManpowerCostPage: React.FC = () => {
   const handleMarkPaid = (entry: ManpowerCostEntry) => {
     setData((prev) => {
       const updated = prev.map((item) =>
-        item.id === entry.id ? { ...item, status: "Paid" as const } : item
+        item.id === entry.id ? { ...item, status: "Paid" as const } : item,
       );
       try {
-        localStorage.setItem("custom_manpower_entries", JSON.stringify(updated));
+        localStorage.setItem(
+          "custom_manpower_entries",
+          JSON.stringify(updated),
+        );
       } catch {
         // ignore
       }
@@ -116,7 +122,10 @@ export const ManpowerCostPage: React.FC = () => {
     setData((prev) => {
       const updated = prev.filter((item) => item.id !== entryToDelete.id);
       try {
-        localStorage.setItem("custom_manpower_entries", JSON.stringify(updated));
+        localStorage.setItem(
+          "custom_manpower_entries",
+          JSON.stringify(updated),
+        );
       } catch {
         // ignore
       }
@@ -131,8 +140,6 @@ export const ManpowerCostPage: React.FC = () => {
     });
   };
 
-
-
   // Filter and sort data
   const filteredData = useMemo(() => {
     let result = [...data];
@@ -144,21 +151,22 @@ export const ManpowerCostPage: React.FC = () => {
         (item) =>
           item.name.toLowerCase().includes(q) ||
           item.designation.toLowerCase().includes(q) ||
-          item.project.toLowerCase().includes(q)
+          item.project.toLowerCase().includes(q),
       );
     }
 
     // Designation filter
     if (selectedDesignation !== "All") {
       result = result.filter(
-        (item) => item.designation.toLowerCase() === selectedDesignation.toLowerCase()
+        (item) =>
+          item.designation.toLowerCase() === selectedDesignation.toLowerCase(),
       );
     }
 
     // Project filter
     if (selectedProject !== "All") {
       result = result.filter(
-        (item) => item.project.toLowerCase() === selectedProject.toLowerCase()
+        (item) => item.project.toLowerCase() === selectedProject.toLowerCase(),
       );
     }
 
@@ -166,7 +174,9 @@ export const ManpowerCostPage: React.FC = () => {
     if (selectedAmountRange === "0-1000") {
       result = result.filter((item) => item.totalCost <= 1000);
     } else if (selectedAmountRange === "1000-1500") {
-      result = result.filter((item) => item.totalCost > 1000 && item.totalCost <= 1500);
+      result = result.filter(
+        (item) => item.totalCost > 1000 && item.totalCost <= 1500,
+      );
     } else if (selectedAmountRange === "1500+") {
       result = result.filter((item) => item.totalCost > 1500);
     }
@@ -208,18 +218,24 @@ export const ManpowerCostPage: React.FC = () => {
   const handleExport = (type: string) => {
     setIsExportMenuOpen(false);
     if (type === "csv") {
-      const headers = "Date,Employee/Worker,Designation,Project,Hours,OT Hours,Rate/Hr,Total Cost,Status\n";
+      const headers =
+        "Date,Employee/Worker,Designation,Project,Hours,OT Hours,Rate/Hr,Total Cost,Status\n";
       const rows = data
         .map(
           (d) =>
-            `"${d.date}","${d.name}","${d.designation}","${d.project}",${d.hours},${d.otHours},${d.ratePerHour},${d.totalCost},"${d.status}"`
+            `"${d.date}","${d.name}","${d.designation}","${d.project}",${d.hours},${d.otHours},${d.ratePerHour},${d.totalCost},"${d.status}"`,
         )
         .join("\n");
-      const blob = new Blob([headers + rows], { type: "text/csv;charset=utf-8;" });
+      const blob = new Blob([headers + rows], {
+        type: "text/csv;charset=utf-8;",
+      });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `Manpower_Cost_${new Date().toISOString().slice(0, 10)}.csv`);
+      link.setAttribute(
+        "download",
+        `Manpower_Cost_${new Date().toISOString().slice(0, 10)}.csv`,
+      );
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -227,13 +243,14 @@ export const ManpowerCostPage: React.FC = () => {
       setSuccessDialogConfig({
         isOpen: true,
         title: `Export to ${type.toUpperCase()} Started`,
-        message: "Your export document is being processed and will download shortly.",
+        message:
+          "Your export document is being processed and will download shortly.",
       });
     }
   };
 
   return (
-    <div className="p-3 sm:p-5 lg:p-6 space-y-5 bg-[#EEF2FB] min-h-full">
+    <div className="space-y-5">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -245,7 +262,8 @@ export const ManpowerCostPage: React.FC = () => {
           <div className="flex items-center gap-1.5 text-xs sm:text-sm text-slate-500 font-normal mt-1">
             <Home className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             <span>
-              Track manpower expenses, labor allocation, working hours, overtime, and project-wise workforce costs.
+              Track manpower expenses, labor allocation, working hours,
+              overtime, and project-wise workforce costs.
             </span>
           </div>
         </div>
@@ -592,7 +610,7 @@ export const ManpowerCostPage: React.FC = () => {
                           alt={row.name}
                           onError={(e) => {
                             e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                              row.name
+                              row.name,
                             )}&background=1D51A4&color=fff&size=100`;
                           }}
                           className="w-8 h-8 rounded-full object-cover shrink-0 ring-1 ring-slate-100"
@@ -702,7 +720,8 @@ export const ManpowerCostPage: React.FC = () => {
         <div className="px-4 sm:px-5 py-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-xs text-slate-500 font-normal">
             Showing {Math.min(1, totalEntries)} to{" "}
-            {Math.min(displayRows.length, totalEntries)} of {totalEntries} entries
+            {Math.min(displayRows.length, totalEntries)} of {totalEntries}{" "}
+            entries
           </div>
 
           {/* Pagination Controls */}
@@ -772,15 +791,15 @@ export const ManpowerCostPage: React.FC = () => {
         }}
       />
 
-
-
       {/* Delete Confirmation Modal */}
       <DeleteConfirmModal
         isOpen={!!entryToDelete}
         onClose={() => setEntryToDelete(null)}
         onConfirm={handleConfirmDelete}
         employeeName={entryToDelete?.name}
-        empId={entryToDelete ? `EMP-${entryToDelete.id.padStart(3, "0")}` : undefined}
+        empId={
+          entryToDelete ? `EMP-${entryToDelete.id.padStart(3, "0")}` : undefined
+        }
       />
 
       {/* Success Modal */}
