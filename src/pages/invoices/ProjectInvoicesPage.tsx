@@ -31,16 +31,16 @@ export default function ProjectInvoicesPage({
   const [selectedStatus, setSelectedStatus] = useState<string>("All");
   const [selectedProject, setSelectedProject] = useState<string>("All");
   const [dateRangeLabel, setDateRangeLabel] = useState<string>(
-    "01 Jan 2025 - 31 Jan 2025"
+    "01 Jan 2025 - 31 Jan 2025",
   );
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [showProjectMenu, setShowProjectMenu] = useState(false);
 
   // Sorting
-  const [sortField, setSortField] = useState<"amount" | "invDate" | "dueDate" | null>(
-    null
-  );
+  const [sortField, setSortField] = useState<
+    "amount" | "invDate" | "dueDate" | null
+  >(null);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   // Pagination
@@ -49,7 +49,9 @@ export default function ProjectInvoicesPage({
   const totalDisplayPages = 15;
 
   // Selected invoice for detail modal
-  const [selectedInvoice, setSelectedInvoice] = useState<InvoiceItem | null>(null);
+  const [selectedInvoice, setSelectedInvoice] = useState<InvoiceItem | null>(
+    null,
+  );
 
   // Filter & sort
   const filteredInvoices = useMemo(() => {
@@ -65,7 +67,7 @@ export default function ProjectInvoicesPage({
           inv.invoiceType.toLowerCase().includes(q) ||
           inv.amountFormatted.toLowerCase().includes(q) ||
           inv.invDate.toLowerCase().includes(q) ||
-          inv.dueDate.toLowerCase().includes(q)
+          inv.dueDate.toLowerCase().includes(q),
       );
     }
 
@@ -83,17 +85,28 @@ export default function ProjectInvoicesPage({
         let valB: string | number = b[sortField];
 
         if (sortField === "amount") {
-          return sortOrder === "asc" ? (valA as number) - (valB as number) : (valB as number) - (valA as number);
+          return sortOrder === "asc"
+            ? (valA as number) - (valB as number)
+            : (valB as number) - (valA as number);
         } else {
           valA = new Date(valA as string).getTime() || 0;
           valB = new Date(valB as string).getTime() || 0;
-          return sortOrder === "asc" ? (valA as number) - (valB as number) : (valB as number) - (valA as number);
+          return sortOrder === "asc"
+            ? (valA as number) - (valB as number)
+            : (valB as number) - (valA as number);
         }
       });
     }
 
     return list;
-  }, [invoices, searchTerm, selectedStatus, selectedProject, sortField, sortOrder]);
+  }, [
+    invoices,
+    searchTerm,
+    selectedStatus,
+    selectedProject,
+    sortField,
+    sortOrder,
+  ]);
 
   const handleSort = (field: "amount" | "invDate" | "dueDate") => {
     if (sortField === field) {
@@ -104,15 +117,18 @@ export default function ProjectInvoicesPage({
     }
   };
 
-  const handleStatusUpdate = (id: string, newStatus: "Pending" | "Complete") => {
+  const handleStatusUpdate = (
+    id: string,
+    newStatus: "Pending" | "Complete",
+  ) => {
     setInvoices((prev) =>
       prev.map((item) =>
-        item.id === id ? { ...item, paymentStatus: newStatus } : item
-      )
+        item.id === id ? { ...item, paymentStatus: newStatus } : item,
+      ),
     );
     if (selectedInvoice && selectedInvoice.id === id) {
       setSelectedInvoice((prev) =>
-        prev ? { ...prev, paymentStatus: newStatus } : null
+        prev ? { ...prev, paymentStatus: newStatus } : null,
       );
     }
   };
@@ -147,7 +163,10 @@ export default function ProjectInvoicesPage({
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `${tableTitle.toLowerCase().replace(/\s+/g, "_")}.csv`);
+    link.setAttribute(
+      "download",
+      `${tableTitle.toLowerCase().replace(/\s+/g, "_")}.csv`,
+    );
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -156,7 +175,7 @@ export default function ProjectInvoicesPage({
   const uniqueProjects = Array.from(new Set(invoices.map((i) => i.project)));
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-6 min-h-screen bg-[#F3F6FC]">
+    <div className="space-y-5">
       {/* 1. Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -164,7 +183,8 @@ export default function ProjectInvoicesPage({
             Invoice Management
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5 font-normal">
-            Track project-related invoices, billing, expenses, payments, outstanding amounts, and profitability.
+            Track project-related invoices, billing, expenses, payments,
+            outstanding amounts, and profitability.
           </p>
         </div>
 
@@ -323,12 +343,8 @@ export default function ProjectInvoicesPage({
                 <th className="px-5 py-3 font-bold text-slate-800">
                   INVOICE ID
                 </th>
-                <th className="px-5 py-3 font-bold text-slate-800">
-                  PROJECT
-                </th>
-                <th className="px-5 py-3 font-bold text-slate-800">
-                  CUSTOMER
-                </th>
+                <th className="px-5 py-3 font-bold text-slate-800">PROJECT</th>
+                <th className="px-5 py-3 font-bold text-slate-800">CUSTOMER</th>
                 <th className="px-5 py-3 font-bold text-slate-800">
                   INVOICE TYPE
                 </th>
@@ -359,15 +375,16 @@ export default function ProjectInvoicesPage({
                     <ArrowUpDown className="h-3 w-3 text-slate-400" />
                   </div>
                 </th>
-                <th className="px-5 py-3 font-bold text-slate-800">
-                  PAYMENT
-                </th>
+                <th className="px-5 py-3 font-bold text-slate-800">PAYMENT</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs">
               {filteredInvoices.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-5 py-12 text-center text-slate-400">
+                  <td
+                    colSpan={8}
+                    className="px-5 py-12 text-center text-slate-400"
+                  >
                     No invoices found matching criteria.
                   </td>
                 </tr>
@@ -502,7 +519,9 @@ export default function ProjectInvoicesPage({
             </button>
 
             <button
-              onClick={() => setCurrentPage((p) => Math.min(totalDisplayPages, p + 1))}
+              onClick={() =>
+                setCurrentPage((p) => Math.min(totalDisplayPages, p + 1))
+              }
               disabled={currentPage === totalDisplayPages}
               className="p-1 rounded text-slate-400 hover:text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               aria-label="Next page"
