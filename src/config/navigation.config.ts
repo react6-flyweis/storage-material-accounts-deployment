@@ -31,23 +31,18 @@ export const NAV_ITEMS: NavItem[] = [
     path: "/dashboard",
   },
     {
-    title: "Customer",
+    title: "Customers",
     color: "bg-[#EAB308]",
     icon: CustomerIcon,
-    items: [
-      {
-        label: "Customers",
-        path: "/customers",
-      },
-    ],
+    path : "/customers",
   },
   {
-    title: "Payments",
+    title: "Finance",
     color: "bg-[#A855F7]",
     icon: MenuIcon2,
     items: [
       {
-        label: "Payment Overview",
+        label: "All Payments",
         path: "/payment_overview",
       },
       {
@@ -55,24 +50,34 @@ export const NAV_ITEMS: NavItem[] = [
         path: "/payment_approvals",
       },
       // { label: "Order & Payments", path: "/order_payments" },
-      { label: "Margin Analysis", path: "/margin_analysis" },
-      { label: "Project Details", path: "/project_budget_details" },
+      { label: "Margin Breakdown", path: "/margin_analysis" },
+      { label: "Budget Vs Actual", path: "/project_budget_details" },
     ],
   },
 
   {
-    title: "Project-wise Income",
+    title: "Income / Expenses",
     color: "bg-[#EAB308]",
     icon: MenuIcon3,
     items: [
-      { label: "Project-wise Income", path: "/project-wise-income" },
-      { label: "Project-wise Expense", path: "/project-wise-expense" },
-      { label: "Profit & Loss", path: "/profit-loss" },
+      { label: "Income Project-wise", path: "/project-wise-income" },
+      { label: "Expenses Project-wise", path: "/project-wise-expense" },
+      { label: "Profit/Loss Analysis", path: "/profit-loss" },
     ],
   },
   {
+    title: "Taxation",
+    color: "bg-[#FD8D5B]",
+    icon: MenuIcon4,
+    items: [
+      { label: "Tax & Filing", path: "/tax-and-filing" },
+      { label: "State Wise Tax", path: "/state-wise-tax" },
+      { label: "Project Wise Tax", path: "/project-wise-tax" },
+    ],
+  },
+    {
     title: "Cost",
-    color: "bg-[#10B981]",
+    color: "bg-[#2B7FFF]",
     icon: CostIcon,
     items: [
       { label: "Salary Cost", path: "/cost/salary-cost" },
@@ -80,37 +85,28 @@ export const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
-    title: "Tax & Filing",
-    color: "bg-[#FD8D5B]",
-    path: "/tax-and-filing",
-    icon: MenuIcon4,
-    items: [
-      { label: "State Wise Tax", path: "/state-wise-tax" },
-      { label: "Project Wise Tax", path: "/project-wise-tax" },
-    ],
-  },
-  {
-    title: "Project Invoices",
+    title: "Invoices",
     color: "bg-[#2D2D2D]",
     icon: InvoiceIcon,
-    path: "/invoices/project-invoices",
     items: [
+      { label: "Project Invoices", path: "/invoices" },
       { label: "Vendor Invoices", path: "/invoices/vendor-invoices" },
       { label: "Carrier Invoices", path: "/invoices/carrier-invoices" },
       { label: "Miscellaneous Inv", path: "/invoices/miscellaneous-invoices" },
       { label: "Quotation-wise Profit / Loss", path: "/invoices/quotation-profit-loss" },
     ],
   },
-  {
-    title: "Communication",
-    color: "bg-[#FFC107]",
-    icon: MenuIcon5,
-    path: "/communication",
-  },
+
   {
     title: "Notifications",
     color: "bg-black",
     icon: MenuIcon6,
     path: "/notification",
+  },
+    {
+    title: "Communication",
+    color: "bg-[#3AB449]",
+    icon: MenuIcon5,
+    path: "/communication",
   },
 ];
