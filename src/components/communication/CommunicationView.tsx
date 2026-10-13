@@ -1,258 +1,720 @@
-import { useState } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
+import { useAppSelector, useAppDispatch } from "@/redux/hooks";
+import { useSocket } from "@/context/useSocket";
+import {
+  useGetUsersQuery,
+  useGetConversationsQuery,
+  useGetDirectMessagesQuery,
+  useGetGroupMessagesQuery,
+  useGetGroupDetailsQuery,
+  teamChatApi,
+} from "@/redux/api/teamChatApi";
+import {
+  useGetCustomerDirectConversationsQuery,
+  useGetCustomerDirectMessagesQuery,
+  useSendCustomerDirectMessageMutation,
+  customerDirectChatApi,
+} from "@/redux/api/customerDirectChatApi";
+import type { CustomerDirectMessage } from "@/modules/customer-direct-chat/customer-direct-chat.types";
+import { uploadFileToS3 } from "@/lib/upload";
+import type {
+  TeamMessage,
+  TeamAttachment,
+  TeamTypingEvent,
+  TeamMessagesReadEvent,
+} from "@/types/communication";
 
-const CommunicationView = () => {
-  const [activeTab, setActiveTab] = useState<"Departments" | "Direct">(
-    "Direct"
-  );
-  const [showChat, setShowChat] = useState(false);
+import { type ActiveChatState } from "./types";
+import { ChatSidebar } from "./ChatSidebar";
+import { ChatHeader } from "./ChatHeader";
+import { ChatMessageList } from "./ChatMessageList";
+import { ChatInputBar } from "./ChatInputBar";
+import { ChatDrawer } from "./ChatDrawer";
+import { ChatEmptyState } from "./ChatEmptyState";
+import { NewChatModal } from "./NewChatModal";
+
+export const CommunicationView: React.FC = () => {
+  const dispatch = useAppDispatch();
+  const currentUser = useAppSelector((state) => state.auth.user);
+  const [searchParams] = useSearchParams();
+  const urlCustomerId = searchParams.get("customerId");
+
+  const {
+    socket,
+    isConnected,
+    joinChannel,
+    leaveChannel,
+    sendTypingStart,
+    sendTypingStop,
+    sendMessage,
+    joinCustomerDirect,
+    leaveCustomerDirect,
+  } = useSocket();
+
+  // Navigation tab states
+  const [activeMainTab, setActiveMainTab] = useState<"Customers" | "Team">("Team");
+  const [activeTeamTab, setActiveTeamTab] = useState<"Departments" | "Direct">("Departments");
+  const [activeChat, setActiveChat] = useState<ActiveChatState | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const [messageInput, setMessageInput] = useState("");
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [drawerTab, setDrawerTab] = useState<"Members" | "Files">("Members");
+  const [errorBanner, setErrorBanner] = useState<string | null>(null);
+  const [isNewChatModalOpen, setIsNewChatModalOpen] = useState(false);
 
-  const contacts = [
-    {
-      id: 1,
-      name: "Michael Chen (Project Lead)",
-      avatar: "https://i.pravatar.cc/150?u=michael",
-    },
-  ];
+  // File upload state
+  const [pendingAttachments, setPendingAttachments] = useState<TeamAttachment[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
 
-  const messages = [
-    {
-      id: 1,
-      sender: "Michael Chen",
-      text: "Hi, I need a quote for a 40*60 workshop in Texas.",
-      time: "2024-10-10 09:30 pm",
-      isMe: false,
-    },
-  ];
+  // Real-time local message list & typing users map
+  const [liveMessages, setLiveMessages] = useState<TeamMessage[]>([]);
+  const [typingUsers, setTypingUsers] = useState<Record<string, { isTyping: boolean; name: string }>>({});
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Queries - Team chat
+  const { data: usersData, isLoading: isLoadingUsers } = useGetUsersQuery();
+  const { data: conversationsData, isLoading: isLoadingConversations } = useGetConversationsQuery(undefined, {
+    pollingInterval: 15000,
+  });
+
+  // Queries - Customer chat
+  const {
+    data: customerConversationsData,
+    isLoading: isLoadingCustomerConversations,
+  } = useGetCustomerDirectConversationsQuery(undefined, {
+    pollingInterval: 15000,
+  });
+
+  const [sendCustomerMessage] = useSendCustomerDirectMessageMutation();
+
+  // Handle URL customerId deep linking
+  useEffect(() => {
+    if (!urlCustomerId) return;
+
+    setActiveMainTab("Customers");
+
+    if (customerConversationsData && customerConversationsData.length > 0) {
+      const existing = customerConversationsData.find(
+        (c) => c.customerId === urlCustomerId
+      );
+      if (existing) {
+        setActiveChat({
+          type: "customer",
+          id: existing.customerId,
+          name: existing.customerName || "Customer",
+          email: existing.email,
+          phone: existing.phone,
+          category: "Customer",
+          color: "bg-emerald-600",
+        });
+        return;
+      }
+    }
+
+    setActiveChat({
+      type: "customer",
+      id: urlCustomerId,
+      name: "Customer",
+      category: "Customer",
+      color: "bg-emerald-600",
+    });
+  }, [urlCustomerId, customerConversationsData]);
+
+  // Active chat message history queries
+  const isDirectActive = activeChat?.type === "direct" && Boolean(activeChat.id);
+  const isGroupActive = activeChat?.type === "group" && Boolean(activeChat.id);
+  const isCustomerActive = activeChat?.type === "customer" && Boolean(activeChat.id);
+
+  const {
+    data: directHistoryData,
+    isLoading: isLoadingDirectHistory,
+  } = useGetDirectMessagesQuery(
+    { userId: activeChat?.id || "", page: 1, limit: 50 },
+    { skip: !isDirectActive }
+  );
+
+  const {
+    data: groupHistoryData,
+    isLoading: isLoadingGroupHistory,
+  } = useGetGroupMessagesQuery(
+    { groupId: activeChat?.id || "", page: 1, limit: 50 },
+    { skip: !isGroupActive }
+  );
+
+  const {
+    data: customerMessagesData,
+    isLoading: isLoadingCustomerHistory,
+  } = useGetCustomerDirectMessagesQuery(
+    { customerId: activeChat?.id || "", page: 1, limit: 50 },
+    { skip: !isCustomerActive }
+  );
+
+  const {
+    data: groupDetails,
+    isLoading: isLoadingGroupDetails,
+  } = useGetGroupDetailsQuery(activeChat?.id || "", { skip: !isGroupActive });
+
+  // Merge historical messages with live socket messages
+  const displayedMessages = useMemo(() => {
+    let history: TeamMessage[] = [];
+    if (isDirectActive) {
+      history = directHistoryData?.messages || [];
+    } else if (isGroupActive) {
+      history = groupHistoryData?.messages || [];
+    } else if (isCustomerActive) {
+      history = (customerMessagesData || []).map((m): TeamMessage => {
+        const isMsgFromMe = Boolean(
+          (m.senderId && currentUser?._id && m.senderId === currentUser._id) ||
+          (m.senderName &&
+            currentUser?.name &&
+            m.senderName.trim().toLowerCase() === currentUser.name.trim().toLowerCase())
+        );
+
+        const senderRole =
+          m.senderType === "customer"
+            ? "Customer"
+            : m.senderType === "admin"
+            ? "Admin"
+            : isMsgFromMe
+            ? currentUser?.role || "Accounts"
+            : "Other Staff";
+
+        const senderName =
+          m.senderName ||
+          (m.senderType === "customer"
+            ? activeChat?.name || "Customer"
+            : isMsgFromMe
+            ? currentUser?.name || "You"
+            : m.senderType === "admin"
+            ? "Admin"
+            : "Staff Colleague");
+
+        return {
+          _id: m._id || m.messageId || `cmsg-${m.createdAt}-${Math.random()}`,
+          channelType: "customer",
+          customerId: m.customerId,
+          senderType: m.senderType,
+          senderId:
+            m.senderId ||
+            (m.senderType === "customer"
+              ? m.customerId
+              : isMsgFromMe
+              ? currentUser?._id || "accounts"
+              : "other-staff"),
+          senderName,
+          senderRole,
+          content: m.content,
+          createdAt: m.createdAt,
+          updatedAt: m.updatedAt,
+          isReadByCustomer: m.isReadByCustomer,
+          isReadByStaff: m.isReadByStaff,
+        };
+      });
+    }
+
+    const map = new Map<string, TeamMessage>();
+    history.forEach((m) => map.set(m._id, m));
+    liveMessages.forEach((m) => {
+      const existingTempKey = Array.from(map.keys()).find(
+        (k) =>
+          k.startsWith("temp-") &&
+          map.get(k)?.content === m.content &&
+          map.get(k)?.senderId === m.senderId
+      );
+      if (existingTempKey) {
+        map.delete(existingTempKey);
+      }
+      map.set(m._id, m);
+    });
+
+    return Array.from(map.values()).sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+  }, [
+    isDirectActive,
+    isGroupActive,
+    isCustomerActive,
+    directHistoryData,
+    groupHistoryData,
+    customerMessagesData,
+    liveMessages,
+    activeChat?.name,
+    currentUser?._id,
+    currentUser?.name,
+    currentUser?.role,
+  ]);
+
+  // Auto scroll to bottom
+  const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
+    messagesEndRef.current?.scrollIntoView({ behavior });
+  };
+
+  useEffect(() => {
+    scrollToBottom("auto");
+  }, [activeChat?.id]);
+
+  useEffect(() => {
+    scrollToBottom("smooth");
+  }, [displayedMessages]);
+
+  // Join / Leave channel lifecycle
+  useEffect(() => {
+    if (!activeChat) return;
+
+    if (activeChat.type === "customer") {
+      const custId = activeChat.id;
+      joinCustomerDirect(custId);
+      return () => {
+        leaveCustomerDirect(custId);
+      };
+    } else {
+      const channelType = activeChat.type;
+      const channelId = activeChat.id;
+      joinChannel(channelType, channelId);
+      return () => {
+        leaveChannel(channelType, channelId);
+      };
+    }
+  }, [activeChat, joinChannel, leaveChannel, joinCustomerDirect, leaveCustomerDirect]);
+
+  // Listen to live socket events for current chat
+  useEffect(() => {
+    if (!socket || !activeChat) return;
+
+    // 1. new_team_message
+    const handleNewMessage = (msg: TeamMessage) => {
+      console.log("[CommunicationView] new_team_message:", msg);
+
+      const isCurrentGroup =
+        activeChat.type === "group" &&
+        msg.channelType === "group" &&
+        msg.groupId === activeChat.id;
+
+      const isCurrentDirect =
+        activeChat.type === "direct" &&
+        msg.channelType === "direct" &&
+        (msg.senderId === activeChat.id ||
+          (msg.senderId === currentUser?._id && msg.participants?.includes(activeChat.id)));
+
+      if (isCurrentGroup || isCurrentDirect) {
+        setLiveMessages((prev) => {
+          const exists = prev.some((m) => m._id === msg._id);
+          if (exists) return prev;
+
+          const filtered = prev.filter(
+            (m) =>
+              !(
+                m.isOptimistic &&
+                m.content === msg.content &&
+                m.senderId === msg.senderId
+              )
+          );
+          return [...filtered, msg];
+        });
+      }
+
+      dispatch(teamChatApi.util.invalidateTags(["TeamChatConversations", "TeamChatUnread"]));
+    };
+
+    // 2. customer_direct_message
+    const handleCustomerDirectMessage = (msg: CustomerDirectMessage) => {
+      console.log("[CommunicationView] customer_direct_message:", msg);
+
+      if (activeChat.type === "customer" && msg.customerId === activeChat.id) {
+        const isMsgFromMe = Boolean(
+          (msg.senderId && currentUser?._id && msg.senderId === currentUser._id) ||
+          (msg.senderName &&
+            currentUser?.name &&
+            msg.senderName.trim().toLowerCase() === currentUser.name.trim().toLowerCase())
+        );
+
+        const senderRole =
+          msg.senderType === "customer"
+            ? "Customer"
+            : msg.senderType === "admin"
+            ? "Admin"
+            : isMsgFromMe
+            ? currentUser?.role || "Accounts"
+            : "Other Staff";
+
+        const senderName =
+          msg.senderName ||
+          (msg.senderType === "customer"
+            ? activeChat.name
+            : isMsgFromMe
+            ? currentUser?.name || "You"
+            : msg.senderType === "admin"
+            ? "Admin"
+            : "Staff Colleague");
+
+        const formatted: TeamMessage = {
+          _id: msg._id || msg.messageId || `cmsg-${Date.now()}`,
+          channelType: "customer",
+          customerId: msg.customerId,
+          senderType: msg.senderType,
+          senderId:
+            msg.senderId ||
+            (msg.senderType === "customer"
+              ? msg.customerId
+              : isMsgFromMe
+              ? currentUser?._id || "accounts"
+              : "other-staff"),
+          senderName,
+          senderRole,
+          content: msg.content,
+          createdAt: msg.createdAt,
+          isReadByCustomer: msg.isReadByCustomer,
+          isReadByStaff: msg.isReadByStaff,
+        };
+
+        setLiveMessages((prev) => {
+          const exists = prev.some((m) => m._id === formatted._id);
+          if (exists) return prev;
+
+          const filtered = prev.filter(
+            (m) => !(m.isOptimistic && m.content === formatted.content)
+          );
+          return [...filtered, formatted];
+        });
+      }
+
+      dispatch(customerDirectChatApi.util.invalidateTags(["CustomerDirectConversations"]));
+    };
+
+    // 3. team_typing
+    const handleTyping = (data: TeamTypingEvent) => {
+      if (
+        data.channelType === activeChat.type &&
+        data.channelId === activeChat.id &&
+        data.userId !== currentUser?._id
+      ) {
+        setTypingUsers((prev) => {
+          if (data.isTyping) {
+            return { ...prev, [data.name]: { isTyping: true, name: data.name } };
+          }
+          const next = { ...prev };
+          delete next[data.name];
+          return next;
+        });
+      }
+    };
+
+    // 4. team_messages_read
+    const handleMessagesRead = (data: TeamMessagesReadEvent) => {
+      if (
+        data.channelType === activeChat.type &&
+        data.channelId === activeChat.id
+      ) {
+        setLiveMessages((prev) =>
+          prev.map((msg) => {
+            if (!msg.readBy?.includes(data.by)) {
+              return { ...msg, readBy: [...(msg.readBy || []), data.by] };
+            }
+            return msg;
+          })
+        );
+      }
+    };
+
+    // 5. team_chat_error
+    const handleChatError = (data: { message: string }) => {
+      console.error("[CommunicationView] team_chat_error:", data);
+      setErrorBanner(data.message || "Failed to deliver message");
+    };
+
+    socket.on("new_team_message", handleNewMessage);
+    socket.on("customer_direct_message", handleCustomerDirectMessage);
+    socket.on("team_typing", handleTyping);
+    socket.on("team_messages_read", handleMessagesRead);
+    socket.on("team_chat_error", handleChatError);
+
+    return () => {
+      socket.off("new_team_message", handleNewMessage);
+      socket.off("customer_direct_message", handleCustomerDirectMessage);
+      socket.off("team_typing", handleTyping);
+      socket.off("team_messages_read", handleMessagesRead);
+      socket.off("team_chat_error", handleChatError);
+    };
+  }, [socket, activeChat, currentUser, dispatch]);
+
+  // Handle typing debounce
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setMessageInput(val);
+
+    if (!activeChat || activeChat.type === "customer") return;
+
+    const channelType = activeChat.type;
+    const channelId = activeChat.id;
+
+    sendTypingStart(channelType, channelId);
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    typingTimeoutRef.current = setTimeout(() => {
+      sendTypingStop(channelType, channelId);
+    }, 2500);
+  };
+
+  // Handle file uploads to presigned S3
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploading(true);
+    setErrorBanner(null);
+
+    try {
+      const uploaded: TeamAttachment[] = [];
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const fileUrl = await uploadFileToS3(file, "chat-attachments");
+
+        uploaded.push({
+          url: fileUrl,
+          name: file.name,
+          type: file.type,
+          size: file.size,
+        });
+      }
+
+      setPendingAttachments((prev) => [...prev, ...uploaded]);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to upload file attachment";
+      console.error("[CommunicationView] File upload error:", err);
+      setErrorBanner(message);
+    } finally {
+      setIsUploading(false);
+      e.target.value = "";
+    }
+  };
+
+  const removePendingAttachment = (index: number) => {
+    setPendingAttachments((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // Send message
+  const handleSendMessage = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!activeChat) return;
+
+    const trimmed = messageInput.trim();
+    if (!trimmed && pendingAttachments.length === 0) return;
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    if (activeChat.type !== "customer") {
+      sendTypingStop(activeChat.type, activeChat.id);
+    }
+
+    const tempId = `temp-${Date.now()}`;
+
+    if (activeChat.type === "customer") {
+      const optimisticMsg: TeamMessage = {
+        _id: tempId,
+        channelType: "customer",
+        customerId: activeChat.id,
+        senderType: "account",
+        senderId: currentUser?._id || "account",
+        senderName: currentUser?.name || "You",
+        content: trimmed,
+        createdAt: new Date().toISOString(),
+        isOptimistic: true,
+        status: "pending",
+      };
+
+      setLiveMessages((prev) => [...prev, optimisticMsg]);
+      setMessageInput("");
+      setPendingAttachments([]);
+
+      try {
+        const saved = await sendCustomerMessage({
+          customerId: activeChat.id,
+          content: trimmed,
+        }).unwrap();
+
+        if (saved?._id) {
+          setLiveMessages((prev) =>
+            prev.map((m) =>
+              m._id === tempId
+                ? {
+                    ...m,
+                    _id: saved._id || tempId,
+                    status: "sent",
+                    isOptimistic: false,
+                  }
+                : m
+            )
+          );
+        }
+      } catch (err: unknown) {
+        const msg =
+          err instanceof Error ? err.message : "Failed to send message to customer";
+        setErrorBanner(msg);
+        setLiveMessages((prev) =>
+          prev.map((m) => (m._id === tempId ? { ...m, status: "failed" } : m))
+        );
+      }
+      return;
+    }
+
+    // Team direct / group chat
+    const optimisticMsg: TeamMessage = {
+      _id: tempId,
+      channelType: activeChat.type,
+      groupId: activeChat.type === "group" ? activeChat.id : undefined,
+      senderId: currentUser?._id || "me",
+      senderName: currentUser?.name || "You",
+      senderRole: currentUser?.role,
+      content: trimmed,
+      attachments: [...pendingAttachments],
+      createdAt: new Date().toISOString(),
+      isOptimistic: true,
+      status: "pending",
+    };
+
+    setLiveMessages((prev) => [...prev, optimisticMsg]);
+
+    sendMessage({
+      channelType: activeChat.type,
+      channelId: activeChat.id,
+      content: trimmed,
+      attachments: pendingAttachments.length > 0 ? pendingAttachments : undefined,
+    });
+
+    setMessageInput("");
+    setPendingAttachments([]);
+  };
+
+  // Active typing list string
+  const typingText = useMemo(() => {
+    const names = Object.keys(typingUsers);
+    if (names.length === 0) return null;
+    if (names.length === 1) return `${names[0]} is typing...`;
+    return `${names.slice(0, 2).join(", ")} and others are typing...`;
+  }, [typingUsers]);
+
+  // Extract shared files from messages for the Files drawer
+  const sharedFiles = useMemo(() => {
+    const files: TeamAttachment[] = [];
+    displayedMessages.forEach((msg) => {
+      if (msg.attachments && msg.attachments.length > 0) {
+        files.push(...msg.attachments);
+      }
+    });
+    return files;
+  }, [displayedMessages]);
 
   return (
-    <div className="flex h-[calc(100vh-140px)] bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mt-6">
-      {/* Left Sidebar - Contact List */}
-      <div
-        className={`w-full md:w-80 border-r border-gray-200 flex-col bg-white ${
-          showChat ? "hidden md:flex" : "flex"
-        }`}
-      >
-        {/* User Profile - Not explicitly in the sidebar list in the image, but maybe at top? 
-            The image shows "Sarah Johnson Plant Lead" at the top of the sidebar.
-        */}
-        <div className="p-4 border-b border-gray-100 flex items-center gap-3">
-          <img
-            src="https://i.pravatar.cc/150?u=sarah"
-            alt="Sarah Johnson"
-            className="w-10 h-10 rounded-full"
-          />
-          <div>
-            <h3 className="font-semibold text-gray-800 text-sm">
-              Sarah Johnson
-            </h3>
-            <p className="text-xs text-gray-500">Plant Lead</p>
-          </div>
-        </div>
-
-        {/* Search */}
-        <div className="p-4 pb-2">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search chats..."
-              className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-100 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={1.5}
-                stroke="currentColor"
-                className="w-4 h-4"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
-                />
-              </svg>
-            </div>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex border-b border-gray-100 mt-2">
-          <button
-            className={`flex-1 pb-3 text-sm font-medium ${
-              activeTab === "Departments"
-                ? "text-blue-600 border-b-2 border-blue-600"
-                : "text-gray-500 hover:text-gray-700"
-            }`}
-            onClick={() => setActiveTab("Departments")}
-          >
-            Departments
-          </button>
-          <button
-            className={`flex-1 pb-3 text-sm font-medium ${
-              activeTab === "Direct"
-                ? "text-blue-600 border-b-2 border-blue-600"
-                : "text-gray-500 hover:text-gray-700"
-            }`}
-            onClick={() => setActiveTab("Direct")}
-          >
-            Direct
-          </button>
-        </div>
-
-        {/* Contacts List */}
-        <div className="flex-1 overflow-y-auto">
-          {activeTab === "Direct" && (
-            <div className="bg-blue-50/50">
-              {contacts.map((contact) => (
-                <div
-                  key={contact.id}
-                  onClick={() => setShowChat(true)}
-                  className="flex items-center gap-3 p-4 cursor-pointer hover:bg-blue-50 transition-colors border-l-4 border-blue-600 bg-blue-50"
-                >
-                  <div className="relative">
-                    <img
-                      src={contact.avatar}
-                      alt={contact.name}
-                      className="w-10 h-10 rounded-full object-cover"
-                    />
-                    {/* Online Indicator (implied) */}
-                    {/* <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full"></div> */}
-                  </div>
-                  <h4 className="text-sm font-medium text-gray-800">
-                    {contact.name}
-                  </h4>
-                </div>
-              ))}
-            </div>
-          )}
-          {activeTab === "Departments" && (
-            <div className="p-4 text-center text-sm text-gray-400">
-              No departments found
-            </div>
-          )}
-        </div>
-
-        {/* New Chat Button */}
-        <div className="p-4 border-t border-gray-100">
-          <button className="w-full flex items-center justify-center gap-2 py-2.5 border border-dashed border-gray-300 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-400 transition-colors">
-            <span>+</span> New Chat
-          </button>
-        </div>
-        {/* Team Online Status */}
-        <div className="px-4 py-3 bg-gray-50 text-xs text-gray-500 flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-green-500"></div>
-          Team Online
-        </div>
+    <div className="flex h-[calc(100vh-100px)] bg-white rounded-xl shadow-xs border border-gray-200 overflow-hidden mt-3">
+      {/* 1. Left Contact Sidebar */}
+      <div className={`w-full md:w-auto h-full ${activeChat ? "hidden md:flex" : "flex"}`}>
+        <ChatSidebar
+          currentUser={currentUser ? { _id: currentUser._id, name: currentUser.name, email: currentUser.email, role: currentUser.role } : null}
+          isConnected={isConnected}
+          activeMainTab={activeMainTab}
+          setActiveMainTab={setActiveMainTab}
+          activeTeamTab={activeTeamTab}
+          setActiveTeamTab={setActiveTeamTab}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          activeChat={activeChat}
+          onSelectChat={(chat) => {
+            setActiveChat(chat);
+            setLiveMessages([]);
+            setTypingUsers({});
+            setErrorBanner(null);
+            setIsDrawerOpen(false);
+          }}
+          conversations={conversationsData || []}
+          isLoadingConversations={isLoadingConversations}
+          customerConversations={customerConversationsData || []}
+          isLoadingCustomerConversations={isLoadingCustomerConversations}
+          onOpenNewChat={() => setIsNewChatModalOpen(true)}
+        />
       </div>
 
-      {/* Right Content - Chat Area */}
-      <div
-        className={`flex-1 flex-col bg-[#FAFCFF] relative ${
-          showChat ? "flex" : "hidden md:flex"
-        }`}
-      >
-        {/* Mobile Back Header */}
-        <div className="md:hidden p-4 border-b border-gray-200 flex items-center gap-3 bg-white">
-          <button
-            onClick={() => setShowChat(false)}
-            className="p-1 -ml-2 text-gray-600 hover:bg-gray-100 rounded-full"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={1.5}
-              stroke="currentColor"
-              className="w-6 h-6"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M15.75 19.5L8.25 12l7.5-7.5"
-              />
-            </svg>
-          </button>
-          <div className="flex items-center gap-2">
-            <img
-              src={contacts[0].avatar}
-              alt=""
-              className="w-8 h-8 rounded-full object-cover"
+      {/* 2. Right Chat Main Area */}
+      <div className={`flex-1 flex flex-col bg-[#F8FAFC] relative min-w-0 h-full ${!activeChat ? "hidden md:flex" : "flex"}`}>
+        {activeChat ? (
+          <>
+            <ChatHeader
+              activeChat={activeChat}
+              typingText={typingText}
+              errorBanner={errorBanner}
+              setErrorBanner={setErrorBanner}
+              isDrawerOpen={isDrawerOpen}
+              setIsDrawerOpen={setIsDrawerOpen}
+              onBack={() => setActiveChat(null)}
             />
-            <h3 className="font-semibold text-gray-800 text-sm">
-              {contacts[0].name}
-            </h3>
-          </div>
-        </div>
 
-        {/* Chat Messages */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex ${
-                message.isMe ? "justify-end" : "justify-start"
-              }`}
-            >
-              <div
-                className={`max-w-[85%] md:max-w-[70%] ${
-                  message.isMe ? "items-end" : "items-start"
-                } flex flex-col`}
-              >
-                <div
-                  className={`p-4 rounded-2xl text-sm ${
-                    message.isMe
-                      ? "bg-blue-600 text-white rounded-br-none"
-                      : "bg-gray-100 text-gray-800 rounded-bl-none"
-                  }`}
-                >
-                  {message.text}
-                </div>
-                <span className="text-[10px] text-gray-400 mt-1 px-1">
-                  {message.time}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
+            <ChatMessageList
+              messages={displayedMessages}
+              isLoadingHistory={
+                isLoadingDirectHistory ||
+                isLoadingGroupHistory ||
+                isLoadingCustomerHistory
+              }
+              currentUserId={currentUser?._id}
+              currentUserName={currentUser?.name}
+              currentUserRole={currentUser?.role}
+              messagesEndRef={messagesEndRef}
+            />
 
-        {/* Chat Input */}
-        <div className="p-4 md:p-6 bg-white border-t border-gray-100">
-          <div className="flex items-center gap-3">
-            <div className="flex-1 relative">
-              <input
-                type="text"
-                value={messageInput}
-                onChange={(e) => setMessageInput(e.target.value)}
-                placeholder="Type your message..."
-                className="w-full pl-5 pr-4 py-3 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
-              />
-            </div>
-            <button className="bg-[#2563EB] text-white px-4 md:px-6 py-3 rounded-lg flex items-center gap-2 font-medium hover:opacity-90 transition-opacity whitespace-nowrap">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={2}
-                stroke="currentColor"
-                className="w-4 h-4"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M6 12L3.269 3.126A59.768 59.768 0 0 1 21.485 12 59.77 59.77 0 0 1 3.27 20.876L5.999 12Zm0 0h7.5"
-                />
-              </svg>
-              <span className="hidden md:inline">Send</span>
-              <span className="md:hidden">Send</span>
-            </button>
-          </div>
-          <div className="text-right mt-2 text-xs text-gray-400">
-            Last sync: just now
-          </div>
-        </div>
+            <ChatInputBar
+              chatName={activeChat.name}
+              messageInput={messageInput}
+              onInputChange={handleInputChange}
+              onSendMessage={handleSendMessage}
+              pendingAttachments={pendingAttachments}
+              onRemoveAttachment={removePendingAttachment}
+              onFileSelect={handleFileSelect}
+              isUploading={isUploading}
+            />
+          </>
+        ) : (
+          <ChatEmptyState />
+        )}
       </div>
+
+      {/* 3. Right Sidebar Details Drawer */}
+      {activeChat && (
+        <ChatDrawer
+          isOpen={isDrawerOpen}
+          onClose={() => setIsDrawerOpen(false)}
+          activeChat={activeChat}
+          drawerTab={drawerTab}
+          setDrawerTab={setDrawerTab}
+          groupDetails={groupDetails}
+          isLoadingGroupDetails={isLoadingGroupDetails}
+          sharedFiles={sharedFiles}
+        />
+      )}
+
+      {/* 4. New Direct Chat Modal */}
+      <NewChatModal
+        isOpen={isNewChatModalOpen}
+        onClose={() => setIsNewChatModalOpen(false)}
+        users={usersData || []}
+        isLoadingUsers={isLoadingUsers}
+        onSelectUser={(chat) => {
+          setActiveChat(chat);
+          setActiveMainTab("Team");
+          setActiveTeamTab("Direct");
+          setLiveMessages([]);
+          setTypingUsers({});
+          setErrorBanner(null);
+          setIsDrawerOpen(false);
+        }}
+        currentUserId={currentUser?._id}
+      />
     </div>
   );
 };
