@@ -84,8 +84,14 @@ const InvoiceManagementPage = lazy(
 const VendorInvoicesPage = lazy(
   () => import("@/pages/invoices/VendorInvoicesPage")
 );
+const VendorInvoiceDetailPage = lazy(
+  () => import("@/pages/invoices/VendorInvoiceDetailPage")
+);
 const CarrierInvoicesPage = lazy(
   () => import("@/pages/invoices/CarrierInvoicesPage")
+);
+const CarrierInvoiceDetailPage = lazy(
+  () => import("@/pages/invoices/CarrierInvoiceDetailPage")
 );
 const MiscellaneousInvoicesPage = lazy(
   () => import("@/pages/invoices/MiscellaneousInvoicesPage")
@@ -464,8 +470,16 @@ export const routes: RouteObject[] = [
             element: <VendorInvoicesPage />,
           },
           {
+            path: "/invoices/vendor-invoices/:id",
+            element: <VendorInvoiceDetailPage />,
+          },
+          {
             path: "/vendor-invoices",
             element: <VendorInvoicesPage />,
+          },
+          {
+            path: "/vendor-invoices/:id",
+            element: <VendorInvoiceDetailPage />,
           },
           {
             path: "/invoices/carrier-invoices",
@@ -474,6 +488,14 @@ export const routes: RouteObject[] = [
           {
             path: "/carrier-invoices",
             element: <CarrierInvoicesPage />,
+          },
+          {
+            path: "/carrier-invoices/:id",
+            element: <CarrierInvoiceDetailPage />,
+          },
+          {
+            path: "/invoices/carrier-invoices/:id",
+            element: <CarrierInvoiceDetailPage />,
           },
           {
             path: "/invoices/freight-invoices",
