@@ -15,7 +15,6 @@ import ProfileCard, { type ProfileData } from "@/components/profile-card";
 import {
   useGetCustomerDetailQuery,
   useMarkInvoicePaidMutation,
-  type CustomerDetailData,
 } from "@/redux/api/customerApi";
 import {
   formatIndianShortCurrency,
@@ -23,286 +22,6 @@ import {
   formatJoinedDate,
 } from "@/modules/customers/customer-utils";
 import DolleIcon from "@/assets/icon/blueDollerIcon.svg";
-
-const FALLBACK_CUSTOMER_DETAIL: CustomerDetailData = {
-  profile: {
-    _id: "67a1b2c3d4e5f6789012345a",
-    customerId: "ID-2025-1047",
-    customerName: "John Doe",
-    status: "Active",
-    joinedDate: "2023-01-15T08:00:00.000Z",
-    phone: "(163) 2459 315",
-    email: "darlee@example.com",
-    address: "1861 Bayonne Ave, Manchester, NJ, 08759",
-    company: "ABC Industries",
-    photo: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80",
-  },
-  summary: {
-    totalProjects: 12,
-    totalProjectValue: 48200000,
-    totalProjectCost: 31600000,
-    totalFreightCost: 2480000,
-    expectedMargin: 34.6,
-    actualMargin: 28.9,
-    totalExpenses: 31600000,
-    outstandingAmount: 4260000,
-  },
-  customerRevenue: {
-    totalQuotedValue: 49400000,
-    totalInvoiced: 46800000,
-    totalReceived: 42500000,
-    outstandingAmount: 4260000,
-    overdue: 1240000,
-  },
-  profitabilityOverview: [],
-  projects: [
-    {
-      leadId: "1",
-      projectId: "Project 1",
-      projectName: "ABC Building",
-      amount: 50000,
-      status: "Completed",
-      startDate: "2024-04-02T00:00:00.000Z",
-      endDate: "2024-05-02T00:00:00.000Z",
-    },
-    {
-      leadId: "2",
-      projectId: "Project 2",
-      projectName: "XYZ Building",
-      amount: 50000,
-      status: "Completed",
-      startDate: "2024-04-02T00:00:00.000Z",
-      endDate: "2024-05-02T00:00:00.000Z",
-    },
-    {
-      leadId: "3",
-      projectId: "Project 3",
-      projectName: "PQR Building",
-      amount: 50000,
-      status: "In progress",
-      startDate: "2024-04-02T00:00:00.000Z",
-      endDate: "2024-05-02T00:00:00.000Z",
-    },
-  ],
-  invoices: [
-    {
-      invoiceId: "inv-1",
-      invoiceNumber: "INV001",
-      dueDate: "2024-12-24T00:00:00.000Z",
-      amount: 500,
-      paid: 500,
-      amountDue: 500,
-      status: "Paid",
-      projectName: "ABC Building",
-    },
-    {
-      invoiceId: "inv-2",
-      invoiceNumber: "INV002",
-      dueDate: "2024-12-10T00:00:00.000Z",
-      amount: 1500,
-      paid: 1500,
-      amountDue: 1500,
-      status: "Paid",
-      projectName: "ABC Building",
-    },
-    {
-      invoiceId: "inv-3",
-      invoiceNumber: "INV003",
-      dueDate: "2024-11-27T00:00:00.000Z",
-      amount: 600,
-      paid: 600,
-      amountDue: 600,
-      status: "Paid",
-      projectName: "ABC Building",
-    },
-    {
-      invoiceId: "inv-4",
-      invoiceNumber: "INV004",
-      dueDate: "2024-11-18T00:00:00.000Z",
-      amount: 1000,
-      paid: 1000,
-      amountDue: 1000,
-      status: "Unpaid",
-      projectName: "ABC Building",
-    },
-  ],
-};
-
-const FALLBACK_PROJECTS = [
-  {
-    id: "1",
-    project: "Project 1",
-    projectName: "ABC Building",
-    amount: "$5,0000",
-    status: "Completed",
-    startDate: "Apr 02, 2024",
-    endDate: "May 02, 2024",
-  },
-  {
-    id: "2",
-    project: "Project 2",
-    projectName: "XYZ Building",
-    amount: "$5,0000",
-    status: "Completed",
-    startDate: "Apr 02, 2024",
-    endDate: "May 02, 2024",
-  },
-  {
-    id: "3",
-    project: "Project 3",
-    projectName: "PQR Building",
-    amount: "$5,0000",
-    status: "In progress",
-    startDate: "Apr 02, 2024",
-    endDate: "May 02, 2024",
-  },
-];
-
-const DEFAULT_PROFITABILITY = [
-  {
-    metric: "Revenue",
-    expected: "$4.82Cr",
-    actual: "$4.69Cr",
-    actualColor: "text-[#EF4444]",
-    variance: "-$14L",
-    variancePill: "bg-[#FEE2E2] text-[#DC2626] border-[#FECACA]",
-    isBold: false,
-    isHighlighted: false,
-  },
-  {
-    metric: "Material Cost",
-    expected: "$2.42Cr",
-    actual: "$2.56Cr",
-    actualColor: "text-[#10B981]",
-    variance: "+$14L",
-    variancePill: "bg-[#DCFCE7] text-[#16A34A] border-[#BBF7D0]",
-    isBold: false,
-    isHighlighted: false,
-  },
-  {
-    metric: "Freight Cost",
-    expected: "$21L",
-    actual: "$24.8L",
-    actualColor: "text-[#10B981]",
-    variance: "+$3.8L",
-    variancePill: "bg-[#DCFCE7] text-[#16A34A] border-[#BBF7D0]",
-    isBold: false,
-    isHighlighted: false,
-  },
-  {
-    metric: "Logistics Cost",
-    expected: "$16L",
-    actual: "$18.4L",
-    actualColor: "text-[#10B981]",
-    variance: "+$2.4L",
-    variancePill: "bg-[#DCFCE7] text-[#16A34A] border-[#BBF7D0]",
-    isBold: false,
-    isHighlighted: false,
-  },
-  {
-    metric: "Manpower Cost",
-    expected: "$18L",
-    actual: "$19.2L",
-    actualColor: "text-[#10B981]",
-    variance: "+$1.2L",
-    variancePill: "bg-[#DCFCE7] text-[#16A34A] border-[#BBF7D0]",
-    isBold: false,
-    isHighlighted: false,
-  },
-  {
-    metric: "Site Cost",
-    expected: "$12L",
-    actual: "$14.6L",
-    actualColor: "text-[#10B981]",
-    variance: "+$2.6L",
-    variancePill: "bg-[#DCFCE7] text-[#16A34A] border-[#BBF7D0]",
-    isBold: false,
-    isHighlighted: false,
-  },
-  {
-    metric: "Miscellaneous",
-    expected: "$8L",
-    actual: "$10.2L",
-    actualColor: "text-[#10B981]",
-    variance: "+$2.2L",
-    variancePill: "bg-[#DCFCE7] text-[#16A34A] border-[#BBF7D0]",
-    isBold: false,
-    isHighlighted: false,
-  },
-  {
-    metric: "Total Cost",
-    expected: "$2.97Cr",
-    actual: "$3.43Cr",
-    actualColor: "text-[#EF4444]",
-    variance: "+$46L",
-    variancePill: "bg-[#DCFCE7] text-[#16A34A] border-[#BBF7D0]",
-    isBold: true,
-    isHighlighted: false,
-  },
-  {
-    metric: "Profit",
-    expected: "$1.85Cr",
-    actual: "$1.25Cr",
-    actualColor: "text-[#EF4444]",
-    variance: "-$60L",
-    variancePill: "bg-[#FEE2E2] text-[#DC2626] border-[#FECACA]",
-    isBold: true,
-    isHighlighted: false,
-  },
-  {
-    metric: "Margin",
-    expected: "38.4%",
-    actual: "26.7%",
-    actualColor: "text-[#EF4444]",
-    variance: "-11.7%",
-    variancePill: "bg-[#FEE2E2] text-[#DC2626] border-[#FECACA]",
-    isBold: true,
-    isHighlighted: true,
-  },
-];
-
-const FALLBACK_INVOICES = [
-  {
-    invoiceId: "inv-1",
-    invoiceNumber: "INV001",
-    dueDate: "24 Dec 2024",
-    amount: 500,
-    paid: 500,
-    amountDue: 500,
-    status: "Paid",
-    projectName: "ABC Building",
-  },
-  {
-    invoiceId: "inv-2",
-    invoiceNumber: "INV002",
-    dueDate: "10 Dec 2024",
-    amount: 1500,
-    paid: 1500,
-    amountDue: 1500,
-    status: "Paid",
-    projectName: "ABC Building",
-  },
-  {
-    invoiceId: "inv-3",
-    invoiceNumber: "INV003",
-    dueDate: "27 Nov 2024",
-    amount: 600,
-    paid: 600,
-    amountDue: 600,
-    status: "Paid",
-    projectName: "ABC Building",
-  },
-  {
-    invoiceId: "inv-4",
-    invoiceNumber: "INV004",
-    dueDate: "18 Nov 2024",
-    amount: 1000,
-    paid: 1000,
-    amountDue: 1000,
-    status: "Unpaid",
-    projectName: "ABC Building",
-  },
-];
 
 function formatInvoiceDate(val?: string | null): string {
   if (!val) return "—";
@@ -321,47 +40,48 @@ export default function CustomerDetailPage() {
   const [paidInvoicesLocal, setPaidInvoicesLocal] = useState<Record<string, boolean>>({});
   const [actionMessage, setActionMessage] = useState<string | null>(null);
 
-  const { data: apiData, isLoading } = useGetCustomerDetailQuery(customerId);
+  const { data: detail, isLoading } = useGetCustomerDetailQuery(customerId);
   const [markPaidMutation, { isLoading: isMarkingPaid }] = useMarkInvoicePaidMutation();
 
-  const detail: CustomerDetailData = apiData || FALLBACK_CUSTOMER_DETAIL;
-  const { profile, summary, customerRevenue, projects, invoices } = detail;
+  const profile = detail?.profile;
+  const summary = detail?.summary;
+  const customerRevenue = detail?.customerRevenue;
 
   const profileData: ProfileData = {
-    name: profile?.customerName || "John Doe",
+    name: profile?.customerName || "—",
     status: (profile?.status as "Active" | "Inactive") || "Active",
-    id: profile?.customerId || (customerId?.startsWith("ID-") ? customerId : "ID-2025-1047"),
-    joined: formatJoinedDate(profile?.joinedDate) || "January 15, 2023",
-    phone: profile?.phone || "(163) 2459 315",
-    email: profile?.email || "darlee@example.com",
-    address: profile?.address || "1861 Bayonne Ave, Manchester, NJ, 08759",
-    company: profile?.company || "ABC Industries",
-    photo: profile?.photo || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80",
+    id: profile?.customerId || customerId || "—",
+    joined: formatJoinedDate(profile?.joinedDate) || "—",
+    phone: profile?.phone || "—",
+    email: profile?.email || "—",
+    address: profile?.address || "—",
+    company: profile?.company || "—",
+    photo: profile?.photo || null,
   };
 
   // Top 4 Primary Colored KPI Cards
   const primaryKpiCards = [
     {
       title: "Total Projects",
-      value: summary?.totalProjects ?? 12,
+      value: summary?.totalProjects ?? 0,
       bgColor: "bg-[#1D51A4]",
       icon: <CreditCard className="w-5 h-5 text-[#1D51A4]" />,
     },
     {
       title: "Total Project Value",
-      value: formatIndianShortCurrency(summary?.totalProjectValue ?? 48200000),
+      value: formatIndianShortCurrency(summary?.totalProjectValue ?? 0),
       bgColor: "bg-[#FA743E]",
       icon: <CircleDollarSign className="w-5 h-5 text-[#FA743E]" />,
     },
     {
       title: "Total Project Cost",
-      value: formatIndianShortCurrency(summary?.totalProjectCost ?? 31600000),
+      value: formatIndianShortCurrency(summary?.totalProjectCost ?? 0),
       bgColor: "bg-[#E5A500]",
       icon: <Receipt className="w-5 h-5 text-[#E5A500]" />,
     },
     {
       title: "Total Freight Cost",
-      value: formatIndianShortCurrency(summary?.totalFreightCost ?? 2480000),
+      value: formatIndianShortCurrency(summary?.totalFreightCost ?? 0),
       bgColor: "bg-[#9333EA]",
       icon: <Truck className="w-5 h-5 text-[#9333EA]" />,
     },
@@ -371,23 +91,19 @@ export default function CustomerDetailPage() {
   const secondaryKpiCards = [
     {
       title: "Expected Margin",
-      value: `${summary?.expectedMargin ?? 34.6}%`,
-      change: "+12.5%",
+      value: `${summary?.expectedMargin ?? 0}%`,
     },
     {
       title: "Actual / Real Margin",
-      value: `${summary?.actualMargin ?? 28.9}%`,
-      change: "+12.5%",
+      value: `${summary?.actualMargin ?? 0}%`,
     },
     {
       title: "Total Expenses",
-      value: formatIndianShortCurrency(summary?.totalExpenses ?? 31600000),
-      change: "+12.5%",
+      value: formatIndianShortCurrency(summary?.totalExpenses ?? 0),
     },
     {
       title: "Outstanding Amount",
-      value: formatIndianShortCurrency(summary?.outstandingAmount ?? 4260000),
-      change: "+12.5%",
+      value: formatIndianShortCurrency(summary?.outstandingAmount ?? 0),
     },
   ];
 
@@ -395,65 +111,97 @@ export default function CustomerDetailPage() {
   const customerRevenueCards = [
     {
       title: "Total Quoted Value",
-      value: formatIndianShortCurrency(customerRevenue?.totalQuotedValue ?? 49400000),
+      value: formatIndianShortCurrency(customerRevenue?.totalQuotedValue ?? 0),
     },
     {
       title: "Total Invoiced",
-      value: formatIndianShortCurrency(customerRevenue?.totalInvoiced ?? 46800000),
+      value: formatIndianShortCurrency(customerRevenue?.totalInvoiced ?? 0),
     },
     {
       title: "Total Received",
-      value: formatIndianShortCurrency(customerRevenue?.totalReceived ?? 42500000),
+      value: formatIndianShortCurrency(customerRevenue?.totalReceived ?? 0),
     },
     {
       title: "Outstanding Amount",
-      value: formatIndianShortCurrency(customerRevenue?.outstandingAmount ?? 4260000),
+      value: formatIndianShortCurrency(customerRevenue?.outstandingAmount ?? 0),
     },
     {
       title: "Overdue",
-      value: formatIndianShortCurrency(customerRevenue?.overdue ?? 1240000),
+      value: formatIndianShortCurrency(customerRevenue?.overdue ?? 0),
     },
   ];
 
   // Projects list
   const displayProjects = useMemo(() => {
-    if (projects && projects.length > 0) {
-      return projects.map((p, index) => {
-        const projLabel = p.projectId?.startsWith("Project")
-          ? p.projectId
-          : `Project ${index + 1}`;
-        const statusFormatted =
-          p.status?.toLowerCase() === "completed" ? "Completed" : "In progress";
-        return {
-          id: p.projectId || p.leadId || String(index + 1),
-          project: projLabel,
-          projectName: p.projectName || `Building ${index + 1}`,
-          amount: p.amount ? (p.amount === 50000 ? "$5,0000" : formatIndianShortCurrency(p.amount)) : "$5,0000",
-          status: statusFormatted,
-          startDate: formatProjectDate(p.startDate) || "Apr 02, 2024",
-          endDate: formatProjectDate(p.endDate) || "May 02, 2024",
-        };
-      });
-    }
-    return FALLBACK_PROJECTS;
-  }, [projects]);
+    return (detail?.projects || []).map((p, index) => {
+      const projLabel = p.projectId || `Project ${index + 1}`;
+      const statusFormatted =
+        p.status?.toLowerCase() === "completed"
+          ? "Completed"
+          : p.status || "In progress";
+      return {
+        id: p.leadId || p.projectId || String(index + 1),
+        project: projLabel,
+        projectName: p.projectName || `Project ${index + 1}`,
+        amount: p.amount ? formatIndianShortCurrency(p.amount) : "$0",
+        status: statusFormatted,
+        startDate: formatProjectDate(p.startDate) || "—",
+        endDate: formatProjectDate(p.endDate) || "—",
+      };
+    });
+  }, [detail?.projects]);
 
   // Invoice list
   const displayInvoices = useMemo(() => {
-    if (invoices && invoices.length > 0) {
-      return invoices.map((inv) => ({
-        invoiceId: inv.invoiceId,
-        invoiceNumber: inv.invoiceNumber,
-        dueDate: formatInvoiceDate(inv.dueDate),
-        amount: inv.amount,
-        paid: inv.paid,
-        amountDue: inv.amountDue,
-        status: inv.status,
-        projectName: inv.projectName,
-      }));
-    }
-    return FALLBACK_INVOICES;
-  }, [invoices]);
+    return (detail?.invoices || []).map((inv) => ({
+      invoiceId: inv.invoiceId,
+      invoiceNumber: inv.invoiceNumber,
+      dueDate: formatInvoiceDate(inv.dueDate),
+      amount: inv.amount,
+      paid: inv.paid,
+      amountDue: inv.amountDue,
+      status: inv.status || inv.invoiceStatus || "Unpaid",
+      projectName: inv.projectName,
+    }));
+  }, [detail?.invoices]);
+
+  // Profitability rows
+  const displayProfitability = useMemo(() => {
+    return (detail?.profitabilityOverview || []).map((item) => {
+      const isPercent = item.unit === "percent" || item.key === "marginPct";
+      const isBold = ["revenue", "totalCost", "profit", "marginPct"].includes(item.key);
+      const isHighlighted = item.key === "marginPct";
+
+      const formatVal = (v: number) => {
+        if (isPercent) return `${v}%`;
+        return formatIndianShortCurrency(v);
+      };
+
+      const formatVariance = (v: number) => {
+        const prefix = v > 0 ? "+" : "";
+        if (isPercent) return `${prefix}${v}%`;
+        return `${prefix}${formatIndianShortCurrency(v)}`;
+      };
+
+      const isPositive = item.variance >= 0;
+      const variancePill = isPositive
+        ? "bg-[#DCFCE7] text-[#16A34A] border-[#BBF7D0]"
+        : "bg-[#FEE2E2] text-[#DC2626] border-[#FECACA]";
+      const actualColor = isPositive ? "text-[#10B981]" : "text-[#EF4444]";
+
+      return {
+        key: item.key,
+        metric: item.label,
+        expected: formatVal(item.expected),
+        actual: formatVal(item.actual),
+        actualColor,
+        variance: formatVariance(item.variance),
+        variancePill,
+        isBold,
+        isHighlighted,
+      };
+    });
+  }, [detail?.profitabilityOverview]);
 
   const handleMarkAsPaid = async (invoiceId: string, invoiceNumber: string) => {
     try {
@@ -530,9 +278,6 @@ export default function CustomerDetailPage() {
               <p className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
                 {card.value}
               </p>
-              <p className="text-xs font-semibold text-[#16A34A] mt-0.5">
-                {card.change}
-              </p>
             </div>
           </div>
         ))}
@@ -555,41 +300,51 @@ export default function CustomerDetailPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
-              {displayProjects.map((p) => {
-                const isCompleted = p.status.toLowerCase() === "completed";
-                return (
-                  <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="py-4 px-4 font-medium text-slate-800">{p.project}</td>
-                    <td className="py-4 px-4 font-medium text-slate-800">{p.projectName}</td>
-                    <td className="py-4 px-4 font-bold text-slate-900">{p.amount}</td>
-                    <td className="py-4 px-4 font-semibold">
-                      <span className={isCompleted ? "text-[#16A34A]" : "text-[#D97706]"}>
-                        {p.status}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4 font-medium text-slate-700">{p.startDate}</td>
-                    <td className="py-4 px-4 font-medium text-slate-700">{p.endDate}</td>
-                  </tr>
-                );
-              })}
+              {displayProjects.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="text-center py-8 text-slate-500 font-medium">
+                    No projects found for this customer.
+                  </td>
+                </tr>
+              ) : (
+                displayProjects.map((p) => {
+                  const isCompleted = p.status.toLowerCase() === "completed";
+                  return (
+                    <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="py-4 px-4 font-medium text-slate-800">{p.project}</td>
+                      <td className="py-4 px-4 font-medium text-slate-800">{p.projectName}</td>
+                      <td className="py-4 px-4 font-bold text-slate-900">{p.amount}</td>
+                      <td className="py-4 px-4 font-semibold">
+                        <span className={isCompleted ? "text-[#16A34A]" : "text-[#D97706]"}>
+                          {p.status}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4 font-medium text-slate-700">{p.startDate}</td>
+                      <td className="py-4 px-4 font-medium text-slate-700">{p.endDate}</td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
 
         {/* View All button */}
-        <div className="text-center pt-6">
-          <button
-            type="button"
-            onClick={() =>
-              navigate(
-                customerId ? `/customers/${customerId}/projects` : "/customers/projects"
-              )
-            }
-            className="text-sm font-semibold text-[#2563EB] hover:text-[#1D4ED8] hover:underline transition-colors cursor-pointer"
-          >
-            View All
-          </button>
-        </div>
+        {displayProjects.length > 0 && (
+          <div className="text-center pt-6">
+            <button
+              type="button"
+              onClick={() =>
+                navigate(
+                  customerId ? `/customers/${customerId}/projects` : "/customers/projects"
+                )
+              }
+              className="text-sm font-semibold text-[#2563EB] hover:text-[#1D4ED8] hover:underline transition-colors cursor-pointer"
+            >
+              View All
+            </button>
+          </div>
+        )}
       </div>
 
       {/* SECTION 1: CUSTOMER PROFITABILITY OVERVIEW */}
@@ -609,41 +364,49 @@ export default function CustomerDetailPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
-              {DEFAULT_PROFITABILITY.map((row) => (
-                <tr
-                  key={row.metric}
-                  className={`hover:bg-slate-50/50 transition-colors ${
-                    row.isHighlighted ? "bg-[#FFF5F5]" : ""
-                  }`}
-                >
-                  <td
-                    className={`py-3.5 px-6 ${
-                      row.isBold ? "font-bold text-slate-900" : "font-medium text-slate-800"
-                    }`}
-                  >
-                    {row.metric}
-                  </td>
-                  <td
-                    className={`py-3.5 px-6 ${
-                      row.isBold ? "font-bold text-slate-900" : "font-normal text-slate-500"
-                    }`}
-                  >
-                    {row.expected}
-                  </td>
-                  <td
-                    className={`py-3.5 px-6 font-semibold ${row.actualColor}`}
-                  >
-                    {row.actual}
-                  </td>
-                  <td className="py-3.5 px-6">
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${row.variancePill}`}
-                    >
-                      {row.variance}
-                    </span>
+              {displayProfitability.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="text-center py-8 text-slate-500 font-medium">
+                    No profitability data available.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                displayProfitability.map((row) => (
+                  <tr
+                    key={row.metric}
+                    className={`hover:bg-slate-50/50 transition-colors ${
+                      row.isHighlighted ? "bg-[#FFF5F5]" : ""
+                    }`}
+                  >
+                    <td
+                      className={`py-3.5 px-6 ${
+                        row.isBold ? "font-bold text-slate-900" : "font-medium text-slate-800"
+                      }`}
+                    >
+                      {row.metric}
+                    </td>
+                    <td
+                      className={`py-3.5 px-6 ${
+                        row.isBold ? "font-bold text-slate-900" : "font-normal text-slate-500"
+                      }`}
+                    >
+                      {row.expected}
+                    </td>
+                    <td
+                      className={`py-3.5 px-6 font-semibold ${row.actualColor}`}
+                    >
+                      {row.actual}
+                    </td>
+                    <td className="py-3.5 px-6">
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${row.variancePill}`}
+                      >
+                        {row.variance}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -720,17 +483,24 @@ export default function CustomerDetailPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
-              {displayInvoices.map((inv) => {
-                const isPaid =
-                  paidInvoicesLocal[inv.invoiceId] ||
-                  paidInvoicesLocal[inv.invoiceNumber] ||
-                  inv.status.toLowerCase() === "paid";
+              {displayInvoices.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="text-center py-8 text-slate-500 font-medium">
+                    No invoices found for this customer.
+                  </td>
+                </tr>
+              ) : (
+                displayInvoices.map((inv) => {
+                  const isPaid =
+                    paidInvoicesLocal[inv.invoiceId] ||
+                    paidInvoicesLocal[inv.invoiceNumber] ||
+                    inv.status.toLowerCase() === "paid";
 
-                return (
-                  <tr key={inv.invoiceNumber} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="py-4 px-4 font-semibold text-[#EA580C]">
-                      {inv.invoiceNumber}
-                    </td>
+                  return (
+                    <tr key={inv.invoiceNumber} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="py-4 px-4 font-semibold text-[#EA580C]">
+                        {inv.invoiceNumber}
+                      </td>
                     <td className="py-4 px-4 font-medium text-slate-600">
                       {inv.dueDate}
                     </td>
@@ -791,7 +561,8 @@ export default function CustomerDetailPage() {
                     </td>
                   </tr>
                 );
-              })}
+              })
+            )}
             </tbody>
           </table>
         </div>
