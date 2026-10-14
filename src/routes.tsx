@@ -78,6 +78,18 @@ const SalaryCostPage = lazy(() => import("@/pages/SalaryCostPage"));
 const AddSalaryPage = lazy(() => import("@/pages/cost/AddSalaryPage"));
 const ManpowerCostPage = lazy(() => import("@/pages/ManpowerCostPage"));
 const AddManpowerPage = lazy(() => import("@/pages/cost/AddManpowerPage"));
+const MiscellaneousCostPage = lazy(() => import("@/pages/MiscellaneousCostPage"));
+const AddMiscellaneousCostPage = lazy(() => import("@/pages/cost/AddMiscellaneousCostPage"));
+const FreightCostPage = lazy(() => import("@/pages/cost/FreightCostPage"));
+const LogisticsCostPage = lazy(() => import("@/pages/cost/LogisticsCostPage"));
+const AddLogisticCostPage = lazy(() => import("@/pages/cost/AddLogisticCostPage"));
+const ItemCostListPage = lazy(() => import("@/pages/cost/ItemCostListPage"));
+const RentCostPage = lazy(() => import("@/pages/cost/RentCostPage"));
+const AddRentCostPage = lazy(() => import("@/pages/cost/AddRentCostPage"));
+const FutureIncomeExpenseAnalysisPage = lazy(
+  () => import("@/pages/cost/FutureIncomeExpenseAnalysisPage")
+);
+const CostVariancePage = lazy(() => import("@/pages/cost/CostVariancePage"));
 const InvoiceManagementPage = lazy(
   () => import("@/pages/invoices/ProjectInvoicesPage")
 );
@@ -356,6 +368,94 @@ export const routes: RouteObject[] = [
           {
             path: "/cost/manpower-cost/edit",
             element: <AddManpowerPage />,
+          },
+          {
+            path: "/cost/miscellaneous-cost",
+            element: <MiscellaneousCostPage />,
+          },
+          {
+            path: "/cost/miscellaneous-cost/add",
+            element: <AddMiscellaneousCostPage />,
+          },
+          {
+            path: "/cost/freight-cost",
+            element: <FreightCostPage />,
+          },
+          {
+            path: "/freight-cost",
+            element: <FreightCostPage />,
+          },
+          {
+            path: "/cost/logistics-cost",
+            element: <LogisticsCostPage />,
+          },
+          {
+            path: "/cost/logistics-cost/add",
+            element: <AddLogisticCostPage />,
+          },
+          {
+            path: "/logistics-cost",
+            element: <LogisticsCostPage />,
+          },
+          {
+            path: "/logistics-cost/add",
+            element: <AddLogisticCostPage />,
+          },
+          {
+            path: "/cost/item-cost-list",
+            element: <ItemCostListPage />,
+          },
+          {
+            path: "/item-cost-list",
+            element: <ItemCostListPage />,
+          },
+          {
+            path: "/cost/rent-cost",
+            element: <RentCostPage />,
+          },
+          {
+            path: "/cost/rent-cost/add",
+            element: <AddRentCostPage />,
+          },
+          {
+            path: "/rent-cost",
+            element: <RentCostPage />,
+          },
+          {
+            path: "/rent-cost/add",
+            element: <AddRentCostPage />,
+          },
+          {
+            path: "/cost/future-analysis",
+            element: <FutureIncomeExpenseAnalysisPage />,
+          },
+          {
+            path: "/cost/future-income-expense-analysis",
+            element: <FutureIncomeExpenseAnalysisPage />,
+          },
+          {
+            path: "/future-income-expense-analysis",
+            element: <FutureIncomeExpenseAnalysisPage />,
+          },
+          {
+            path: "/cost/cost-variance",
+            element: <CostVariancePage />,
+          },
+          {
+            path: "/cost/variance-analysis",
+            element: <CostVariancePage />,
+          },
+          {
+            path: "/cost-variance",
+            element: <CostVariancePage />,
+          },
+          {
+            path: "/miscellaneous-cost",
+            element: <MiscellaneousCostPage />,
+          },
+          {
+            path: "/miscellaneous-cost/add",
+            element: <AddMiscellaneousCostPage />,
           },
           {
             path: "/salary-cost",

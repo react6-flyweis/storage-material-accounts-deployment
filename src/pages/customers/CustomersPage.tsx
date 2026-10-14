@@ -50,14 +50,14 @@ export default function CustomersPage() {
   const statCards = [
     {
       title: "Total Customers",
-      value: customerStats?.totalCustomers ?? 126,
+      value: customerStats?.totalCustomers ?? 0,
       icon: UserPlus,
       bg: "bg-[#1A52A5]",
       iconColor: "text-[#1A52A5]",
     },
     {
       title: "Active Customers",
-      value: customerStats?.activeCustomers ?? 48,
+      value: customerStats?.activeCustomers ?? 0,
       icon: Check,
       bg: "bg-[#2EA843]",
       iconColor: "text-[#2EA843]",
@@ -65,14 +65,14 @@ export default function CustomersPage() {
     },
     {
       title: "New Cust. (This Month)",
-      value: customerStats?.newCustomersThisMonth ?? 15,
+      value: customerStats?.newCustomersThisMonth ?? 0,
       icon: UserPlus,
       bg: "bg-[#E5A800]",
       iconColor: "text-[#E5A800]",
     },
     {
       title: "Returning Customers",
-      value: customerStats?.returningCustomers ?? 9,
+      value: customerStats?.returningCustomers ?? 0,
       icon: UserPlus,
       bg: "bg-[#F97047]",
       iconColor: "text-[#F97047]",
@@ -193,44 +193,41 @@ export default function CustomersPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                customers?.map((customer) => {
-                  const targetId = customer.customerId || customer._id;
-                  return (
-                    <TableRow
-                      key={customer._id}
-                      className="border-b border-slate-100/90 last:border-b-0 even:bg-[#FAFAFB]/60 hover:bg-slate-50/80 transition-colors cursor-pointer"
-                      onClick={() => navigate(`/customers/${targetId}`)}
+                customers?.map((customer) => (
+                  <TableRow
+                    key={customer._id}
+                    className="border-b border-slate-100/90 last:border-b-0 even:bg-[#FAFAFB]/60 hover:bg-slate-50/80 transition-colors cursor-pointer"
+                    onClick={() => navigate(`/customers/${customer._id}`)}
+                  >
+                    <TableCell className="py-4.5 px-6 text-sm text-slate-500 font-normal">
+                      {customer.customerId || "—"}
+                    </TableCell>
+                    <TableCell className="py-4.5 px-6 text-sm font-semibold text-slate-900">
+                      {customer.customerName}
+                    </TableCell>
+                    <TableCell className="py-4.5 px-6 text-sm text-slate-500 font-normal">
+                      {customer.phone || "—"}
+                    </TableCell>
+                    <TableCell className="py-4.5 px-6 text-sm text-slate-500 font-normal">
+                      {customer.email || "—"}
+                    </TableCell>
+                    <TableCell
+                      className="py-4.5 px-6 text-center"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/customers/${customer._id}`);
+                      }}
                     >
-                      <TableCell className="py-4.5 px-6 text-sm text-slate-500 font-normal">
-                        {customer.customerId || "ID-2025-1047"}
-                      </TableCell>
-                      <TableCell className="py-4.5 px-6 text-sm font-semibold text-slate-900">
-                        {customer.customerName}
-                      </TableCell>
-                      <TableCell className="py-4.5 px-6 text-sm text-slate-500 font-normal">
-                        {customer.phone || "+39 02 8945 2231"}
-                      </TableCell>
-                      <TableCell className="py-4.5 px-6 text-sm text-slate-500 font-normal">
-                        {customer.email || "luca.moretti@eurobuild.it"}
-                      </TableCell>
-                      <TableCell
-                        className="py-4.5 px-6 text-center"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/customers/${targetId}`);
-                        }}
+                      <button
+                        type="button"
+                        aria-label={`View ${customer.customerName}`}
+                        className="inline-flex items-center justify-center text-[#4F46E5] hover:text-[#4338CA] hover:scale-115 transition-all cursor-pointer p-1 rounded-md"
                       >
-                        <button
-                          type="button"
-                          aria-label={`View ${customer.customerName}`}
-                          className="inline-flex items-center justify-center text-[#4F46E5] hover:text-[#4338CA] hover:scale-115 transition-all cursor-pointer p-1 rounded-md"
-                        >
-                          <Eye className="size-5" />
-                        </button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
+                        <Eye className="size-5" />
+                      </button>
+                    </TableCell>
+                  </TableRow>
+                ))
               )}
             </TableBody>
           </Table>

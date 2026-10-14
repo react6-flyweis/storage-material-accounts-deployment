@@ -81,9 +81,7 @@ export default function ProfileCard({
     : "CU";
 
   const isActive = profile.status?.toLowerCase() === "active";
-  const avatarUrl =
-    profile.photo ||
-    "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80";
+  const avatarUrl = profile.photo;
 
   return (
     <Card className="p-6 bg-white border border-slate-100 shadow-xs rounded-2xl">
@@ -91,8 +89,8 @@ export default function ProfileCard({
         {/* Left: Avatar & Customer info */}
         <div className="flex items-center gap-4 sm:gap-5">
           {/* Avatar image */}
-          <div className="h-18 w-18 sm:h-20 sm:w-20 rounded-full overflow-hidden bg-slate-100 shrink-0 border border-slate-200/80 shadow-xs">
-            {!imgError ? (
+          <div className="h-18 w-18 sm:h-20 sm:w-20 rounded-full overflow-hidden bg-[#1D51A4] text-white shrink-0 border border-slate-200/80 shadow-xs flex items-center justify-center">
+            {avatarUrl && !imgError ? (
               <img
                 src={avatarUrl}
                 alt={profile.name}

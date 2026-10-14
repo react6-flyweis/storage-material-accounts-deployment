@@ -248,25 +248,22 @@ export default function CustomerProjectsPage() {
         address:
           customerDetail.profile.address ||
           "1861 Bayonne Ave, Manchester, NJ, 08759",
-        company: customerDetail.profile.company || "ABC Industries",
-        photo:
-          customerDetail.profile.photo ||
-          "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80",
+        company: customerDetail.profile.company || "—",
+        photo: customerDetail.profile.photo || null,
       };
     }
     return {
-      name: "John Doe",
+      name: "—",
       status: "Active",
-      id: "ID-2025-1047",
-      joined: "January 15, 2023",
-      phone: "(163) 2459 315",
-      email: "darlee@example.com",
-      address: "1861 Bayonne Ave, Manchester, NJ, 08759",
-      company: "ABC Industries",
-      photo:
-        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80",
+      id: customerId || "—",
+      joined: "—",
+      phone: "—",
+      email: "—",
+      address: "—",
+      company: "—",
+      photo: null,
     };
-  }, [customerDetail]);
+  }, [customerDetail, customerId]);
 
   // Search & Filter state
   const [searchTerm, setSearchTerm] = useState("");

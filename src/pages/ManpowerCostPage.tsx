@@ -8,7 +8,6 @@ import {
   ChevronRight,
   Search,
   Calendar,
-  ArrowUpRight,
   CircleDollarSign,
   Briefcase,
   Clock,
@@ -24,6 +23,7 @@ import type { ManpowerCostEntry } from "@/components/cost/AddManpowerCostModal";
 import DeleteConfirmModal from "@/components/cost/DeleteConfirmModal";
 import SuccessModal from "@/components/common_components/SuccessModal";
 import { INITIAL_MANPOWER_DATA } from "@/components/cost/manpowerData";
+import { CostStatCard } from "@/components/cost/CostStatCard";
 
 type SortColumn = "date" | "hours" | "totalCost";
 
@@ -326,93 +326,34 @@ export const ManpowerCostPage: React.FC = () => {
 
       {/* Top 4 KPI Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5">
-        {/* Card 1: Total Manpower Cost */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-xs relative overflow-hidden flex flex-col justify-between">
-          <div className="flex items-start justify-between">
-            <span className="text-xs sm:text-sm font-medium text-slate-500">
-              Total Manpower Cost
-            </span>
-            <div className="w-10 h-10 rounded-xl border border-purple-300 bg-purple-50/50 flex items-center justify-center text-purple-600">
-              <CircleDollarSign className="w-5 h-5 stroke-[1.8]" />
-            </div>
-          </div>
-          <div className="mt-2">
-            <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              $32,84,500
-            </div>
-            <div className="flex items-center gap-1 text-xs font-semibold text-emerald-600 mt-2">
-              <ArrowUpRight className="w-3.5 h-3.5 text-emerald-600 stroke-[2.5]" />
-              <span>5.62% from last month</span>
-            </div>
-          </div>
-          <div className="absolute -bottom-8 -right-8 w-28 h-28 bg-purple-200/20 rounded-full blur-xl pointer-events-none" />
-        </div>
-
-        {/* Card 2: Active Workforce */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-xs relative overflow-hidden flex flex-col justify-between">
-          <div className="flex items-start justify-between">
-            <span className="text-xs sm:text-sm font-medium text-slate-500">
-              Active Workforce
-            </span>
-            <div className="w-10 h-10 rounded-xl border border-emerald-300 bg-emerald-50/50 flex items-center justify-center text-emerald-600">
-              <Briefcase className="w-5 h-5 stroke-[1.8]" />
-            </div>
-          </div>
-          <div className="mt-2">
-            <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              184
-            </div>
-            <div className="flex items-center gap-1 text-xs font-semibold text-emerald-600 mt-2">
-              <ArrowUpRight className="w-3.5 h-3.5 text-emerald-600 stroke-[2.5]" />
-              <span>11.4% from last month</span>
-            </div>
-          </div>
-          <div className="absolute -bottom-8 -right-8 w-28 h-28 bg-emerald-200/20 rounded-full blur-xl pointer-events-none" />
-        </div>
-
-        {/* Card 3: Total Working Hours */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-xs relative overflow-hidden flex flex-col justify-between">
-          <div className="flex items-start justify-between">
-            <span className="text-xs sm:text-sm font-medium text-slate-500">
-              Total Working Hours
-            </span>
-            <div className="w-10 h-10 rounded-xl border border-amber-300 bg-amber-50/50 flex items-center justify-center text-amber-500">
-              <Clock className="w-5 h-5 stroke-[1.8]" />
-            </div>
-          </div>
-          <div className="mt-2">
-            <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              28,640 hrs
-            </div>
-            <div className="flex items-center gap-1 text-xs font-semibold text-emerald-600 mt-2">
-              <ArrowUpRight className="w-3.5 h-3.5 text-emerald-600 stroke-[2.5]" />
-              <span>8.52% from last month</span>
-            </div>
-          </div>
-          <div className="absolute -bottom-8 -right-8 w-28 h-28 bg-amber-200/20 rounded-full blur-xl pointer-events-none" />
-        </div>
-
-        {/* Card 4: Average Cost / Hour */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-xs relative overflow-hidden flex flex-col justify-between">
-          <div className="flex items-start justify-between">
-            <span className="text-xs sm:text-sm font-medium text-slate-500">
-              Average Cost / Hour
-            </span>
-            <div className="w-10 h-10 rounded-xl border border-amber-300 bg-amber-50/50 flex items-center justify-center text-amber-500">
-              <Tag className="w-5 h-5 stroke-[1.8]" />
-            </div>
-          </div>
-          <div className="mt-2">
-            <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              $114.68
-            </div>
-            <div className="flex items-center gap-1 text-xs font-semibold text-emerald-600 mt-2">
-              <ArrowUpRight className="w-3.5 h-3.5 text-emerald-600 stroke-[2.5]" />
-              <span>8.52% from last month</span>
-            </div>
-          </div>
-          <div className="absolute -bottom-8 -right-8 w-28 h-28 bg-amber-200/20 rounded-full blur-xl pointer-events-none" />
-        </div>
+        <CostStatCard
+          title="Total Manpower Cost"
+          value="$32,84,500"
+          changeText="5.62% from last month"
+          color="purple"
+          icon={<CircleDollarSign className="w-5 h-5 stroke-[1.8]" />}
+        />
+        <CostStatCard
+          title="Active Workforce"
+          value="184"
+          changeText="11.4% from last month"
+          color="emerald"
+          icon={<Briefcase className="w-5 h-5 stroke-[1.8]" />}
+        />
+        <CostStatCard
+          title="Total Working Hours"
+          value="28,640 hrs"
+          changeText="8.52% from last month"
+          color="amber"
+          icon={<Clock className="w-5 h-5 stroke-[1.8]" />}
+        />
+        <CostStatCard
+          title="Average Cost / Hour"
+          value="$114.68"
+          changeText="8.52% from last month"
+          color="amber"
+          icon={<Tag className="w-5 h-5 stroke-[1.8]" />}
+        />
       </div>
 
       {/* Main Card: Manpower Cost Records */}

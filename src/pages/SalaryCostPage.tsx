@@ -8,7 +8,6 @@ import {
   ChevronRight,
   Search,
   Calendar,
-  ArrowUpRight,
   Coins,
   ShoppingBag,
   Tag,
@@ -23,6 +22,7 @@ import type { SalaryEntry } from "@/components/cost/AddSalaryEntryModal";
 import DeleteConfirmModal from "@/components/cost/DeleteConfirmModal";
 import SuccessModal from "@/components/common_components/SuccessModal";
 import SalaryDetailModal from "@/components/cost/SalaryDetailModal";
+import { CostStatCard } from "@/components/cost/CostStatCard";
 
 // Initial mock data matching screenshot exactly
 const INITIAL_SALARY_DATA: SalaryEntry[] = [
@@ -553,71 +553,27 @@ export const SalaryCostPage: React.FC = () => {
 
       {/* Top 3 Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-5">
-        {/* Card 1: Total Salary Cost */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-xs relative overflow-hidden flex flex-col justify-between">
-          <div className="flex items-start justify-between">
-            <span className="text-xs sm:text-sm font-medium text-slate-500">
-              Total Salary Cost
-            </span>
-            <div className="w-10 h-10 rounded-xl border border-purple-300 bg-purple-50/50 flex items-center justify-center text-purple-600">
-              <Coins className="w-5 h-5 stroke-[1.8]" />
-            </div>
-          </div>
-          <div className="mt-2">
-            <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              $48,65,000
-            </div>
-            <div className="flex items-center gap-1 text-xs font-semibold text-emerald-600 mt-2">
-              <ArrowUpRight className="w-3.5 h-3.5 text-emerald-600 stroke-[2.5]" />
-              <span>5.62% from last month</span>
-            </div>
-          </div>
-          <div className="absolute -bottom-8 -right-8 w-28 h-28 bg-purple-200/20 rounded-full blur-xl pointer-events-none" />
-        </div>
-
-        {/* Card 2: Net Salary Paid */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-xs relative overflow-hidden flex flex-col justify-between">
-          <div className="flex items-start justify-between">
-            <span className="text-xs sm:text-sm font-medium text-slate-500">
-              Net Salary Paid
-            </span>
-            <div className="w-10 h-10 rounded-xl border border-emerald-300 bg-emerald-50/50 flex items-center justify-center text-emerald-600">
-              <ShoppingBag className="w-5 h-5 stroke-[1.8]" />
-            </div>
-          </div>
-          <div className="mt-2">
-            <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              $43,82,500
-            </div>
-            <div className="flex items-center gap-1 text-xs font-semibold text-emerald-600 mt-2">
-              <ArrowUpRight className="w-3.5 h-3.5 text-emerald-600 stroke-[2.5]" />
-              <span>11.4% from last month</span>
-            </div>
-          </div>
-          <div className="absolute -bottom-8 -right-8 w-28 h-28 bg-emerald-200/20 rounded-full blur-xl pointer-events-none" />
-        </div>
-
-        {/* Card 3: Pending Salary */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-xs relative overflow-hidden flex flex-col justify-between">
-          <div className="flex items-start justify-between">
-            <span className="text-xs sm:text-sm font-medium text-slate-500">
-              Pending Salary
-            </span>
-            <div className="w-10 h-10 rounded-xl border border-amber-300 bg-amber-50/50 flex items-center justify-center text-amber-500">
-              <Tag className="w-5 h-5 stroke-[1.8]" />
-            </div>
-          </div>
-          <div className="mt-2">
-            <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              $4,82,500
-            </div>
-            <div className="flex items-center gap-1 text-xs font-semibold text-emerald-600 mt-2">
-              <ArrowUpRight className="w-3.5 h-3.5 text-emerald-600 stroke-[2.5]" />
-              <span>8.52% from last month</span>
-            </div>
-          </div>
-          <div className="absolute -bottom-8 -right-8 w-28 h-28 bg-amber-200/20 rounded-full blur-xl pointer-events-none" />
-        </div>
+        <CostStatCard
+          title="Total Salary Cost"
+          value="$48,65,000"
+          changeText="5.62% from last month"
+          color="purple"
+          icon={<Coins className="w-5 h-5 stroke-[1.8]" />}
+        />
+        <CostStatCard
+          title="Net Salary Paid"
+          value="$43,82,500"
+          changeText="11.4% from last month"
+          color="emerald"
+          icon={<ShoppingBag className="w-5 h-5 stroke-[1.8]" />}
+        />
+        <CostStatCard
+          title="Pending Salary"
+          value="$4,82,500"
+          changeText="8.52% from last month"
+          color="amber"
+          icon={<Tag className="w-5 h-5 stroke-[1.8]" />}
+        />
       </div>
 
       {/* Main Card: Employee Salary List */}
