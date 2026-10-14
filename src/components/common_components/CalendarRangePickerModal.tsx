@@ -1,12 +1,20 @@
 import React, { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
+export interface CalendarRangePickerRange {
+  from?: Date;
+  to?: Date;
+  startDate?: string;
+  endDate?: string;
+}
+
 interface CalendarRangePickerModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectRange?: (range: string) => void;
-  initialStartDate?: number;
-  initialEndDate?: number;
+  onApply?: (range: CalendarRangePickerRange) => void;
+  initialStartDate?: number | string;
+  initialEndDate?: number | string;
 }
 
 export const CalendarRangePickerModal: React.FC<
@@ -15,13 +23,28 @@ export const CalendarRangePickerModal: React.FC<
   isOpen,
   onClose,
   onSelectRange,
+  onApply,
   initialStartDate = 7,
   initialEndDate = 23,
 }) => {
   const [currentMonth, setCurrentMonth] = useState(0); // 0 = January
   const [currentYear, setCurrentYear] = useState(2026);
-  const [startDate, setStartDate] = useState<number | null>(initialStartDate);
-  const [endDate, setEndDate] = useState<number | null>(initialEndDate);
+  const [startDate, setStartDate] = useState<number | null>(() => {
+    if (typeof initialStartDate === "number") return initialStartDate;
+    if (typeof initialStartDate === "string") {
+      const parsed = parseInt(initialStartDate, 10);
+      return isNaN(parsed) ? 7 : parsed;
+    }
+    return 7;
+  });
+  const [endDate, setEndDate] = useState<number | null>(() => {
+    if (typeof initialEndDate === "number") return initialEndDate;
+    if (typeof initialEndDate === "string") {
+      const parsed = parseInt(initialEndDate, 10);
+      return isNaN(parsed) ? 23 : parsed;
+    }
+    return 23;
+  });
 
   if (!isOpen) return null;
 
@@ -82,11 +105,22 @@ export const CalendarRangePickerModal: React.FC<
   };
 
   const handleDone = () => {
-    if (onSelectRange && startDate && endDate) {
+    if (startDate && endDate) {
       const monthStr = monthNames[currentMonth].slice(0, 3);
-      onSelectRange(
-        `${startDate} ${monthStr} ${currentYear} - ${endDate} ${monthStr} ${currentYear}`
-      );
+      const rangeString = `${startDate} ${monthStr} ${currentYear} - ${endDate} ${monthStr} ${currentYear}`;
+      if (onSelectRange) {
+        onSelectRange(rangeString);
+      }
+      if (onApply) {
+        const fromDate = new Date(currentYear, currentMonth, startDate);
+        const toDate = new Date(currentYear, currentMonth, endDate);
+        onApply({
+          from: fromDate,
+          to: toDate,
+          startDate: `${startDate} ${monthStr} ${currentYear}`,
+          endDate: `${endDate} ${monthStr} ${currentYear}`,
+        });
+      }
     }
     onClose();
   };
