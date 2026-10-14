@@ -151,10 +151,10 @@ export const customerApi = createApi({
       transformResponse: (response: ApiResponse<CustomerStats>) => {
         return (
           response.data || {
-            totalCustomers: 126,
-            activeCustomers: 48,
-            newCustomersThisMonth: 15,
-            returningCustomers: 9,
+            totalCustomers: 0,
+            activeCustomers: 0,
+            newCustomersThisMonth: 0,
+            returningCustomers: 0,
           }
         );
       },
