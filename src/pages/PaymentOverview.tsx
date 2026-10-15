@@ -9,7 +9,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
-  RefreshCw,
+  // RefreshCw,
   AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -30,7 +30,7 @@ import { formatCurrency } from "@/lib/dashboardFormatters";
 import {
   useGetPaymentStatsQuery,
   useGetPaymentOrdersQuery,
-  useExportWipProfitsMutation,
+  useExportPaymentOrdersMutation,
   type PaymentOrderItem,
 } from "@/redux/api/paymentsApi";
 
@@ -66,9 +66,7 @@ const mapApiOrderToOrderItem = (order: PaymentOrderItem): OrderItem => {
     leadId: order.leadId,
     client: order.orderDetails?.customerName || "Customer",
     projectId:
-      order.orderDetails?.orderId ||
-      order.orderDetails?.quoteOrderId ||
-      "N/A",
+      order.orderDetails?.orderId || order.orderDetails?.quoteOrderId || "N/A",
     location: order.orderDetails?.location || "N/A",
     orderValue: formatCurrency(order.orderValue),
     currentCost: formatCurrency(order.currentCost),
@@ -86,7 +84,7 @@ const mapApiOrderToOrderItem = (order: PaymentOrderItem): OrderItem => {
 
 const PaymentOverview = () => {
   // Query state
-  const [periodFilter, setPeriodFilter] = useState<string>("month");
+  // const [periodFilter, setPeriodFilter] = useState<string>("month");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [debouncedSearch, setDebouncedSearch] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
@@ -99,7 +97,9 @@ const PaymentOverview = () => {
   const [successModalTitle, setSuccessModalTitle] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<OrderItem | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  const [exportErrorMessage, setExportErrorMessage] = useState<string | null>(null);
+  const [exportErrorMessage, setExportErrorMessage] = useState<string | null>(
+    null,
+  );
 
   // Local state for client-side modifications / newly added items during session
   const [localAddedOrders, setLocalAddedOrders] = useState<OrderItem[]>([]);
@@ -121,10 +121,10 @@ const PaymentOverview = () => {
   const {
     data: statsData,
     isLoading: isStatsLoading,
-    isFetching: isStatsFetching,
-    refetch: refetchStats,
+    // isFetching: isStatsFetching,
+    // refetch: refetchStats,
   } = useGetPaymentStatsQuery({
-    period: periodFilter !== "all" ? periodFilter : undefined,
+    // period: periodFilter !== "all" ? periodFilter : undefined,
   });
 
   // A2: Fetch payment orders & summary list
@@ -138,14 +138,14 @@ const PaymentOverview = () => {
   } = useGetPaymentOrdersQuery({
     search: debouncedSearch.trim() || undefined,
     status: statusFilter !== "All" ? statusFilter : undefined,
-    period: periodFilter !== "all" ? periodFilter : undefined,
+    // period: periodFilter !== "all" ? periodFilter : undefined,
     page,
     limit,
   });
 
-  // Export WIP Excel Mutation
-  const [exportWipProfits, { isLoading: isExporting }] =
-    useExportWipProfitsMutation();
+  // Export Orders Excel Mutation
+  const [exportPaymentOrders, { isLoading: isExporting }] =
+    useExportPaymentOrdersMutation();
 
   // Combine server stats with orders response stats as fallback
   const currentStats = useMemo(() => {
@@ -166,7 +166,7 @@ const PaymentOverview = () => {
 
     // Apply any local edits
     const withEdits = apiOrders.map((o) =>
-      localUpdatedOrders[o.id] ? localUpdatedOrders[o.id] : o
+      localUpdatedOrders[o.id] ? localUpdatedOrders[o.id] : o,
     );
 
     // Prepend locally added orders if on page 1
@@ -186,25 +186,25 @@ const PaymentOverview = () => {
     setPage(1);
   };
 
-  const handlePeriodChange = (val: string) => {
-    setPeriodFilter(val);
-    setPage(1);
-  };
+  // const handlePeriodChange = (val: string) => {
+  //   setPeriodFilter(val);
+  //   setPage(1);
+  // };
 
-  // Export report handler
+  // Export report handler (2.3: payment-overview-orders.xlsx)
   const handleExport = async () => {
     setExportErrorMessage(null);
     try {
-      const blob = await exportWipProfits(
-        periodFilter !== "all" ? { period: periodFilter } : undefined
-      ).unwrap();
+      const blob = await exportPaymentOrders({
+        search: debouncedSearch.trim() || undefined,
+        status: statusFilter !== "All" ? statusFilter : undefined,
+        // period: periodFilter !== "all" ? periodFilter : undefined,
+      }).unwrap();
 
       const blobUrl = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = blobUrl;
-      link.download = `wip-profits-report-${periodFilter || "all"}-${
-        new Date().toISOString().split("T")[0]
-      }.xlsx`;
+      link.download = `payment-overview-orders.xlsx`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -213,7 +213,7 @@ const PaymentOverview = () => {
       setSuccessModalTitle("Report Exported Successfully");
       setIsSuccessModalOpen(true);
     } catch (err: unknown) {
-      console.error("Failed to export WIP Excel:", err);
+      console.error("Failed to export Payment Orders Excel:", err);
       const errMsg =
         err && typeof err === "object" && "message" in err
           ? String((err as { message: unknown }).message)
@@ -237,10 +237,10 @@ const PaymentOverview = () => {
     setViewMode("add");
   };
 
-  const handleRefreshAll = () => {
-    refetchStats();
-    refetchOrders();
-  };
+  // const handleRefreshAll = () => {
+  //   refetchStats();
+  //   refetchOrders();
+  // };
 
   // If in Add or Update page mode, render UpdatePaymentPage
   if (viewMode !== "list") {
@@ -286,7 +286,7 @@ const PaymentOverview = () => {
 
         <div className="flex items-center flex-wrap gap-2.5 sm:gap-3">
           {/* Period selector */}
-          <Select value={periodFilter} onValueChange={handlePeriodChange}>
+          {/* <Select value={periodFilter} onValueChange={handlePeriodChange}>
             <SelectTrigger className="w-32 h-9 text-xs sm:text-sm text-gray-700 bg-white border border-gray-200 rounded-lg px-3 focus:ring-1 focus:ring-blue-500 shadow-xs">
               <SelectValue placeholder="Period" />
             </SelectTrigger>
@@ -296,10 +296,10 @@ const PaymentOverview = () => {
               <SelectItem value="today">Today</SelectItem>
               <SelectItem value="all">All Time</SelectItem>
             </SelectContent>
-          </Select>
+          </Select> */}
 
           {/* Refresh button */}
-          <Button
+          {/* <Button
             type="button"
             variant="outline"
             size="icon-xs"
@@ -314,7 +314,7 @@ const PaymentOverview = () => {
                 (isStatsFetching || isOrdersFetching) && "animate-spin"
               )}
             />
-          </Button>
+          </Button> */}
 
           {/* Export Reports button */}
           <Button
@@ -496,7 +496,7 @@ const PaymentOverview = () => {
               "data" in ordersErrorObj
                 ? String(
                     (ordersErrorObj as { data?: { message?: string } }).data
-                      ?.message || "Server error occurred"
+                      ?.message || "Server error occurred",
                   )
                 : "An unexpected error occurred while fetching orders."}
             </p>
@@ -520,7 +520,9 @@ const PaymentOverview = () => {
                 <th className="py-3 px-6 font-semibold">ORDER DETAILS</th>
                 <th className="py-3 px-6 font-semibold">ORDER VALUE</th>
                 <th className="py-3 px-6 font-semibold">PAYMENT BREAKDOWN</th>
-                <th className="py-3 px-6 font-semibold text-center">OUTSTANDING</th>
+                <th className="py-3 px-6 font-semibold text-center">
+                  OUTSTANDING
+                </th>
                 <th className="py-3 px-6 font-semibold text-center">PROFIT</th>
                 <th className="py-3 px-6 font-semibold text-center">STATUS</th>
                 <th className="py-3 px-6 font-semibold text-center">ACTIONS</th>
@@ -657,7 +659,7 @@ const PaymentOverview = () => {
                           order.status.toLowerCase() === "completed" &&
                             "bg-[#DCFCE7] text-[#16A34A]",
                           order.status.toLowerCase() === "started" &&
-                            "bg-[#FEF3C7] text-[#D97706]"
+                            "bg-[#FEF3C7] text-[#D97706]",
                         )}
                       >
                         {order.status}
