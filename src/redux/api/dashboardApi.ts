@@ -173,6 +173,11 @@ export interface DashboardOverviewParams extends DashboardQueryParams {
   budgetRowsLimit?: number;
 }
 
+export interface DashboardExportParams {
+  startDate?: string;
+  endDate?: string;
+}
+
 export const dashboardApi = createApi({
   reducerPath: "dashboardApi",
   baseQuery: baseQueryWithReauth,
@@ -451,6 +456,28 @@ export const dashboardApi = createApi({
       },
       providesTags: ["ExpenseTrend"],
     }),
+
+    // 13. Export dashboard report
+    exportDashboard: builder.mutation<Blob, DashboardExportParams | void>({
+      query: (params) => {
+        const cleanParams: Record<string, string> = {};
+        if (params?.startDate) cleanParams.startDate = params.startDate;
+        if (params?.endDate) cleanParams.endDate = params.endDate;
+
+        return {
+          url: "/api/account/dashboard/export",
+          method: "GET",
+          params: cleanParams,
+          responseHandler: async (response) => {
+            if (!response.ok) {
+              const err = await response.json().catch(() => ({}));
+              throw new Error(err.message || "Failed to export dashboard report");
+            }
+            return response.blob();
+          },
+        };
+      },
+    }),
   }),
 });
 
@@ -471,4 +498,5 @@ export const {
   useGetPaymentDistributionQuery,
   useGetRevenueTrendQuery,
   useGetExpenseTrendQuery,
+  useExportDashboardMutation,
 } = dashboardApi;
