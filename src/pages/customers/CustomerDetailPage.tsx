@@ -37,11 +37,14 @@ export default function CustomerDetailPage() {
   const { customerId = "" } = useParams<{ customerId: string }>();
   const navigate = useNavigate();
 
-  const [paidInvoicesLocal, setPaidInvoicesLocal] = useState<Record<string, boolean>>({});
+  const [paidInvoicesLocal, setPaidInvoicesLocal] = useState<
+    Record<string, boolean>
+  >({});
   const [actionMessage, setActionMessage] = useState<string | null>(null);
 
   const { data: detail, isLoading } = useGetCustomerDetailQuery(customerId);
-  const [markPaidMutation, { isLoading: isMarkingPaid }] = useMarkInvoicePaidMutation();
+  const [markPaidMutation, { isLoading: isMarkingPaid }] =
+    useMarkInvoicePaidMutation();
 
   const profile = detail?.profile;
   const summary = detail?.summary;
@@ -141,6 +144,8 @@ export default function CustomerDetailPage() {
           : p.status || "In progress";
       return {
         id: p.leadId || p.projectId || String(index + 1),
+        projectId: p.projectId,
+        leadId: p.leadId,
         project: projLabel,
         projectName: p.projectName || `Project ${index + 1}`,
         amount: p.amount ? formatIndianShortCurrency(p.amount) : "$0",
@@ -169,7 +174,9 @@ export default function CustomerDetailPage() {
   const displayProfitability = useMemo(() => {
     return (detail?.profitabilityOverview || []).map((item) => {
       const isPercent = item.unit === "percent" || item.key === "marginPct";
-      const isBold = ["revenue", "totalCost", "profit", "marginPct"].includes(item.key);
+      const isBold = ["revenue", "totalCost", "profit", "marginPct"].includes(
+        item.key,
+      );
       const isHighlighted = item.key === "marginPct";
 
       const formatVal = (v: number) => {
@@ -219,7 +226,7 @@ export default function CustomerDetailPage() {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-6 min-h-screen bg-[#F0F4F8]">
+    <div className="space-y-4">
       {/* Top Header Row */}
       <div className="flex items-center gap-3">
         <Button
@@ -251,7 +258,9 @@ export default function CustomerDetailPage() {
             className={`${card.bgColor} text-white rounded-2xl p-5 sm:p-6 shadow-xs flex items-center justify-between transition-transform hover:-translate-y-0.5 duration-200`}
           >
             <div>
-              <p className="text-xs sm:text-sm text-white/90 font-medium">{card.title}</p>
+              <p className="text-xs sm:text-sm text-white/90 font-medium">
+                {card.title}
+              </p>
               <p className="text-2xl sm:text-3xl font-bold text-white mt-1.5 tracking-tight">
                 {card.value}
               </p>
@@ -271,10 +280,16 @@ export default function CustomerDetailPage() {
             className="bg-white rounded-2xl p-4 sm:p-5 shadow-xs border border-slate-100 flex items-center gap-3.5 transition-transform hover:-translate-y-0.5 duration-200"
           >
             <div className="w-10 h-10 rounded-xl bg-[#EFF6FF] border border-[#DBEAFE] flex items-center justify-center shrink-0">
-              <img src={DolleIcon} alt="dollar" className="w-4 h-4 object-contain" />
+              <img
+                src={DolleIcon}
+                alt="dollar"
+                className="w-4 h-4 object-contain"
+              />
             </div>
             <div>
-              <p className="text-xs font-semibold text-slate-700">{card.title}</p>
+              <p className="text-xs font-semibold text-slate-700">
+                {card.title}
+              </p>
               <p className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
                 {card.value}
               </p>
@@ -284,8 +299,10 @@ export default function CustomerDetailPage() {
       </div>
 
       {/* All Projects Card */}
-      <div className="bg-white rounded-2xl shadow-xs border border-slate-100 p-6 sm:p-8">
-        <h2 className="text-base sm:text-lg font-bold text-slate-900 mb-5">All Projects</h2>
+      <div className="bg-white rounded-2xl shadow-xs border border-slate-100 p-5">
+        <h2 className="text-base sm:text-lg font-bold text-slate-900 mb-5">
+          All Projects
+        </h2>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left">
@@ -297,12 +314,16 @@ export default function CustomerDetailPage() {
                 <th className="py-3.5 px-4 font-semibold">STATUS</th>
                 <th className="py-3.5 px-4 font-semibold">START DATE</th>
                 <th className="py-3.5 px-4 font-semibold">END DATE</th>
+                <th className="py-3.5 px-4 font-semibold text-center">ACTION</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
               {displayProjects.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-8 text-slate-500 font-medium">
+                  <td
+                    colSpan={7}
+                    className="text-center py-8 text-slate-500 font-medium"
+                  >
                     No projects found for this customer.
                   </td>
                 </tr>
@@ -310,17 +331,60 @@ export default function CustomerDetailPage() {
                 displayProjects.map((p) => {
                   const isCompleted = p.status.toLowerCase() === "completed";
                   return (
-                    <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="py-4 px-4 font-medium text-slate-800">{p.project}</td>
-                      <td className="py-4 px-4 font-medium text-slate-800">{p.projectName}</td>
-                      <td className="py-4 px-4 font-bold text-slate-900">{p.amount}</td>
+                    <tr
+                      key={p.id}
+                      className="hover:bg-slate-50/50 transition-colors"
+                    >
+                      <td className="py-4 px-4 font-medium text-slate-800">
+                        {p.project}
+                      </td>
+                      <td className="py-4 px-4 font-medium text-slate-800">
+                        {p.projectName}
+                      </td>
+                      <td className="py-4 px-4 font-bold text-slate-900">
+                        {p.amount}
+                      </td>
                       <td className="py-4 px-4 font-semibold">
-                        <span className={isCompleted ? "text-[#16A34A]" : "text-[#D97706]"}>
+                        <span
+                          className={
+                            isCompleted ? "text-[#16A34A]" : "text-[#D97706]"
+                          }
+                        >
                           {p.status}
                         </span>
                       </td>
-                      <td className="py-4 px-4 font-medium text-slate-700">{p.startDate}</td>
-                      <td className="py-4 px-4 font-medium text-slate-700">{p.endDate}</td>
+                      <td className="py-4 px-4 font-medium text-slate-700">
+                        {p.startDate}
+                      </td>
+                      <td className="py-4 px-4 font-medium text-slate-700">
+                        {p.endDate}
+                      </td>
+                      <td className="py-4 px-4 text-center">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const targetId = p.projectId || p.leadId || p.id;
+                            navigate(
+                              customerId
+                                ? `/customers/${customerId}/projects/${targetId}`
+                                : `/customers/projects/${targetId}`,
+                              {
+                                state: {
+                                  projectId: targetId,
+                                  projectName: p.projectName,
+                                  customerName: profileData.name,
+                                  customerId: profileData.id,
+                                },
+                              },
+                            );
+                          }}
+                          className="p-1 text-slate-700 hover:text-blue-600 transition-colors cursor-pointer inline-flex items-center justify-center"
+                          title="View Project Details"
+                          aria-label="View Project Details"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                      </td>
                     </tr>
                   );
                 })
@@ -336,7 +400,9 @@ export default function CustomerDetailPage() {
               type="button"
               onClick={() =>
                 navigate(
-                  customerId ? `/customers/${customerId}/projects` : "/customers/projects"
+                  customerId
+                    ? `/customers/${customerId}/projects`
+                    : "/customers/projects",
                 )
               }
               className="text-sm font-semibold text-[#2563EB] hover:text-[#1D4ED8] hover:underline transition-colors cursor-pointer"
@@ -348,7 +414,7 @@ export default function CustomerDetailPage() {
       </div>
 
       {/* SECTION 1: CUSTOMER PROFITABILITY OVERVIEW */}
-      <div className="bg-white rounded-2xl shadow-xs border border-slate-100 p-6 sm:p-8">
+      <div className="bg-white rounded-2xl shadow-xs border border-slate-100 p-5">
         <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900 mb-5">
           CUSTOMER PROFITABILITY OVERVIEW
         </h2>
@@ -366,7 +432,10 @@ export default function CustomerDetailPage() {
             <tbody className="divide-y divide-slate-100 text-sm">
               {displayProfitability.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="text-center py-8 text-slate-500 font-medium">
+                  <td
+                    colSpan={4}
+                    className="text-center py-8 text-slate-500 font-medium"
+                  >
                     No profitability data available.
                   </td>
                 </tr>
@@ -380,14 +449,18 @@ export default function CustomerDetailPage() {
                   >
                     <td
                       className={`py-3.5 px-6 ${
-                        row.isBold ? "font-bold text-slate-900" : "font-medium text-slate-800"
+                        row.isBold
+                          ? "font-bold text-slate-900"
+                          : "font-medium text-slate-800"
                       }`}
                     >
                       {row.metric}
                     </td>
                     <td
                       className={`py-3.5 px-6 ${
-                        row.isBold ? "font-bold text-slate-900" : "font-normal text-slate-500"
+                        row.isBold
+                          ? "font-bold text-slate-900"
+                          : "font-normal text-slate-500"
                       }`}
                     >
                       {row.expected}
@@ -424,10 +497,16 @@ export default function CustomerDetailPage() {
               className="bg-white rounded-2xl p-4 sm:p-5 shadow-xs border border-slate-100 flex items-center gap-3.5 transition-transform hover:-translate-y-0.5 duration-200"
             >
               <div className="w-10 h-10 rounded-xl bg-[#EFF6FF] border border-[#DBEAFE] flex items-center justify-center shrink-0">
-                <img src={DolleIcon} alt="dollar" className="w-4 h-4 object-contain" />
+                <img
+                  src={DolleIcon}
+                  alt="dollar"
+                  className="w-4 h-4 object-contain"
+                />
               </div>
               <div>
-                <p className="text-xs font-semibold text-slate-700">{card.title}</p>
+                <p className="text-xs font-semibold text-slate-700">
+                  {card.title}
+                </p>
                 <p className="text-lg sm:text-xl font-bold text-slate-900 mt-0.5 tracking-tight">
                   {card.value}
                 </p>
@@ -440,7 +519,9 @@ export default function CustomerDetailPage() {
       {/* SECTION 3: INVOICE LIST */}
       <div className="bg-white rounded-2xl shadow-xs border border-slate-100 p-6 sm:p-8">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-base sm:text-lg font-bold text-slate-900">Invoice List</h2>
+          <h2 className="text-base sm:text-lg font-bold text-slate-900">
+            Invoice List
+          </h2>
 
           {/* Action buttons (PDF, XLS, Print) */}
           <div className="flex items-center gap-2">
@@ -485,7 +566,10 @@ export default function CustomerDetailPage() {
             <tbody className="divide-y divide-slate-100 text-sm">
               {displayInvoices.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-8 text-slate-500 font-medium">
+                  <td
+                    colSpan={7}
+                    className="text-center py-8 text-slate-500 font-medium"
+                  >
                     No invoices found for this customer.
                   </td>
                 </tr>
@@ -497,72 +581,81 @@ export default function CustomerDetailPage() {
                     inv.status.toLowerCase() === "paid";
 
                   return (
-                    <tr key={inv.invoiceNumber} className="hover:bg-slate-50/50 transition-colors">
+                    <tr
+                      key={inv.invoiceNumber}
+                      className="hover:bg-slate-50/50 transition-colors"
+                    >
                       <td className="py-4 px-4 font-semibold text-[#EA580C]">
                         {inv.invoiceNumber}
                       </td>
-                    <td className="py-4 px-4 font-medium text-slate-600">
-                      {inv.dueDate}
-                    </td>
-                    <td className="py-4 px-4 font-medium text-slate-800">
-                      ${inv.amount}
-                    </td>
-                    <td className="py-4 px-4 font-medium text-slate-800">
-                      ${inv.paid}
-                    </td>
-                    <td className="py-4 px-4 font-medium text-slate-800">
-                      ${inv.amountDue}
-                    </td>
-                    <td className="py-4 px-4">
-                      {isPaid ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#10B981] text-white text-[11px] font-semibold">
-                          <span className="w-1.5 h-1.5 rounded-full bg-white" />
-                          Paid
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#DC2626] text-white text-[11px] font-semibold">
-                          <span className="w-1.5 h-1.5 rounded-full bg-white" />
-                          Unpaid
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-2">
-                        {!isPaid && (
+                      <td className="py-4 px-4 font-medium text-slate-600">
+                        {inv.dueDate}
+                      </td>
+                      <td className="py-4 px-4 font-medium text-slate-800">
+                        ${inv.amount}
+                      </td>
+                      <td className="py-4 px-4 font-medium text-slate-800">
+                        ${inv.paid}
+                      </td>
+                      <td className="py-4 px-4 font-medium text-slate-800">
+                        ${inv.amountDue}
+                      </td>
+                      <td className="py-4 px-4">
+                        {isPaid ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#10B981] text-white text-[11px] font-semibold">
+                            <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                            Paid
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#DC2626] text-white text-[11px] font-semibold">
+                            <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                            Unpaid
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="flex items-center gap-2">
+                          {!isPaid && (
+                            <button
+                              type="button"
+                              disabled={isMarkingPaid}
+                              onClick={() =>
+                                handleMarkAsPaid(
+                                  inv.invoiceId,
+                                  inv.invoiceNumber,
+                                )
+                              }
+                              className="px-2.5 py-1 rounded bg-[#6366F1] hover:bg-[#4F46E5] text-white text-[11px] font-medium transition-colors cursor-pointer"
+                            >
+                              Mark as paid
+                            </button>
+                          )}
                           <button
                             type="button"
-                            disabled={isMarkingPaid}
-                            onClick={() => handleMarkAsPaid(inv.invoiceId, inv.invoiceNumber)}
-                            className="px-2.5 py-1 rounded bg-[#6366F1] hover:bg-[#4F46E5] text-white text-[11px] font-medium transition-colors cursor-pointer"
+                            onClick={() =>
+                              navigate("/payments/invoice/preview", {
+                                state: {
+                                  invoiceNumber: inv.invoiceNumber,
+                                  date: inv.dueDate,
+                                  projectName:
+                                    inv.projectName || "ABC Building",
+                                  total: inv.amount,
+                                  amountDue: isPaid ? 0 : inv.amountDue,
+                                  status: isPaid ? "Paid" : inv.status,
+                                },
+                              })
+                            }
+                            className="p-1 text-slate-700 hover:text-blue-600 transition-colors cursor-pointer"
+                            title="Preview Invoice"
                           >
-                            Mark as paid
+                            <Eye className="w-4 h-4" />
                           </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() =>
-                            navigate("/payments/invoice/preview", {
-                              state: {
-                                invoiceNumber: inv.invoiceNumber,
-                                date: inv.dueDate,
-                                projectName: inv.projectName || "ABC Building",
-                                total: inv.amount,
-                                amountDue: isPaid ? 0 : inv.amountDue,
-                                status: isPaid ? "Paid" : inv.status,
-                              },
-                            })
-                          }
-                          className="p-1 text-slate-700 hover:text-blue-600 transition-colors cursor-pointer"
-                          title="Preview Invoice"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
