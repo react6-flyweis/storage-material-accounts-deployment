@@ -18,8 +18,12 @@ import type { OrderItem } from "./PaymentOverview";
 import {
   useCreatePaymentOrderMutation,
   useUpdatePaymentOrderMutation,
+  useGetPaymentOrderDetailQuery,
+  useGetPaymentOrderOptionsQuery,
   type PaymentStatusEnum,
   type PaymentOrderDetailData,
+  type PaymentOrderOptionItem,
+  type PaymentOrderItem,
 } from "@/redux/api/paymentsApi";
 import { formatCurrency } from "@/lib/dashboardFormatters";
 
@@ -81,12 +85,34 @@ export const UpdatePaymentPage: React.FC<UpdatePaymentPageProps> = ({
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Support order passed via prop or location.state
+  // Support order passed via prop, location.state, or query param
+  const queryParamId = new URLSearchParams(location.search).get("id") || "";
   const existingOrder =
     propOrder || (location.state as { order?: OrderItem })?.order;
-  const isEditing = Boolean(existingOrder);
+  const isEditing = Boolean(existingOrder || queryParamId);
   const pageTitle = title || (isEditing ? "Update Payment" : "Add Payment");
 
+  const lookupId =
+    existingOrder?.projectId ||
+    existingOrder?.wipId ||
+    existingOrder?.leadId ||
+    existingOrder?.id ||
+    queryParamId;
+
+  // 2.7 Load existing row first if editing
+  const { data: fetchedDetail, isLoading: isFetchingDetail } =
+    useGetPaymentOrderDetailQuery(lookupId, {
+      skip: !isEditing || !lookupId,
+    });
+
+  // 2.5 Dropdown before POST (excludeWithWip: true, limit: 50)
+  const { data: optionsData, isLoading: isLoadingOptions } =
+    useGetPaymentOrderOptionsQuery(
+      { excludeWithWip: true, limit: 50 },
+      { skip: isEditing }
+    );
+
+  const [selectedOptionId, setSelectedOptionId] = useState<string>("");
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   // RTK Query Mutations
@@ -101,6 +127,7 @@ export const UpdatePaymentPage: React.FC<UpdatePaymentPageProps> = ({
     control,
     watch,
     setValue,
+    reset,
     formState: { errors },
   } = useForm<PaymentFormData>({
     resolver: zodResolver(paymentFormSchema),
@@ -115,6 +142,64 @@ export const UpdatePaymentPage: React.FC<UpdatePaymentPageProps> = ({
       paymentStatus: mapEnumToUiStatus(existingOrder?.status),
     },
   });
+
+  // Populate from fetchedDetail if arrived
+  useEffect(() => {
+    if (fetchedDetail) {
+      const qId =
+        fetchedDetail.orderDetails?.quoteOrderId ||
+        fetchedDetail.orderDetails?.orderId ||
+        fetchedDetail.profile?.quoteOrderId ||
+        lookupId;
+      const oVal =
+        fetchedDetail.orderValue !== undefined
+          ? formatCurrency(fetchedDetail.orderValue)
+          : fetchedDetail.profile?.orderValue !== undefined
+          ? formatCurrency(fetchedDetail.profile.orderValue)
+          : "";
+      const dep =
+        fetchedDetail.financials?.deposit !== undefined
+          ? formatCurrency(fetchedDetail.financials.deposit)
+          : fetchedDetail.paymentBreakdown?.deposit !== undefined
+          ? formatCurrency(fetchedDetail.paymentBreakdown.deposit)
+          : "";
+      const prog =
+        fetchedDetail.financials?.progress !== undefined
+          ? formatCurrency(fetchedDetail.financials.progress)
+          : fetchedDetail.paymentBreakdown?.progress !== undefined
+          ? formatCurrency(fetchedDetail.paymentBreakdown.progress)
+          : "";
+      const fin =
+        fetchedDetail.financials?.final !== undefined
+          ? formatCurrency(fetchedDetail.financials.final)
+          : fetchedDetail.paymentBreakdown?.final !== undefined
+          ? formatCurrency(fetchedDetail.paymentBreakdown.final)
+          : "";
+      const prof =
+        fetchedDetail.financials?.profit !== undefined
+          ? formatCurrency(fetchedDetail.financials.profit)
+          : fetchedDetail.profit !== undefined
+          ? formatCurrency(fetchedDetail.profit)
+          : "";
+      const marg = `${
+        fetchedDetail.financials?.marginPct ?? fetchedDetail.marginPct ?? 0
+      }%`;
+      const stat = mapEnumToUiStatus(
+        fetchedDetail.paymentStatus || fetchedDetail.status
+      );
+
+      reset({
+        quoteId: qId,
+        orderValue: oVal,
+        paymentDeposit: dep,
+        paymentProgress: prog,
+        finalValue: fin,
+        profit: prof,
+        margin: marg,
+        paymentStatus: stat,
+      });
+    }
+  }, [fetchedDetail, lookupId, reset]);
 
   // Watch fields for live recalculation
   const watchedOrderValue = watch("orderValue");
@@ -254,13 +339,13 @@ export const UpdatePaymentPage: React.FC<UpdatePaymentPageProps> = ({
           savedResult.marginPct ??
           calculatedMarginPct
         }%`,
-        status: (savedResult.paymentStatus || data.paymentStatus) as any,
+        status: savedResult.paymentStatus || data.paymentStatus,
         totalReceived: formatCurrency(
           savedResult.financials?.totalReceived ??
             savedResult.totalReceived ??
             totalReceived
         ),
-        raw: savedResult as any,
+        raw: savedResult as unknown as PaymentOrderItem,
       };
 
       if (propOnSave) {
@@ -297,8 +382,11 @@ export const UpdatePaymentPage: React.FC<UpdatePaymentPageProps> = ({
         >
           <ArrowLeft className="w-5 h-5 stroke-[2.2]" />
         </Button>
-        <h1 className="text-xl font-bold text-gray-900 tracking-tight">
-          {pageTitle}
+        <h1 className="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
+          <span>{pageTitle}</span>
+          {(isFetchingDetail || isLoadingOptions) && (
+            <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
+          )}
         </h1>
       </div>
 
@@ -335,23 +423,85 @@ export const UpdatePaymentPage: React.FC<UpdatePaymentPageProps> = ({
             <div className="flex flex-col gap-1.5">
               <label
                 htmlFor="quoteId"
-                className="text-xs sm:text-sm font-medium text-gray-800"
+                className="text-xs sm:text-sm font-medium text-gray-800 flex items-center justify-between"
               >
-                Enter Quote/Order ID <span className="text-red-500">*</span>
-              </label>
-              <input
-                id="quoteId"
-                type="text"
-                placeholder="QUO-9870-991"
-                disabled={isEditing}
-                {...register("quoteId")}
-                className={cn(
-                  "w-full px-4 py-2.5 bg-[#F9FAFB] border rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-1 focus:bg-white transition-colors disabled:opacity-70 disabled:bg-gray-100",
-                  errors.quoteId
-                    ? "border-red-400 focus:ring-red-400"
-                    : "border-gray-200 focus:ring-blue-500"
+                <span>
+                  Quote / Order ID <span className="text-red-500">*</span>
+                </span>
+                {!isEditing && isLoadingOptions && (
+                  <span className="text-xs text-gray-400 font-normal">
+                    Loading options...
+                  </span>
                 )}
-              />
+              </label>
+
+              {isEditing ? (
+                <input
+                  id="quoteId"
+                  type="text"
+                  placeholder="QUO-9870-991"
+                  disabled
+                  {...register("quoteId")}
+                  className="w-full px-4 py-2.5 bg-[#F9FAFB] border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-1 focus:bg-white transition-colors disabled:opacity-70 disabled:bg-gray-100"
+                />
+              ) : optionsData?.options && optionsData.options.length > 0 ? (
+                <div className="space-y-1.5">
+                  <Select
+                    value={selectedOptionId}
+                    onValueChange={(val) => {
+                      setSelectedOptionId(val);
+                      const opt = optionsData.options.find(
+                        (o: PaymentOrderOptionItem) => o.quoteOrderId === val
+                      );
+                      if (opt) {
+                        setValue("quoteId", opt.quoteOrderId, {
+                          shouldValidate: true,
+                        });
+                        if (opt.quoteValue) {
+                          setValue(
+                            "orderValue",
+                            formatCurrency(opt.quoteValue),
+                            {
+                              shouldValidate: true,
+                            }
+                          );
+                        }
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-full h-10 px-4 bg-[#F9FAFB] border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 shadow-none">
+                      <SelectValue placeholder="Select Quote / Order from options" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {optionsData.options.map(
+                        (opt: PaymentOrderOptionItem) => (
+                          <SelectItem
+                            key={opt.quoteOrderId}
+                            value={opt.quoteOrderId}
+                          >
+                            {opt.label ||
+                              `${opt.quoteOrderId} — ${opt.customerName || "Customer"}`}
+                          </SelectItem>
+                        )
+                      )}
+                    </SelectContent>
+                  </Select>
+                  <input type="hidden" {...register("quoteId")} />
+                </div>
+              ) : (
+                <input
+                  id="quoteId"
+                  type="text"
+                  placeholder="QUO-9870-991"
+                  {...register("quoteId")}
+                  className={cn(
+                    "w-full px-4 py-2.5 bg-[#F9FAFB] border rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-1 focus:bg-white transition-colors",
+                    errors.quoteId
+                      ? "border-red-400 focus:ring-red-400"
+                      : "border-gray-200 focus:ring-blue-500"
+                  )}
+                />
+              )}
               {errors.quoteId && (
                 <p className="text-xs text-red-500">
                   {errors.quoteId.message}
