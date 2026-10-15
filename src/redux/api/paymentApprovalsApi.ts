@@ -2,6 +2,33 @@ import { createApi } from "@reduxjs/toolkit/query/react";
 import type { ApiResponse } from "./apiResponse";
 import { baseQueryWithReauth } from "./baseQueryWithReauth";
 
+// ─── Filter Types ─────────────────────────────────────────────────────────────
+
+export interface PaymentApprovalFilterProject {
+  leadId: string;
+  projectName: string;
+  jobId: string;
+  businessUnit?: string;
+}
+
+export interface PaymentApprovalFilterPayeeType {
+  code: string;
+  label: string;
+}
+
+export interface PaymentApprovalFiltersData {
+  projects: PaymentApprovalFilterProject[];
+  payeeTypes: PaymentApprovalFilterPayeeType[];
+  statuses: string[];
+  workflowStages: string[];
+}
+
+export interface ExportPaymentApprovalsParams {
+  status?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
 // ─── B1. Stats ────────────────────────────────────────────────────────────────
 
 export interface PaymentApprovalStats {
@@ -32,6 +59,8 @@ export interface PaymentApprovalApiItem {
   status: string;
   statusLabel: string;
   category: string;
+  paidAt?: string | null;
+  workflowStage?: string;
 }
 
 export interface PaymentApprovalsListData {
@@ -115,8 +144,29 @@ export interface ReviewPaymentApprovalRequest {
 export const paymentApprovalsApi = createApi({
   reducerPath: "paymentApprovalsApi",
   baseQuery: baseQueryWithReauth,
-  tagTypes: ["PaymentApprovalStats", "PaymentApprovals", "PaymentApprovalDetail"],
+  tagTypes: [
+    "PaymentApprovalStats",
+    "PaymentApprovals",
+    "PaymentApprovalDetail",
+    "PaymentApprovalFilters",
+  ],
   endpoints: (builder) => ({
+    // 3.1 Filters (dropdowns)
+    getPaymentApprovalFilters: builder.query<PaymentApprovalFiltersData, void>({
+      query: () => ({
+        url: "/api/account/financial/payment-approvals/filters",
+        method: "GET",
+      }),
+      transformResponse: (response: ApiResponse<PaymentApprovalFiltersData>) =>
+        response.data ?? {
+          projects: [],
+          payeeTypes: [],
+          statuses: [],
+          workflowStages: [],
+        },
+      providesTags: ["PaymentApprovalFilters"],
+    }),
+
     // B1. Stats
     getPaymentApprovalStats: builder.query<PaymentApprovalStats, void>({
       query: () => ({
@@ -208,14 +258,45 @@ export const paymentApprovalsApi = createApi({
         { type: "PaymentApprovalDetail", id: approvalId },
       ],
     }),
+
+    // 3.6 Export
+    exportPaymentApprovals: builder.mutation<
+      Blob,
+      ExportPaymentApprovalsParams | void
+    >({
+      query: (params) => {
+        const cleanParams: Record<string, string> = {};
+        if (params?.status && params.status !== "All" && params.status !== "all") {
+          cleanParams.status = params.status;
+        }
+        if (params?.startDate) cleanParams.startDate = params.startDate;
+        if (params?.endDate) cleanParams.endDate = params.endDate;
+
+        return {
+          url: "/api/account/financial/payment-approvals/export",
+          method: "GET",
+          params: cleanParams,
+          responseHandler: async (response) => {
+            if (!response.ok) {
+              const err = await response.json().catch(() => ({}));
+              throw new Error(err.message || "Failed to export payment approvals");
+            }
+            return response.blob();
+          },
+        };
+      },
+    }),
   }),
 });
 
 export const {
+  useGetPaymentApprovalFiltersQuery,
+  useLazyGetPaymentApprovalFiltersQuery,
   useGetPaymentApprovalStatsQuery,
   useGetPaymentApprovalsQuery,
   useLazyGetPaymentApprovalsQuery,
   useGetPaymentApprovalDetailQuery,
   useLazyGetPaymentApprovalDetailQuery,
   useReviewPaymentApprovalMutation,
+  useExportPaymentApprovalsMutation,
 } = paymentApprovalsApi;

@@ -1,7 +1,7 @@
 import { AnalysisSection } from "../components/AnalysisSection";
 import { WorkInProgress } from "../components/WorkInProgress";
 import { RevenueTrend } from "../components/RevenueTrend";
-import { ChevronDown, ChevronUp, RefreshCcw } from "lucide-react";
+import { ChevronDown, ChevronUp, Download, RefreshCcw } from "lucide-react";
 import TitleSubtitle from "../components/common_components/TitleSubtitle";
 import { FinanceStatsGrid } from "../components/FinanceStatsGrid";
 import { DeliveryFinanceGrid } from "../components/DeliveryFinanceGrid";
@@ -21,13 +21,17 @@ import StatCard from "@/components/ui/stat-card";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import DateRangeFilter from "@/components/ui/date-range-filter";
 import FilterTabs, {
   type Period,
   type DateRange,
   getPeriodRange,
 } from "@/components/FilterTabs";
 import { useState, useMemo } from "react";
-import { useGetDashboardOverviewQuery } from "@/redux/api/dashboardApi";
+import {
+  useGetDashboardOverviewQuery,
+  useExportDashboardMutation,
+} from "@/redux/api/dashboardApi";
 import { formatDateToIso, formatCurrency } from "@/lib/dashboardFormatters";
 import { cn } from "@/lib/utils";
 
@@ -37,7 +41,13 @@ const FinancePage = () => {
   const [selectedRange, setSelectedRange] = useState<DateRange>(() =>
     getPeriodRange("week")
   );
+  const [activePeriod, setActivePeriod] = useState<Period>("week");
   const [isInvoiceOpen, setIsInvoiceOpen] = useState(true);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [exportSuccess, setExportSuccess] = useState(false);
+
+  const [exportDashboard, { isLoading: isExporting }] =
+    useExportDashboardMutation();
 
   // Compute inclusive startDate & endDate for API query
   const dateRange = useMemo(() => {
@@ -66,6 +76,46 @@ const FinancePage = () => {
     budgetRowsLimit: 6,
     daysAhead: 30,
   });
+
+  // Handler for Exporting Financial Overview report
+  const handleExport = async () => {
+    setExportError(null);
+    setExportSuccess(false);
+    try {
+      const blob = await exportDashboard({
+        startDate: dateRange.startDate,
+        endDate: dateRange.endDate,
+      }).unwrap();
+
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      const fileExt =
+        blob.type.includes("csv") || blob.type.includes("text")
+          ? "csv"
+          : blob.type.includes("json")
+          ? "json"
+          : "xlsx";
+      link.download = `financial-overview-export-${dateRange.startDate || "all"}-to-${
+        dateRange.endDate || "all"
+      }.${fileExt}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(blobUrl);
+
+      setExportSuccess(true);
+      setTimeout(() => setExportSuccess(false), 3000);
+    } catch (err: unknown) {
+      console.error("Dashboard export failed:", err);
+      const errMsg =
+        err && typeof err === "object" && "message" in err
+          ? String((err as { message: unknown }).message)
+          : "Failed to export report. Please try again.";
+      setExportError(errMsg);
+      setTimeout(() => setExportError(null), 5000);
+    }
+  };
 
   // Top 4 financial overview cards with live data
   const statsCards = useMemo(() => {
@@ -131,15 +181,88 @@ const FinancePage = () => {
       <div className="-mt-4 -mx-4">
         <FilterTabs
           initialPeriod="week"
-          onPeriodChange={(_period: Period, range: DateRange) =>
-            setSelectedRange(range)
-          }
+          selectedPeriod={activePeriod}
+          onPeriodChange={(period: Period, range: DateRange) => {
+            setActivePeriod(period);
+            setSelectedRange(range);
+          }}
         />
       </div>
-      <TitleSubtitle
-        title="Financial Overview"
-        subtitle="Monitor your business financial performance and key metrics"
-      />
+
+      {/* Header Row: Title & Subtitle on Left, Date Range Filter & Export Button on Right */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <TitleSubtitle
+          title="Financial Overview"
+          subtitle="Monitor your business financial performance and key metrics"
+        />
+
+        <div className="flex flex-wrap items-center gap-3">
+          <DateRangeFilter
+            value={{
+              from: selectedRange.startDate || undefined,
+              to: selectedRange.endDate || undefined,
+            }}
+            onChange={(range) => {
+              setActivePeriod(undefined);
+              if (range?.from) {
+                setSelectedRange({
+                  startDate: range.from,
+                  endDate: range.to || range.from,
+                });
+              } else {
+                setSelectedRange({
+                  startDate: null,
+                  endDate: null,
+                });
+              }
+            }}
+            className="w-full sm:w-60 md:w-65 bg-white shadow-2xs"
+            placeholder="Select Date Range"
+          />
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExport}
+            disabled={isExporting}
+            className="h-9 px-3.5 bg-white border-gray-200 hover:bg-gray-50 text-gray-700 font-medium text-xs sm:text-sm gap-2 cursor-pointer shadow-2xs shrink-0"
+            title="Export Dashboard Data"
+          >
+            {isExporting ? (
+              <RefreshCcw className="w-4 h-4 animate-spin text-gray-500" />
+            ) : (
+              <Download className="w-4 h-4 text-gray-600" />
+            )}
+            <span>{isExporting ? "Exporting..." : "Export"}</span>
+          </Button>
+        </div>
+      </div>
+
+      {exportError && (
+        <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm rounded-md flex justify-between items-center">
+          <span>{exportError}</span>
+          <button
+            type="button"
+            onClick={() => setExportError(null)}
+            className="text-red-500 hover:text-red-700 ml-2 font-bold cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {exportSuccess && (
+        <div className="p-3 bg-green-50 border border-green-200 text-green-700 text-xs sm:text-sm rounded-md flex justify-between items-center">
+          <span>Dashboard report exported successfully!</span>
+          <button
+            type="button"
+            onClick={() => setExportSuccess(false)}
+            className="text-green-500 hover:text-green-700 ml-2 font-bold cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Top 4 Stat Cards */}
       <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-5">

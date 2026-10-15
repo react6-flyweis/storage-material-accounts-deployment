@@ -110,11 +110,43 @@ export interface CreatePaymentOrderRequest {
 
 export interface UpdatePaymentOrderRequest {
   id: string; // quoteOrderId, wipId, or leadId
-  orderValue: number;
+  orderValue?: number;
   depositPaid: number;
   progressPaid: number;
   finalPaid?: number;
   status: PaymentStatusEnum;
+}
+
+export interface PaymentOrderOptionItem {
+  leadId: string;
+  quoteOrderId: string;
+  label: string;
+  projectName: string;
+  customerName: string;
+  location: string;
+  quoteValue: number;
+  lifecycleStatus: string;
+  hasWipRecord: boolean;
+  wipId?: string | null;
+}
+
+export interface PaymentOrderOptionsResponse {
+  options: PaymentOrderOptionItem[];
+  total: number;
+}
+
+export interface PaymentOrderOptionsParams {
+  search?: string;
+  excludeWithWip?: boolean;
+  limit?: number;
+}
+
+export interface ExportPaymentOrdersParams {
+  search?: string;
+  status?: string;
+  startDate?: string;
+  endDate?: string;
+  period?: "today" | "week" | "month" | string;
 }
 
 export interface PaymentStatsParams {
@@ -141,7 +173,7 @@ export interface PaymentOrdersResponseData {
 export const paymentsApi = createApi({
   reducerPath: "paymentsApi",
   baseQuery: baseQueryWithReauth,
-  tagTypes: ["PaymentStats", "PaymentOrders", "PaymentOrderDetail"],
+  tagTypes: ["PaymentStats", "PaymentOrders", "PaymentOrderDetail", "PaymentOrderOptions"],
   endpoints: (builder) => ({
     // A1. Stats (top 4 cards)
     getPaymentStats: builder.query<PaymentStats, PaymentStatsParams | void>({
@@ -267,7 +299,74 @@ export const paymentsApi = createApi({
       ],
     }),
 
-    // Export WIP Excel
+    // Dropdown before POST / options
+    getPaymentOrderOptions: builder.query<
+      PaymentOrderOptionsResponse,
+      PaymentOrderOptionsParams | void
+    >({
+      query: (params) => {
+        const cleanParams: Record<string, string | number | boolean> = {};
+        if (params?.search && params.search.trim()) {
+          cleanParams.search = params.search.trim();
+        }
+        if (params?.excludeWithWip !== undefined) {
+          cleanParams.excludeWithWip = params.excludeWithWip;
+        }
+        if (params?.limit) {
+          cleanParams.limit = params.limit;
+        }
+        return {
+          url: "/api/account/payments/orders/options",
+          method: "GET",
+          params: cleanParams,
+        };
+      },
+      transformResponse: (response: ApiResponse<PaymentOrderOptionsResponse>) => {
+        return (
+          response.data || {
+            options: [],
+            total: 0,
+          }
+        );
+      },
+      providesTags: ["PaymentOrderOptions"],
+    }),
+
+    // 2.3 Export Reports (payment-overview-orders.xlsx)
+    exportPaymentOrders: builder.mutation<
+      Blob,
+      ExportPaymentOrdersParams | void
+    >({
+      query: (params) => {
+        const cleanParams: Record<string, string> = {};
+        if (params?.search && params.search.trim()) {
+          cleanParams.search = params.search.trim();
+        }
+        if (params?.status && params.status !== "All" && params.status !== "all") {
+          cleanParams.status = params.status;
+        }
+        if (params?.period && params.period !== "all") {
+          cleanParams.period = params.period;
+        }
+        if (params?.startDate) cleanParams.startDate = params.startDate;
+        if (params?.endDate) cleanParams.endDate = params.endDate;
+
+        return {
+          url: "/api/account/payments/orders/export",
+          method: "GET",
+          params: cleanParams,
+          responseHandler: async (response) => {
+            if (!response.ok) {
+              const err = await response.json().catch(() => ({}));
+              throw new Error(err.message || "Failed to export payment orders");
+            }
+            return response.blob();
+          },
+        };
+      },
+    }),
+
+    // Legacy Export WIP Excel
     exportWipProfits: builder.mutation<
       Blob,
       PaymentStatsParams | void
@@ -302,7 +401,10 @@ export const {
   useLazyGetPaymentOrdersQuery,
   useGetPaymentOrderDetailQuery,
   useLazyGetPaymentOrderDetailQuery,
+  useGetPaymentOrderOptionsQuery,
+  useLazyGetPaymentOrderOptionsQuery,
   useCreatePaymentOrderMutation,
   useUpdatePaymentOrderMutation,
+  useExportPaymentOrdersMutation,
   useExportWipProfitsMutation,
 } = paymentsApi;

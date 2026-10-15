@@ -107,6 +107,11 @@ export default function DateRangeFilter({
       <CalendarRangePickerModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
+        onApply={(range) => {
+          if (range.from && range.to) {
+            handleChange({ from: range.from, to: range.to });
+          }
+        }}
         onSelectRange={handleSelectFromCalendar}
       />
     </>

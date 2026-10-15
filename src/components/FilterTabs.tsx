@@ -16,6 +16,7 @@ const getPeriodLabel = (period: Period) => (period ? periodLabels[period] : "All
 
 type Props = {
   initialPeriod?: Period;
+  selectedPeriod?: Period;
   onPeriodChange?: (period: Period, dateRange: DateRange) => void;
 };
 
@@ -47,11 +48,12 @@ export const getPeriodRange = (period?: Period) => {
   };
 };
 
-export default function FilterTabs({ initialPeriod, onPeriodChange }: Props) {
-  const [period, setPeriod] = useState<Period>(initialPeriod);
+export default function FilterTabs({ initialPeriod, selectedPeriod, onPeriodChange }: Props) {
+  const [internalPeriod, setInternalPeriod] = useState<Period>(initialPeriod);
+  const period = selectedPeriod !== undefined ? selectedPeriod : internalPeriod;
 
   const handleChange = (p: Period) => {
-    setPeriod(p);
+    setInternalPeriod(p);
     if (onPeriodChange) {
       onPeriodChange(p, {
         ...getPeriodRange(p),

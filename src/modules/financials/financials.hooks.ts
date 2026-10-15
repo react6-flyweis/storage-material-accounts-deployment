@@ -1,3 +1,5 @@
+import { useGetBudgetVsActualProjectsQuery as useRealBvaQuery } from "@/redux/api/financialApi";
+
 export interface FinancialProjectItem {
   _id?: string;
   leadId?: string;
@@ -15,9 +17,12 @@ const DEFAULT_PROJECTS: FinancialProjectItem[] = [
 ];
 
 export function useBudgetVsActualProjectsQuery() {
+  const { data, isLoading, error, refetch } = useRealBvaQuery();
   return {
-    data: { data: { projects: DEFAULT_PROJECTS } },
-    isLoading: false,
+    data: { data: { projects: data && data.length > 0 ? data : DEFAULT_PROJECTS } },
+    isLoading,
+    error,
+    refetch,
   };
 }
 
