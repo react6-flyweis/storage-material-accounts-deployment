@@ -12,8 +12,13 @@ import {
   Calendar,
   ArrowRight,
   ArrowDownRight,
+  Download,
+  Loader2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import StatCard from "@/components/ui/stat-card";
 import {
@@ -31,6 +36,8 @@ import PaymentApprovalDetailsModal, {
 } from "@/components/modals/PaymentApprovalDetailsModal";
 import {
   useGetPaymentApprovalsQuery,
+  useGetPaymentApprovalFiltersQuery,
+  useExportPaymentApprovalsMutation,
   type PaymentApprovalApiItem,
 } from "@/redux/api/paymentApprovalsApi";
 
@@ -69,10 +76,15 @@ const UI_TO_API_TYPE: Record<string, string> = {
 };
 
 function mapApiItemToUi(item: PaymentApprovalApiItem): PaymentApprovalItem {
-  const status: ApprovalStatus =
+  let status: ApprovalStatus =
     STATUS_LABEL_MAP[item.status?.toLowerCase()] ??
     (item.statusLabel as ApprovalStatus) ??
     "Pending";
+
+  // 3.3 Requirement: When status === "approved" and paidAt is set: statusLabel = Paid, workflowStage = paid
+  if (item.status?.toLowerCase() === "approved" && item.paidAt) {
+    status = "Paid";
+  }
 
   const invoiceType: InvoiceType =
     TYPE_LABEL_MAP[item.invoiceTypeCode?.toLowerCase()] ??
@@ -118,18 +130,56 @@ const PaymentApprovalsPage = () => {
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>("All");
   const [typeFilter, setTypeFilter] = useState<string>("All");
   const [projectFilter, setProjectFilter] = useState<string>("All");
+  const [page, setPage] = useState<number>(1);
+  const [limit] = useState<number>(20);
 
   const [selectedItem, setSelectedItem] = useState<PaymentApprovalItem | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [successModalTitle, setSuccessModalTitle] = useState("");
 
+  // 3.1 Filters (projects, payeeTypes, statuses, workflowStages)
+  const { data: filtersData } = useGetPaymentApprovalFiltersQuery();
+
+  // 3.6 Export
+  const [exportPaymentApprovals, { isLoading: isExporting }] =
+    useExportPaymentApprovalsMutation();
+
+  // Filter change handlers that reset page to 1
+  const handlePaymentStatusChange = (val: string) => {
+    setPaymentStatusFilter(val);
+    setPage(1);
+  };
+
+  const handleTypeChange = (val: string) => {
+    setTypeFilter(val);
+    setPage(1);
+  };
+
+  const handleProjectChange = (val: string) => {
+    setProjectFilter(val);
+    setPage(1);
+  };
+
+  const handleSearchChange = (val: string) => {
+    setSearchQuery(val);
+    setPage(1);
+  };
+
   // B2 – Approval queue (also embeds stats)
   const { data: listData, isLoading, isError } = useGetPaymentApprovalsQuery({
     search: searchQuery.trim() || undefined,
-    status: paymentStatusFilter !== "All" ? UI_TO_API_STATUS[paymentStatusFilter] : undefined,
-    payeeType: typeFilter !== "All" ? UI_TO_API_TYPE[typeFilter] : undefined,
+    status:
+      paymentStatusFilter !== "All"
+        ? UI_TO_API_STATUS[paymentStatusFilter] || paymentStatusFilter
+        : undefined,
+    payeeType:
+      typeFilter !== "All"
+        ? UI_TO_API_TYPE[typeFilter] || typeFilter
+        : undefined,
     project: projectFilter !== "All" ? projectFilter : undefined,
+    page,
+    limit,
   });
 
   // Stats from B2 response (falls back to zeros while loading)
@@ -144,6 +194,35 @@ const PaymentApprovalsPage = () => {
     () => (listData?.approvals ?? []).map(mapApiItemToUi),
     [listData]
   );
+
+  const totalItems = listData?.total ?? uiItems.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / limit));
+
+  // 3.6 Export handler
+  const handleExport = async () => {
+    try {
+      const blob = await exportPaymentApprovals({
+        status:
+          paymentStatusFilter !== "All"
+            ? UI_TO_API_STATUS[paymentStatusFilter] || paymentStatusFilter
+            : undefined,
+      }).unwrap();
+
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = `payment-approvals.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(blobUrl);
+
+      setSuccessModalTitle("Payment Approvals Exported Successfully");
+      setIsSuccessModalOpen(true);
+    } catch (err: unknown) {
+      console.error("Failed to export payment approvals:", err);
+    }
+  };
 
   const handleOpenDetail = (item: PaymentApprovalItem) => {
     setSelectedItem(item);
@@ -220,13 +299,28 @@ const PaymentApprovalsPage = () => {
   return (
     <div className="space-y-6 px-2 sm:px-4 xl:px-0 pb-10">
       {/* Header section */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
-          Payment Approvals
-        </h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Review and approve payment requests across all invoice types
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+            Payment Approvals
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Review and approve payment requests across all invoice types
+          </p>
+        </div>
+        <Button
+          type="button"
+          onClick={handleExport}
+          disabled={isExporting}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 rounded-xl font-medium text-sm shadow-2xs transition-colors self-start sm:self-auto cursor-pointer"
+        >
+          {isExporting ? (
+            <Loader2 className="w-4 h-4 animate-spin text-gray-500" />
+          ) : (
+            <Download className="w-4 h-4 text-gray-500" />
+          )}
+          <span>Export</span>
+        </Button>
       </div>
 
       {/* 4 Top Metric Cards */}
@@ -237,7 +331,7 @@ const PaymentApprovalsPage = () => {
           icon={<Clock className="md:size-5 size-4 text-[#FF5700]" />}
           color="bg-[#FF5700]"
           onClick={() =>
-            setPaymentStatusFilter(
+            handlePaymentStatusChange(
               paymentStatusFilter === "Pending" ? "All" : "Pending"
             )
           }
@@ -253,7 +347,7 @@ const PaymentApprovalsPage = () => {
           icon={<AlertCircle className="md:size-5 size-4 text-[#2563EB]" />}
           color="bg-[#2563EB]"
           onClick={() =>
-            setPaymentStatusFilter(
+            handlePaymentStatusChange(
               paymentStatusFilter === "Under Review" ? "All" : "Under Review"
             )
           }
@@ -269,7 +363,7 @@ const PaymentApprovalsPage = () => {
           icon={<Check className="md:size-5 size-4 text-[#00B948] stroke-3" />}
           color="bg-[#00B948]"
           onClick={() =>
-            setPaymentStatusFilter(
+            handlePaymentStatusChange(
               paymentStatusFilter === "Approved" ? "All" : "Approved"
             )
           }
@@ -285,7 +379,7 @@ const PaymentApprovalsPage = () => {
           icon={<X className="md:size-5 size-4 text-[#EF1428] stroke-3" />}
           color="bg-[#EF1428]"
           onClick={() =>
-            setPaymentStatusFilter(
+            handlePaymentStatusChange(
               paymentStatusFilter === "Disputed" ? "All" : "Disputed"
             )
           }
@@ -305,7 +399,7 @@ const PaymentApprovalsPage = () => {
             type="text"
             placeholder="Search by company, invoice, or project..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             className="w-full bg-[#F3F4F6] text-sm text-gray-800 placeholder:text-gray-400 rounded-xl pl-10 pr-4 py-2.5 border-none focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
           />
         </div>
@@ -313,7 +407,7 @@ const PaymentApprovalsPage = () => {
         {/* Filter Dropdowns */}
         <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
           {/* Payment Status Dropdown */}
-          <Select value={paymentStatusFilter} onValueChange={setPaymentStatusFilter}>
+          <Select value={paymentStatusFilter} onValueChange={handlePaymentStatusChange}>
             <SelectTrigger className="w-full sm:w-40 h-10 text-sm text-gray-700 bg-[#F3F4F6] border-none rounded-xl px-3.5 focus:ring-1 focus:ring-blue-500 shadow-none cursor-pointer">
               <SelectValue placeholder="Payment Status">
                 {paymentStatusFilter === "All" ? "Payment Status" : paymentStatusFilter}
@@ -321,16 +415,26 @@ const PaymentApprovalsPage = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="All">All Payment Status</SelectItem>
-              <SelectItem value="Pending">Pending</SelectItem>
-              <SelectItem value="Under Review">Under Review</SelectItem>
-              <SelectItem value="Approved">Approved</SelectItem>
-              <SelectItem value="Disputed">Disputed</SelectItem>
-              <SelectItem value="Paid">Paid</SelectItem>
+              {filtersData?.statuses && filtersData.statuses.length > 0 ? (
+                filtersData.statuses.map((st) => (
+                  <SelectItem key={st} value={STATUS_LABEL_MAP[st] || st}>
+                    {STATUS_LABEL_MAP[st] || st}
+                  </SelectItem>
+                ))
+              ) : (
+                <>
+                  <SelectItem value="Pending">Pending</SelectItem>
+                  <SelectItem value="Under Review">Under Review</SelectItem>
+                  <SelectItem value="Approved">Approved</SelectItem>
+                  <SelectItem value="Disputed">Disputed</SelectItem>
+                  <SelectItem value="Paid">Paid</SelectItem>
+                </>
+              )}
             </SelectContent>
           </Select>
 
           {/* Payee Type Dropdown */}
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
+          <Select value={typeFilter} onValueChange={handleTypeChange}>
             <SelectTrigger className="w-full sm:w-35 h-10 text-sm text-gray-700 bg-[#F3F4F6] border-none rounded-xl px-3.5 focus:ring-1 focus:ring-blue-500 shadow-none cursor-pointer">
               <SelectValue placeholder="Status">
                 {typeFilter === "All" ? "Status" : typeFilter}
@@ -338,26 +442,49 @@ const PaymentApprovalsPage = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="All">All Status</SelectItem>
-              <SelectItem value="Carrier">Carrier</SelectItem>
-              <SelectItem value="Delivery Company">Delivery Company</SelectItem>
-              <SelectItem value="Vendor">Vendor</SelectItem>
+              {filtersData?.payeeTypes && filtersData.payeeTypes.length > 0 ? (
+                filtersData.payeeTypes.map((pt) => (
+                  <SelectItem key={pt.code} value={pt.label || pt.code}>
+                    {pt.label || pt.code}
+                  </SelectItem>
+                ))
+              ) : (
+                <>
+                  <SelectItem value="Carrier">Carrier</SelectItem>
+                  <SelectItem value="Delivery Company">Delivery Company</SelectItem>
+                  <SelectItem value="Vendor">Vendor</SelectItem>
+                </>
+              )}
             </SelectContent>
           </Select>
 
           {/* Project Dropdown */}
-          <Select value={projectFilter} onValueChange={setProjectFilter}>
-            <SelectTrigger className="w-full sm:w-37.5 h-10 text-sm text-gray-700 bg-[#F3F4F6] border-none rounded-xl px-3.5 focus:ring-1 focus:ring-blue-500 shadow-none cursor-pointer">
+          <Select value={projectFilter} onValueChange={handleProjectChange}>
+            <SelectTrigger className="w-full sm:w-44 h-10 text-sm text-gray-700 bg-[#F3F4F6] border-none rounded-xl px-3.5 focus:ring-1 focus:ring-blue-500 shadow-none cursor-pointer">
               <SelectValue placeholder="Project">
-                {projectFilter === "All" ? "Project" : projectFilter}
+                {projectFilter === "All"
+                  ? "All Projects"
+                  : filtersData?.projects?.find((p) => p.leadId === projectFilter)?.projectName ||
+                    projectFilter}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="All">All Projects</SelectItem>
-              <SelectItem value="Downtown Plaza">Downtown Plaza</SelectItem>
-              <SelectItem value="Riverside Complex">Riverside Complex</SelectItem>
-              <SelectItem value="Tech Park Development">Tech Park Development</SelectItem>
-              <SelectItem value="Medical Center Expansion">Medical Center Expansion</SelectItem>
-              <SelectItem value="Green Valley Homes">Green Valley Homes</SelectItem>
+              {filtersData?.projects && filtersData.projects.length > 0 ? (
+                filtersData.projects.map((proj) => (
+                  <SelectItem key={proj.leadId} value={proj.leadId}>
+                    {proj.projectName}
+                  </SelectItem>
+                ))
+              ) : (
+                <>
+                  <SelectItem value="Downtown Plaza">Downtown Plaza</SelectItem>
+                  <SelectItem value="Riverside Complex">Riverside Complex</SelectItem>
+                  <SelectItem value="Tech Park Development">Tech Park Development</SelectItem>
+                  <SelectItem value="Medical Center Expansion">Medical Center Expansion</SelectItem>
+                  <SelectItem value="Green Valley Homes">Green Valley Homes</SelectItem>
+                </>
+              )}
             </SelectContent>
           </Select>
         </div>
@@ -522,6 +649,43 @@ const PaymentApprovalsPage = () => {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination bar */}
+        {totalPages > 1 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-3.5 border-t border-gray-100 bg-white text-xs text-gray-500">
+            <span>
+              Showing {Math.min((page - 1) * limit + 1, totalItems)} to{" "}
+              {Math.min(page * limit, totalItems)} of {totalItems} entries
+            </span>
+            <div className="flex items-center gap-1.5">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className="h-8 px-2.5 bg-white border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50 rounded-lg cursor-pointer"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+                <span>Prev</span>
+              </Button>
+              <span className="px-2 py-1 font-medium text-gray-700">
+                Page {page} of {totalPages}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                className="h-8 px-2.5 bg-white border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50 rounded-lg cursor-pointer"
+              >
+                <span>Next</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* Details & Approval Action Modal */}
