@@ -9,6 +9,9 @@ import { paymentApprovalsApi } from "./api/paymentApprovalsApi";
 import { notificationsApi } from "./api/notificationsApi";
 import { teamChatApi } from "./api/teamChatApi";
 import { customerDirectChatApi } from "./api/customerDirectChatApi";
+import { projectApi } from "./api/projectApi";
+import { marginAnalysisApi } from "./api/marginAnalysisApi";
+import { financialApi } from "./api/financialApi";
 import authReducer from "./slices/authSlice";
 import inventoryReducer from "./slices/inventorySlice";
 import maintenanceReducer from "./slices/maintenanceSlice";
@@ -34,6 +37,9 @@ export const store = configureStore({
     [notificationsApi.reducerPath]: notificationsApi.reducer,
     [teamChatApi.reducerPath]: teamChatApi.reducer,
     [customerDirectChatApi.reducerPath]: customerDirectChatApi.reducer,
+    [projectApi.reducerPath]: projectApi.reducer,
+    [marginAnalysisApi.reducerPath]: marginAnalysisApi.reducer,
+    [financialApi.reducerPath]: financialApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -55,7 +61,10 @@ export const store = configureStore({
       paymentApprovalsApi.middleware,
       notificationsApi.middleware,
       teamChatApi.middleware,
-      customerDirectChatApi.middleware
+      customerDirectChatApi.middleware,
+      projectApi.middleware,
+      marginAnalysisApi.middleware,
+      financialApi.middleware
     ),
 });
 
