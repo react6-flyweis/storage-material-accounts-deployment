@@ -22,283 +22,45 @@ import type { SalaryEntry } from "@/components/cost/AddSalaryEntryModal";
 import DeleteConfirmModal from "@/components/cost/DeleteConfirmModal";
 import SuccessModal from "@/components/common_components/SuccessModal";
 import SalaryDetailModal from "@/components/cost/SalaryDetailModal";
+import { Skeleton } from "@/components/ui/skeleton";
 import { CostStatCard } from "@/components/cost/CostStatCard";
-
-// Initial mock data matching screenshot exactly
-const INITIAL_SALARY_DATA: SalaryEntry[] = [
-  {
-    id: "1",
-    empId: "Emp-001",
-    name: "Anthony Lewis",
-    designation: "Finance",
-    avatar:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80",
-    basicSalary: 40000,
-    deductions: 1000,
-    netSalary: 40000,
-    status: "Unpaid",
-    adminApproval: "Approved",
-    date: "14 Aug 2026",
-  },
-  {
-    id: "2",
-    empId: "Emp-002",
-    name: "Brian Villalobos",
-    designation: "Production",
-    avatar:
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80",
-    basicSalary: 35000,
-    deductions: 1000,
-    netSalary: 35000,
-    status: "Paid",
-    adminApproval: "Approved",
-    date: "14 Aug 2026",
-  },
-  {
-    id: "3",
-    empId: "Emp-003",
-    name: "Harvey Smith",
-    designation: "Production",
-    avatar:
-      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&auto=format&fit=crop&q=80",
-    basicSalary: 20000,
-    deductions: 1000,
-    netSalary: 20000,
-    status: "Paid",
-    adminApproval: "Approved",
-    date: "14 Aug 2026",
-  },
-  {
-    id: "4",
-    empId: "Emp-004",
-    name: "Stephan Peralt",
-    designation: "Executive Officer",
-    avatar:
-      "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=100&auto=format&fit=crop&q=80",
-    basicSalary: 22000,
-    deductions: 1000,
-    netSalary: 22000,
-    status: "Paid",
-    adminApproval: "Approved",
-    date: "14 Aug 2026",
-  },
-  {
-    id: "5",
-    empId: "Emp-005",
-    name: "Doglas Martini",
-    designation: "Manager",
-    avatar:
-      "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=100&auto=format&fit=crop&q=80",
-    basicSalary: 25000,
-    deductions: 1000,
-    netSalary: 25000,
-    status: "Paid",
-    adminApproval: "Approved",
-    date: "14 Aug 2026",
-  },
-  {
-    id: "6",
-    empId: "Emp-006",
-    name: "Linda Ray",
-    designation: "Finance",
-    avatar:
-      "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=100&auto=format&fit=crop&q=80",
-    basicSalary: 30000,
-    deductions: 1000,
-    netSalary: 30000,
-    status: "Paid",
-    adminApproval: "Approved",
-    date: "14 Aug 2026",
-  },
-  {
-    id: "7",
-    empId: "Emp-007",
-    name: "Elliot Murray",
-    designation: "Production",
-    avatar:
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80",
-    basicSalary: 35000,
-    deductions: 1000,
-    netSalary: 35000,
-    status: "Paid",
-    adminApproval: "Approved",
-    date: "14 Aug 2026",
-  },
-  {
-    id: "8",
-    empId: "Emp-008",
-    name: "Rebecca Smtih",
-    designation: "Executive",
-    avatar:
-      "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&auto=format&fit=crop&q=80",
-    basicSalary: 45000,
-    deductions: 1000,
-    netSalary: 45000,
-    status: "Paid",
-    adminApproval: "Approved",
-    date: "14 Aug 2026",
-  },
-  {
-    id: "9",
-    empId: "Emp-009",
-    name: "Connie Waters",
-    designation: "Production",
-    avatar:
-      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=100&auto=format&fit=crop&q=80",
-    basicSalary: 50000,
-    deductions: 1000,
-    netSalary: 50000,
-    status: "Paid",
-    adminApproval: "Approved",
-    date: "14 Aug 2026",
-  },
-  {
-    id: "10",
-    empId: "Emp-010",
-    name: "Lori Broaddus",
-    designation: "Finance",
-    avatar:
-      "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&auto=format&fit=crop&q=80",
-    basicSalary: 25000,
-    deductions: 1000,
-    netSalary: 25000,
-    status: "Paid",
-    adminApproval: "Approved",
-    date: "14 Aug 2026",
-  },
-  {
-    id: "11",
-    empId: "Emp-011",
-    name: "Lucas Scott",
-    designation: "Production",
-    avatar:
-      "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=100&auto=format&fit=crop&q=80",
-    basicSalary: 32000,
-    deductions: 1000,
-    netSalary: 31000,
-    status: "Paid",
-    adminApproval: "Approved",
-    date: "14 Aug 2026",
-  },
-  {
-    id: "12",
-    empId: "Emp-012",
-    name: "Sophia Martinez",
-    designation: "Finance",
-    avatar:
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80",
-    basicSalary: 42000,
-    deductions: 1500,
-    netSalary: 40500,
-    status: "Paid",
-    adminApproval: "Approved",
-    date: "15 Aug 2026",
-  },
-  {
-    id: "13",
-    empId: "Emp-013",
-    name: "James Wilson",
-    designation: "Executive Officer",
-    avatar:
-      "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=100&auto=format&fit=crop&q=80",
-    basicSalary: 48000,
-    deductions: 2000,
-    netSalary: 46000,
-    status: "Unpaid",
-    adminApproval: "Pending",
-    date: "16 Aug 2026",
-  },
-  {
-    id: "14",
-    empId: "Emp-014",
-    name: "Emma Davis",
-    designation: "Manager",
-    avatar:
-      "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=100&auto=format&fit=crop&q=80",
-    basicSalary: 28000,
-    deductions: 800,
-    netSalary: 27200,
-    status: "Paid",
-    adminApproval: "Approved",
-    date: "16 Aug 2026",
-  },
-  {
-    id: "15",
-    empId: "Emp-015",
-    name: "Oliver Brown",
-    designation: "Executive",
-    avatar:
-      "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100&auto=format&fit=crop&q=80",
-    basicSalary: 36000,
-    deductions: 1200,
-    netSalary: 34800,
-    status: "Paid",
-    adminApproval: "Approved",
-    date: "17 Aug 2026",
-  },
-  {
-    id: "16",
-    empId: "Emp-016",
-    name: "Ava Taylor",
-    designation: "Finance",
-    avatar:
-      "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&auto=format&fit=crop&q=80",
-    basicSalary: 39000,
-    deductions: 1100,
-    netSalary: 37900,
-    status: "Paid",
-    adminApproval: "Approved",
-    date: "17 Aug 2026",
-  },
-];
+import {
+  useGetSalarySummaryQuery,
+  useGetSalaryRecordsQuery,
+  useMarkSalaryPaidMutation,
+  useDeleteSalaryRecordMutation,
+  useGetCostFiltersQuery,
+} from "@/redux/api/costsApi";
+import { formatDisplayDate } from "@/lib/dashboardFormatters";
 
 type SortColumn = "empId" | "basicSalary" | "deductions" | "netSalary";
 
 export const SalaryCostPage: React.FC = () => {
   const navigate = useNavigate();
 
-  // Load state with fallback to local storage
-  const [data, setData] = useState<SalaryEntry[]>(() => {
-    try {
-      const stored = localStorage.getItem("custom_salary_entries");
-      if (stored) {
-        const parsed = JSON.parse(stored) as Record<string, unknown>[];
-        const mapped: SalaryEntry[] = parsed.map((item, idx: number) => ({
-          id: `custom-${idx}`,
-          empId: String(
-            item.empId || `Emp-${String(idx + 20).padStart(3, "0")}`,
-          ),
-          name: String(item.name || "Employee"),
-          designation: String(item.designation || "Production"),
-          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(
-            String(item.name || "Employee"),
-          )}&background=1D51A4&color=fff&size=100`,
-          basicSalary: Number(item.basicSalary) || 40000,
-          deductions: Number(item.deduction) || 1000,
-          netSalary: Number(item.netSalary) || 39000,
-          status: (item.paymentStatus as "Paid" | "Unpaid") || "Paid",
-          adminApproval: "Approved",
-          date: String(item.date || "14 Aug 2026"),
-        }));
-        return [...mapped, ...INITIAL_SALARY_DATA];
-      }
-    } catch {
-      // fallback
-    }
-    return INITIAL_SALARY_DATA;
-  });
-
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDesignation, setSelectedDesignation] = useState("All");
   const [selectedSalaryRange, setSelectedSalaryRange] = useState("All");
   const [selectedSortBy, setSelectedSortBy] = useState("Last 7 Days");
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [currentPage, setCurrentPage] = useState(4); // Default to 4 as per screenshot
+  const [currentPage, setCurrentPage] = useState(1);
   const [dateRangeText, setDateRangeText] = useState("dd/mm/yyyy - dd/mm/yyyy");
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+
+  // RTK Query API Integration
+  const { data: filtersData } = useGetCostFiltersQuery();
+  const { data: summaryData, isLoading: isSummaryLoading } = useGetSalarySummaryQuery();
+  const { data: recordsData, isLoading: isRecordsLoading } = useGetSalaryRecordsQuery({
+    page: currentPage,
+    limit: rowsPerPage,
+    search: searchTerm,
+    designation: selectedDesignation !== "All" ? selectedDesignation : undefined,
+  });
+  const [markPaidApi] = useMarkSalaryPaidMutation();
+  const [deleteSalaryApi] = useDeleteSalaryRecordMutation();
 
   // Dialog states
   const [entryToDelete, setEntryToDelete] = useState<SalaryEntry | null>(null);
@@ -325,18 +87,17 @@ export const SalaryCostPage: React.FC = () => {
   };
 
   // Mark Paid Handler
-  const handleMarkPaid = (entry: SalaryEntry) => {
-    setData((prev) =>
-      prev.map((item) =>
-        item.id === entry.id ? { ...item, status: "Paid" } : item,
-      ),
-    );
-
-    setSuccessDialogConfig({
-      isOpen: true,
-      title: "Marked as Paid!",
-      message: `Salary of $${entry.netSalary} for ${entry.name} (${entry.empId}) has been successfully marked as Paid.`,
-    });
+  const handleMarkPaid = async (entry: SalaryEntry) => {
+    try {
+      await markPaidApi(entry.id).unwrap();
+      setSuccessDialogConfig({
+        isOpen: true,
+        title: "Marked as Paid!",
+        message: `Salary of $${entry.netSalary} for ${entry.name} (${entry.empId}) has been successfully marked as Paid.`,
+      });
+    } catch (e) {
+      console.error("API mark paid error:", e);
+    }
   };
 
   // Generate Slip Handler
@@ -353,25 +114,64 @@ export const SalaryCostPage: React.FC = () => {
     setEntryToDelete(entry);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!entryToDelete) return;
 
     const removedName = entryToDelete.name;
     const removedId = entryToDelete.empId;
 
-    setData((prev) => prev.filter((item) => item.id !== entryToDelete.id));
-    setEntryToDelete(null);
-
-    setSuccessDialogConfig({
-      isOpen: true,
-      title: "Salary Entry Deleted!",
-      message: `The salary entry for ${removedName} (${removedId}) has been deleted successfully.`,
-    });
+    try {
+      await deleteSalaryApi(entryToDelete.id).unwrap();
+      setSuccessDialogConfig({
+        isOpen: true,
+        title: "Salary Entry Deleted!",
+        message: `The salary entry for ${removedName} (${removedId}) has been deleted successfully.`,
+      });
+    } catch (e) {
+      console.error("API delete error:", e);
+    } finally {
+      setEntryToDelete(null);
+    }
   };
+
+  // Merge API rows with typed structure
+  const effectiveData: SalaryEntry[] = useMemo(() => {
+    if (recordsData?.rows && recordsData.rows.length > 0) {
+      return recordsData.rows.map((row, idx) => {
+        const isPaid =
+          (typeof row.paymentStatus === "string" &&
+            row.paymentStatus.toLowerCase() === "paid") ||
+          (typeof (row as { status?: string }).status === "string" &&
+            (row as { status?: string }).status?.toLowerCase() === "paid");
+
+        return {
+          id: row._id || row.id || String(idx),
+          empId:
+            row.employeeId ||
+            row.employeeUserId ||
+            `EMP-${String(idx + 1).padStart(3, "0")}`,
+          name: row.employeeName,
+          designation: row.designation || "General",
+          avatar:
+            row.avatar ||
+            `https://ui-avatars.com/api/?name=${encodeURIComponent(row.employeeName)}&background=1D51A4&color=fff&size=100`,
+          basicSalary: row.basicSalary || row.netSalary || 0,
+          deductions: row.deductions || 0,
+          netSalary: row.netSalary,
+          status: (isPaid ? "Paid" : "Pending") as "Paid" | "Pending",
+          adminApproval:
+            (row.adminApproval as "Approved" | "Pending" | "Rejected") ||
+            "Approved",
+          date: formatDisplayDate(row.date),
+        };
+      });
+    }
+    return [];
+  }, [recordsData]);
 
   // Filter and sort data
   const filteredData = useMemo(() => {
-    let result = [...data];
+    let result = [...effectiveData];
 
     // Search filter
     if (searchTerm.trim()) {
@@ -423,7 +223,7 @@ export const SalaryCostPage: React.FC = () => {
 
     return result;
   }, [
-    data,
+    effectiveData,
     searchTerm,
     selectedDesignation,
     selectedSalaryRange,
@@ -445,7 +245,7 @@ export const SalaryCostPage: React.FC = () => {
     if (type === "csv") {
       const headers =
         "Emp ID,Name,Designation,Basic Salary,Deductions,Net Salary,Status,Admin Approval,Date\n";
-      const rows = data
+      const rows = effectiveData
         .map(
           (d) =>
             `"${d.empId}","${d.name}","${d.designation}",${d.basicSalary},${d.deductions},${d.netSalary},"${d.status}","${d.adminApproval}","${d.date}"`,
@@ -555,29 +355,44 @@ export const SalaryCostPage: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-5">
         <CostStatCard
           title="Total Salary Cost"
-          value="$48,65,000"
-          changeText="5.62% from last month"
+          value={
+            summaryData?.totalSalaryCost !== undefined
+              ? `$${Number(summaryData.totalSalaryCost).toLocaleString()}`
+              : "$0"
+          }
+          isLoading={isSummaryLoading}
+          changeText="From backend analytics"
           color="purple"
           icon={<Coins className="w-5 h-5 stroke-[1.8]" />}
         />
         <CostStatCard
           title="Net Salary Paid"
-          value="$43,82,500"
-          changeText="11.4% from last month"
+          value={
+            summaryData?.netSalaryPaid !== undefined
+              ? `$${Number(summaryData.netSalaryPaid).toLocaleString()}`
+              : "$0"
+          }
+          isLoading={isSummaryLoading}
+          changeText="From backend analytics"
           color="emerald"
           icon={<ShoppingBag className="w-5 h-5 stroke-[1.8]" />}
         />
         <CostStatCard
           title="Pending Salary"
-          value="$4,82,500"
-          changeText="8.52% from last month"
+          value={
+            summaryData?.pendingSalary !== undefined
+              ? `$${Number(summaryData.pendingSalary).toLocaleString()}`
+              : "$0"
+          }
+          isLoading={isSummaryLoading}
+          changeText="From backend analytics"
           color="amber"
           icon={<Tag className="w-5 h-5 stroke-[1.8]" />}
         />
       </div>
 
       {/* Main Card: Employee Salary List */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden">
+      <div className={`bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden transition-opacity ${isRecordsLoading ? "opacity-70" : "opacity-100"}`}>
         {/* Table Header Filter Bar */}
         <div className="p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-slate-100">
           <h2 className="text-base sm:text-lg font-bold text-slate-900">
@@ -609,11 +424,14 @@ export const SalaryCostPage: React.FC = () => {
                 className="appearance-none bg-white border border-slate-200 rounded-lg pl-3 pr-8 py-1.5 text-xs text-slate-700 font-medium cursor-pointer focus:outline-none focus:border-[#1D51A4]"
               >
                 <option value="All">Designation</option>
-                <option value="Finance">Finance</option>
-                <option value="Production">Production</option>
-                <option value="Executive Officer">Executive Officer</option>
-                <option value="Manager">Manager</option>
-                <option value="Executive">Executive</option>
+                {(filtersData?.designations && filtersData.designations.length > 0
+                  ? filtersData.designations
+                  : ["Finance", "Production", "Executive Officer", "Manager", "Executive"]
+                ).map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
               </select>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
@@ -736,7 +554,31 @@ export const SalaryCostPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs">
-              {displayRows.length === 0 ? (
+              {isRecordsLoading ? (
+                Array.from({ length: 6 }).map((_, i) => (
+                  <tr key={`salary-skeleton-${i}`} className="animate-pulse">
+                    <td className="py-3.5 px-5"><Skeleton className="h-4 w-16" /></td>
+                    <td className="py-3.5 px-5">
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="w-8 h-8 rounded-full" />
+                        <div className="space-y-1.5">
+                          <Skeleton className="h-3.5 w-28" />
+                          <Skeleton className="h-2.5 w-16" />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-5"><Skeleton className="h-4 w-14" /></td>
+                    <td className="py-3.5 px-5"><Skeleton className="h-4 w-14" /></td>
+                    <td className="py-3.5 px-5"><Skeleton className="h-4 w-14" /></td>
+                    <td className="py-3.5 px-5"><Skeleton className="h-6 w-16 rounded-md" /></td>
+                    <td className="py-3.5 px-5"><Skeleton className="h-6 w-20 rounded-md" /></td>
+                    <td className="py-3.5 px-5"><Skeleton className="h-6 w-24 rounded-md" /></td>
+                    <td className="py-3.5 px-5"><Skeleton className="h-7 w-24 rounded-lg" /></td>
+                    <td className="py-3.5 px-5"><Skeleton className="h-7 w-20 rounded-lg" /></td>
+                    <td className="py-3.5 px-5 text-right"><Skeleton className="h-6 w-12 ml-auto rounded-md" /></td>
+                  </tr>
+                ))
+              ) : displayRows.length === 0 ? (
                 <tr>
                   <td colSpan={11} className="py-12 text-center text-slate-400">
                     No salary entries found matching your criteria.
@@ -798,7 +640,7 @@ export const SalaryCostPage: React.FC = () => {
                         className={`inline-block px-3 py-1 rounded-md text-[11px] font-semibold tracking-wide ${
                           row.status === "Paid"
                             ? "bg-[#DCFCE7] text-[#16A34A]"
-                            : "bg-[#FEE2E2] text-[#EF4444]"
+                            : "bg-[#FEF3C7] text-[#D97706]"
                         }`}
                       >
                         {row.status}
@@ -838,9 +680,9 @@ export const SalaryCostPage: React.FC = () => {
                       ) : null}
                     </td>
 
-                    {/* Payslip Column 2: Mark Paid (when Unpaid) */}
+                    {/* Payslip Column 2: Mark Paid (when not Paid) */}
                     <td className="py-3.5 px-5 whitespace-nowrap">
-                      {row.status === "Unpaid" ? (
+                      {row.status !== "Paid" ? (
                         <button
                           type="button"
                           onClick={() => handleMarkPaid(row)}
