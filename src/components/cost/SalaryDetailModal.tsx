@@ -61,7 +61,7 @@ export const SalaryDetailModal: React.FC<SalaryDetailModalProps> = ({
               className={`px-3 py-0.5 rounded-md text-xs font-semibold ${
                 entry.status === "Paid"
                   ? "bg-[#16A34A] text-white"
-                  : "bg-[#DC2626] text-white"
+                  : "bg-amber-500 text-white"
               }`}
             >
               {entry.status}
