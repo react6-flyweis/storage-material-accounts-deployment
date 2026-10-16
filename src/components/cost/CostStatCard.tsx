@@ -1,5 +1,6 @@
 import React from "react";
 import { ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export type CostStatColor = "purple" | "emerald" | "amber" | "blue" | "rose";
 
@@ -11,6 +12,7 @@ export interface CostStatCardProps {
   icon: React.ReactNode;
   color?: CostStatColor;
   className?: string;
+  isLoading?: boolean;
 }
 
 export const CostStatCard: React.FC<CostStatCardProps> = ({
@@ -21,6 +23,7 @@ export const CostStatCard: React.FC<CostStatCardProps> = ({
   icon,
   color = "purple",
   className = "",
+  isLoading = false,
 }) => {
   // Styles for the square rounded icon box
   const colorStyles = {
@@ -74,22 +77,31 @@ export const CostStatCard: React.FC<CostStatCardProps> = ({
 
       {/* Bottom row: Value and Trend change */}
       <div className="mt-3 relative z-10">
-        <div className="text-2xl sm:text-[28px] font-extrabold text-slate-900 tracking-tight leading-tight">
-          {value}
-        </div>
-        {changeText && (
-          <div
-            className={`flex items-center gap-1 text-xs font-semibold mt-2 ${
-              isPositive ? "text-emerald-600" : "text-rose-600"
-            }`}
-          >
-            {isPositive ? (
-              <ArrowUpRight className="w-3.5 h-3.5 stroke-[2.5]" />
-            ) : (
-              <ArrowDownRight className="w-3.5 h-3.5 stroke-[2.5]" />
-            )}
-            <span>{changeText}</span>
+        {isLoading ? (
+          <div className="space-y-2 py-1">
+            <Skeleton className="h-7 w-32 bg-slate-200/90" />
+            <Skeleton className="h-3.5 w-24 bg-slate-100" />
           </div>
+        ) : (
+          <>
+            <div className="text-2xl sm:text-[28px] font-extrabold text-slate-900 tracking-tight leading-tight">
+              {value}
+            </div>
+            {changeText && (
+              <div
+                className={`flex items-center gap-1 text-xs font-semibold mt-2 ${
+                  isPositive ? "text-emerald-600" : "text-rose-600"
+                }`}
+              >
+                {isPositive ? (
+                  <ArrowUpRight className="w-3.5 h-3.5 stroke-[2.5]" />
+                ) : (
+                  <ArrowDownRight className="w-3.5 h-3.5 stroke-[2.5]" />
+                )}
+                <span>{changeText}</span>
+              </div>
+            )}
+          </>
         )}
       </div>
 
