@@ -67,6 +67,22 @@ export const formatCurrency = (val?: number | string | null): string => {
 };
 
 /**
+ * Formats a number with compact notation (e.g. $1.7M, $450K, $280K)
+ */
+export const formatCompactCurrency = (val?: number | string | null): string => {
+  if (val === undefined || val === null || val === "") return "$0";
+  const num = typeof val === "string" ? Number(val.replace(/[^0-9.-]+/g, "")) : val;
+  if (isNaN(num)) return String(val);
+
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(num);
+};
+
+/**
  * Formats a number with comma separators (e.g. 1,420)
  */
 export const formatNumber = (val?: number | string | null): string => {
@@ -100,4 +116,33 @@ export const formatDate = (
   const month = String(d.getMonth() + 1).padStart(2, "0");
   const year = d.getFullYear();
   return `${day}-${month}-${year}`;
+};
+
+/**
+ * Formats any date input (ISO string, timestamp, or Date) to standard display: "dd MMM yyyy" (e.g. "12 Aug 2026")
+ */
+export const formatDisplayDate = (val?: string | number | Date | null): string => {
+  if (!val) return "-";
+  try {
+    if (val instanceof Date) {
+      return !isNaN(val.getTime())
+        ? val.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+        : "-";
+    }
+    const str = String(val).trim();
+    if (!str || str === "-") return "-";
+
+    const d = new Date(str);
+    if (!isNaN(d.getTime())) {
+      // Formats as "12 Aug 2026"
+      const day = String(d.getDate()).padStart(2, "0");
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const month = monthNames[d.getMonth()];
+      const year = d.getFullYear();
+      return `${day} ${month} ${year}`;
+    }
+    return str;
+  } catch {
+    return String(val);
+  }
 };
