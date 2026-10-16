@@ -103,8 +103,8 @@ export const ManpowerCostPage: React.FC = () => {
           designation: entry.designation,
         },
         designation: entry.designation,
-        workingHours: entry.hours || entry.workingHours,
-        hours: entry.hours || entry.workingHours,
+        workingHours: entry.hours,
+        hours: entry.hours,
         otHours: entry.otHours,
         ratePerHour: entry.ratePerHour,
         totalCost: entry.totalCost,
@@ -292,7 +292,7 @@ export const ManpowerCostPage: React.FC = () => {
       const rows = effectiveData
         .map(
           (d) =>
-            `"${d.date}","${d.name}","${d.designation}","${d.project}",${d.workingHours},${d.otHours},${d.hourlyRate},${d.totalCost},"${d.status}"`,
+            `"${d.date}","${d.name}","${d.designation}","${d.project}",${d.hours},${d.otHours},${d.ratePerHour},${d.totalCost},"${d.status}"`,
         )
         .join("\n");
       const blob = new Blob([headers + rows], {

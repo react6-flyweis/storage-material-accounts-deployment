@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { format, isValid } from "date-fns";
-import { Calendar, type DateRange } from "@/components/ui/calendar";
+import { Calendar } from "@/components/ui/calendar";
+import type { DateRange } from "react-day-picker";
 import { Button } from "@/components/ui/button";
 
 export interface CalendarRangePickerRange {

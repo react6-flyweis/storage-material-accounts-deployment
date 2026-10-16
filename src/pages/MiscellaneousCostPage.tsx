@@ -85,7 +85,22 @@ export const MiscellaneousCostPage: React.FC = () => {
 
   const effectiveProjectData: ProjectWiseMiscCost[] = useMemo(() => {
     if (projectWiseApi && projectWiseApi.length > 0) {
-      return projectWiseApi;
+      return projectWiseApi.map((p, idx) => ({
+        id: p.leadId || `p-${idx}`,
+        project: p.projectName,
+        customer: {
+          name: p.projectName,
+          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(p.projectName)}&background=1D51A4&color=fff&size=100`,
+        },
+        expensesCount: p.transactionsCount ?? 0,
+        amount: p.amount,
+        amountFormatted: `$${(p.amount ?? 0).toLocaleString()}`,
+        budget: p.amount,
+        budgetFormatted: `$${(p.amount ?? 0).toLocaleString()}`,
+        variance: 0,
+        varianceFormatted: "$0",
+        status: "Under",
+      }));
     }
     return [];
   }, [projectWiseApi]);
@@ -124,7 +139,17 @@ export const MiscellaneousCostPage: React.FC = () => {
 
   const effectiveExpenseData: MiscExpenseRecord[] = useMemo(() => {
     if (recordsApi?.rows && recordsApi.rows.length > 0) {
-      return recordsApi.rows;
+      return recordsApi.rows.map((r, idx) => ({
+        id: r.id || r._id || `exp-${idx}`,
+        date: r.expenseDate || "",
+        expense: r.expenseName || "Expense",
+        category: r.expenseCategory || "Miscellaneous",
+        project: r.projectName || "General",
+        vendor: r.vendorPayee || "N/A",
+        amount: r.amount || 0,
+        amountFormatted: `$${(r.amount || 0).toLocaleString()}`,
+        approvalStatus: (r.paymentStatus === "Paid" ? "Approved" : "Pending") as "Approved" | "Pending" | "Rejected",
+      }));
     }
     return [];
   }, [recordsApi]);

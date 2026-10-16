@@ -6,6 +6,8 @@ import { baseQueryWithReauth } from "./baseQueryWithReauth";
 export interface CostFilterProject {
   _id: string;
   projectName: string;
+  id?: string;
+  name?: string;
   jobId?: string;
   code?: string;
 }
@@ -44,6 +46,8 @@ export interface CostListQueryParams {
   category?: string;
   sort?: string;
   flowType?: "income" | "expense";
+  timeframe?: string;
+  project?: string;
 }
 
 // --- 1. Salary Types ---
@@ -257,14 +261,20 @@ export interface FreightDeliveryRecordItem {
   _id: string;
   id?: string;
   deliveryId: string;
+  freightId?: string;
   carrierName: string;
+  deliveryCompany?: string;
   route?: string;
   origin?: string;
   destination?: string;
   leadId?: string;
   projectName?: string;
+  project?: string;
   amount: number;
+  cost?: number;
+  costFormatted?: string;
   status: string;
+  approvalStatus?: string;
   date: string;
   selectedBidId?: string;
 }
@@ -293,12 +303,16 @@ export interface LogisticsRecordItem {
   _id: string;
   id?: string;
   deliveryId: string;
+  deliveryRef?: string;
   deliveryCompany: string;
   carrier?: string;
   project?: string;
+  projectName?: string;
   leadId?: string;
   finalAmount: number;
+  finalAmountFormatted?: string;
   date: string;
+  createdAt?: string;
   approvalStatus?: "Approved" | "Pending" | "Rejected" | string;
   paymentStatus?: "Paid" | "Unpaid" | "Pending" | string;
 }
@@ -316,16 +330,20 @@ export interface LogisticsRecordsResponse {
 
 export interface DeliveryLookupResponse {
   deliveryId: string;
+  deliveryRef?: string;
   project?: string;
   leadId?: string;
   deliveryCompany?: string;
+  carrier?: string;
   finalAmount?: number;
   date?: string;
   status?: string;
 }
 
 export interface CreateLogisticsPayload {
-  deliveryId: string;
+  deliveryId?: string;
+  deliveryRef?: string;
+  project?: string;
   date: string;
   finalAmount: number;
   deliveryCompany: string;
@@ -406,9 +424,11 @@ export interface RentRecordItem {
   propertyName?: string;
   landlord?: string;
   type?: string;
+  propertyType?: string;
   location?: string;
   monthlyRent: number | string;
   amount?: number | string;
+  date?: string;
   dueDate?: string;
   rentPeriod?: string;
   leaseStartDate?: string;
@@ -581,6 +601,8 @@ const cleanQueryParams = (params?: CostListQueryParams): Record<string, string |
   if (params.category && params.category !== "All") clean.category = params.category;
   if (params.sort) clean.sort = params.sort;
   if (params.flowType) clean.flowType = params.flowType;
+  if (params.timeframe) clean.timeframe = params.timeframe;
+  if (params.project && params.project !== "All") clean.project = params.project;
   return clean;
 };
 

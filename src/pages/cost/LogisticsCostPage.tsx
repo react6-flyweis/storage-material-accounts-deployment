@@ -119,17 +119,23 @@ export const LogisticsCostPage: React.FC = () => {
   // Filter options from shared costFilters
   const carrierOptions = useMemo(() => [
     "Carrier",
-    ...(costFilters?.vendors?.map((v) => v.name) || []),
+    ...(costFilters?.vendors
+      ?.map((v) => (typeof v === "string" ? v : (v.name || v.vendorName || "")).trim())
+      .filter(Boolean) || []),
   ], [costFilters]);
 
   const companyOptions = useMemo(() => [
     "Delivery Company",
-    ...(costFilters?.vendors?.map((v) => v.name) || []),
+    ...(costFilters?.vendors
+      ?.map((v) => (typeof v === "string" ? v : (v.name || v.vendorName || "")).trim())
+      .filter(Boolean) || []),
   ], [costFilters]);
 
   const projectOptions = useMemo(() => [
     "Project",
-    ...(costFilters?.projects?.map((p) => p.name) || []),
+    ...(costFilters?.projects
+      ?.map((p) => (p.projectName || p.name || "").trim())
+      .filter(Boolean) || []),
   ], [costFilters]);
 
   const statusOptions = ["Status", "Approved", "Pending", "Rejected"];

@@ -30,7 +30,7 @@ interface EmployeeOption {
   designation: string;
 }
 
-interface ExtendedManpowerEntry extends Partial<ManpowerCostEntry> {
+interface ExtendedManpowerEntry extends Omit<Partial<ManpowerCostEntry>, "status"> {
   _id?: string;
   employeeName?: string;
   employeeUserId?: string;
@@ -38,6 +38,7 @@ interface ExtendedManpowerEntry extends Partial<ManpowerCostEntry> {
   workingHours?: number;
   hourlyRate?: number;
   paymentStatus?: string;
+  status?: string;
   rawDate?: string;
   projectId?: string;
 }
@@ -242,19 +243,19 @@ export const AddManpowerPage: React.FC = () => {
         setValue("date", dateVal);
       }
       const hours = targetEntry.workingHours ?? targetEntry.hours;
-      if (hours !== undefined && hours !== null && hours !== "") {
+      if (hours !== undefined && hours !== null && (hours as unknown) !== "") {
         setValue("workingHours", hours);
       }
       const ot = targetEntry.otHours;
-      if (ot !== undefined && ot !== null && ot !== "") {
+      if (ot !== undefined && ot !== null && (ot as unknown) !== "") {
         setValue("otHours", ot);
       }
       const rate = targetEntry.hourlyRate ?? targetEntry.ratePerHour;
-      if (rate !== undefined && rate !== null && rate !== "") {
+      if (rate !== undefined && rate !== null && (rate as unknown) !== "") {
         setValue("ratePerHour", rate);
       }
       const total = targetEntry.totalCost;
-      if (total !== undefined && total !== null && total !== "") {
+      if (total !== undefined && total !== null && (total as unknown) !== "") {
         setValue("totalCost", total);
       }
       const statusRaw = (targetEntry.status || targetEntry.paymentStatus || "").toLowerCase();
@@ -399,7 +400,8 @@ export const AddManpowerPage: React.FC = () => {
                   if (found?.designation) {
                     setValue("designation", found.designation, { shouldValidate: true });
                   }
-                  clearErrors(["employeeId", "root"]);
+                  clearErrors("employeeId");
+                  clearErrors("root");
                 }}
               >
                 <SelectTrigger className="w-full bg-white border-slate-200 h-10">
@@ -432,7 +434,8 @@ export const AddManpowerPage: React.FC = () => {
                 value={watch("date")}
                 onChange={(val) => {
                   setValue("date", val, { shouldValidate: true });
-                  clearErrors(["date", "root"]);
+                  clearErrors("date");
+                  clearErrors("root");
                 }}
                 placeholder="Select Date"
               />
@@ -636,7 +639,8 @@ export const AddManpowerPage: React.FC = () => {
                 value={selectedPaymentStatus}
                 onValueChange={(val) => {
                   setValue("paymentStatus", val as "paid" | "pending", { shouldValidate: true });
-                  clearErrors(["paymentStatus", "root"]);
+                  clearErrors("paymentStatus");
+                  clearErrors("root");
                 }}
               >
                 <SelectTrigger className="w-full bg-white border-slate-200 h-10">

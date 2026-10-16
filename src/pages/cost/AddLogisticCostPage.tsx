@@ -32,7 +32,7 @@ interface LogisticsFormValues {
   project: string;
   autoFillDeliveryId: string;
   finalAmount: string;
-  paymentStatus: "paid" | "pending" | "";
+  paymentStatus: "paid" | "pending" | "unpaid" | "";
   deliveryCompany: string;
 }
 
@@ -214,7 +214,8 @@ export const AddLogisticCostPage: React.FC = () => {
                 value={watch("date")}
                 onChange={(val) => {
                   setValue("date", val, { shouldValidate: true });
-                  clearErrors(["date", "root"]);
+                  clearErrors("date");
+                  clearErrors("root");
                 }}
                 placeholder="Select Date"
               />

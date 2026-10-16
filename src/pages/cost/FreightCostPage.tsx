@@ -93,7 +93,13 @@ export const FreightCostPage: React.FC = () => {
     pendingInvoicesSubtitle: "Awaiting Payment",
   };
 
-  const trendData: MonthlyFreightTrendItem[] = trendDataApi || [];
+  const trendData: MonthlyFreightTrendItem[] = useMemo(() => {
+    return (trendDataApi || []).map((t) => ({
+      month: t.month,
+      cost: t.cost,
+      deliveries: t.deliveries ?? 0,
+    }));
+  }, [trendDataApi]);
   const distributionData: CarrierDistributionItem[] = carrierDistApi || [];
 
   const carrierAnalysisData = useMemo<CarrierCostItem[]>(() => {
@@ -111,20 +117,52 @@ export const FreightCostPage: React.FC = () => {
     return [];
   }, [carrierDistApi]);
 
+  const [localStatusOverrides, setLocalStatusOverrides] = useState<
+    Record<string, "Approved" | "Pending" | "Rejected">
+  >({});
+
   const effectiveDeliveryRecords: FreightDeliveryRecord[] = useMemo(() => {
     if (recordsApi?.rows && recordsApi.rows.length > 0) {
-      return recordsApi.rows;
+      return recordsApi.rows.map((r, i) => {
+        const id = r.id || r._id || `freight-${i}`;
+        const amount = Number(r.amount ?? r.cost) || 0;
+        const rawStatus = r.approvalStatus || r.status || "Pending";
+        const status: "Approved" | "Pending" | "Rejected" =
+          rawStatus === "Approved"
+            ? "Approved"
+            : rawStatus === "Rejected"
+            ? "Rejected"
+            : "Pending";
+        return {
+          id,
+          freightId: r.freightId || (r.deliveryId ? `FRT-${r.deliveryId}` : `FRT-${1000 + i}`),
+          project: r.projectName || r.project || "-",
+          deliveryCompany: r.carrierName || r.deliveryCompany || "-",
+          deliveryId: r.deliveryId || "-",
+          date: r.date || "-",
+          cost: amount,
+          costFormatted: r.costFormatted || `$${amount.toLocaleString()}`,
+          approvalStatus: status,
+          awardedCarrier: r.carrierName || r.deliveryCompany,
+          statusText: rawStatus,
+        };
+      });
     }
     return [];
   }, [recordsApi]);
 
-  const displayRows = effectiveDeliveryRecords;
+  const displayRows: FreightDeliveryRecord[] = useMemo(() => {
+    return effectiveDeliveryRecords.map((r) => {
+      const override = localStatusOverrides[r.id];
+      return override ? { ...r, approvalStatus: override } : r;
+    });
+  }, [effectiveDeliveryRecords, localStatusOverrides]);
 
   const handleExport = (type: string) => {
     setIsExportMenuOpen(false);
     if (type === "csv") {
       const headers = "Freight ID,Project,Delivery Company,Delivery ID,Date,Cost,Approval Status\n";
-      const rows = deliveryRecords
+      const rows = displayRows
         .map(
           (c) =>
             `"${c.freightId}","${c.project}","${c.deliveryCompany}","${c.deliveryId}","${c.date}","${c.costFormatted}","${c.approvalStatus}"`,
@@ -154,11 +192,7 @@ export const FreightCostPage: React.FC = () => {
 
   // Modal actions
   const handleApprove = (record: FreightDeliveryRecord) => {
-    setDeliveryRecords((prev) =>
-      prev.map((r) =>
-        r.id === record.id ? { ...r, approvalStatus: "Approved" } : r,
-      ),
-    );
+    setLocalStatusOverrides((prev) => ({ ...prev, [record.id]: "Approved" }));
     setSelectedRecord(null);
     setSuccessDialogConfig({
       isOpen: true,
@@ -168,11 +202,7 @@ export const FreightCostPage: React.FC = () => {
   };
 
   const handleReject = (record: FreightDeliveryRecord) => {
-    setDeliveryRecords((prev) =>
-      prev.map((r) =>
-        r.id === record.id ? { ...r, approvalStatus: "Rejected" } : r,
-      ),
-    );
+    setLocalStatusOverrides((prev) => ({ ...prev, [record.id]: "Rejected" }));
     setSelectedRecord(null);
     setSuccessDialogConfig({
       isOpen: true,

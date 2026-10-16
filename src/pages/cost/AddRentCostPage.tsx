@@ -315,7 +315,8 @@ export const AddRentCostPage: React.FC = () => {
                 value={watch("leaseStartDate")}
                 onChange={(val) => {
                   setValue("leaseStartDate", val, { shouldValidate: true });
-                  clearErrors(["leaseStartDate", "root"]);
+                  clearErrors("leaseStartDate");
+                  clearErrors("root");
                 }}
                 placeholder="Select Start Date"
               />
@@ -332,7 +333,8 @@ export const AddRentCostPage: React.FC = () => {
                 value={watch("leaseEndDate")}
                 onChange={(val) => {
                   setValue("leaseEndDate", val, { shouldValidate: true });
-                  clearErrors(["leaseEndDate", "root"]);
+                  clearErrors("leaseEndDate");
+                  clearErrors("root");
                 }}
                 placeholder="Select End Date"
               />

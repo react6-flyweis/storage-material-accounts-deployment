@@ -610,11 +610,15 @@ export default function CostVariancePage() {
               className="w-full appearance-none pl-9 pr-8 py-2.5 bg-white border border-[#E2E8F0] rounded-xl text-xs md:text-sm font-medium text-[#475569] shadow-xs cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="All Projects">All Projects</option>
-              {costFilters?.projects?.map((p) => (
-                <option key={p.id} value={p.name}>
-                  {p.name}
-                </option>
-              ))}
+              {costFilters?.projects?.map((p) => {
+                const id = p._id || p.id || "";
+                const name = p.projectName || p.name || "";
+                return (
+                  <option key={id} value={name}>
+                    {name}
+                  </option>
+                );
+              })}
             </select>
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8] pointer-events-none" />
           </div>
