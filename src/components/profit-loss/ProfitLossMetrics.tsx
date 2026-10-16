@@ -1,5 +1,12 @@
 import React from "react";
-import { CircleDollarSign, ShoppingBag, Lock, Hourglass, Percent } from "lucide-react";
+import { CircleDollarSign, ShoppingBag, Hourglass, Percent } from "lucide-react";
+import type { ProfitLossSummary } from "@/redux/api/reportsApi";
+import { formatCurrency } from "@/lib/dashboardFormatters";
+
+interface ProfitLossMetricsProps {
+  summary?: ProfitLossSummary;
+  isLoading?: boolean;
+}
 
 interface MetricCardItem {
   id: string;
@@ -9,15 +16,19 @@ interface MetricCardItem {
   icon: React.ReactNode;
   iconBoxStyle: string;
   stripeColor: string;
+  isPositive?: boolean;
 }
 
-export const ProfitLossMetrics: React.FC = () => {
+export const ProfitLossMetrics: React.FC<ProfitLossMetricsProps> = ({
+  summary,
+  isLoading = false,
+}) => {
   const metrics: MetricCardItem[] = [
     {
       id: "revenue",
       title: "Total Revenue",
-      amount: "$12,500,000",
-      subtitle: "vs Apr 2025",
+      amount: formatCurrency(summary?.totalRevenue ?? 0),
+      subtitle: "Invoiced project revenue",
       icon: <CircleDollarSign className="w-5 h-5 text-[#8B5CF6]" />,
       iconBoxStyle: "border-[#DDD6FE] bg-[#F5F3FF]",
       stripeColor: "rgba(139, 92, 246, 0.12)",
@@ -25,43 +36,35 @@ export const ProfitLossMetrics: React.FC = () => {
     {
       id: "expenses",
       title: "Total Expenses",
-      amount: "$8,950,000",
-      subtitle: "vs Apr 2025",
-      icon: <ShoppingBag className="w-5 h-5 text-[#10B981]" />,
-      iconBoxStyle: "border-[#A7F3D0] bg-[#ECFDF5]",
-      stripeColor: "rgba(16, 185, 129, 0.12)",
-    },
-    {
-      id: "gross-profit",
-      title: "Gross Profit",
-      amount: "$3,550,000",
-      subtitle: "vs Apr 2025",
-      icon: <Lock className="w-5 h-5 text-[#F59E0B]" />,
-      iconBoxStyle: "border-[#FDE68A] bg-[#FFFBEB]",
-      stripeColor: "rgba(245, 158, 11, 0.12)",
-    },
-    {
-      id: "net-profit",
-      title: "Net Profit",
-      amount: "$2,750,000",
-      subtitle: "vs Apr 2025",
-      icon: <Hourglass className="w-5 h-5 text-[#EF4444]" />,
+      amount: formatCurrency(summary?.totalExpense ?? 0),
+      subtitle: "Active expenses & bid totals",
+      icon: <ShoppingBag className="w-5 h-5 text-[#EF4444]" />,
       iconBoxStyle: "border-[#FECACA] bg-[#FEF2F2]",
       stripeColor: "rgba(239, 68, 68, 0.12)",
     },
     {
+      id: "net-profit",
+      title: "Net Profit",
+      amount: formatCurrency(summary?.netProfit ?? 0),
+      subtitle: (summary?.netProfit ?? 0) >= 0 ? "Positive margin" : "Negative margin",
+      icon: <Hourglass className="w-5 h-5 text-[#10B981]" />,
+      iconBoxStyle: "border-[#A7F3D0] bg-[#ECFDF5]",
+      stripeColor: "rgba(16, 185, 129, 0.12)",
+      isPositive: (summary?.netProfit ?? 0) >= 0,
+    },
+    {
       id: "net-margin",
-      title: "Net Profit Margin",
-      amount: "22.0%",
-      subtitle: "vs Apr 2025",
-      icon: <Percent className="w-5 h-5 text-[#8B5CF6]" />,
-      iconBoxStyle: "border-[#DDD6FE] bg-[#F5F3FF]",
-      stripeColor: "rgba(139, 92, 246, 0.12)",
+      title: "Average Margin",
+      amount: `${(summary?.avgMargin ?? 0).toFixed(1)}%`,
+      subtitle: "Net profit / revenue",
+      icon: <Percent className="w-5 h-5 text-[#0284C7]" />,
+      iconBoxStyle: "border-[#BAE6FD] bg-[#F0F9FF]",
+      stripeColor: "rgba(2, 132, 199, 0.12)",
     },
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {metrics.map((card) => (
         <div
           key={card.id}
@@ -81,12 +84,21 @@ export const ProfitLossMetrics: React.FC = () => {
 
           {/* Amount and Subtitle */}
           <div className="mt-3 relative z-10">
-            <span className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight block">
-              {card.amount}
-            </span>
-            <span className="text-xs text-slate-400 font-normal mt-1 block">
-              {card.subtitle}
-            </span>
+            {isLoading ? (
+              <div className="space-y-2 py-1">
+                <div className="h-7 w-28 bg-slate-100 animate-pulse rounded" />
+                <div className="h-3.5 w-20 bg-slate-100 animate-pulse rounded" />
+              </div>
+            ) : (
+              <>
+                <span className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight block">
+                  {card.amount}
+                </span>
+                <span className="text-xs text-slate-400 font-normal mt-1 block">
+                  {card.subtitle}
+                </span>
+              </>
+            )}
           </div>
 
           {/* Subtle Decorative Hatched Stripe Corner */}

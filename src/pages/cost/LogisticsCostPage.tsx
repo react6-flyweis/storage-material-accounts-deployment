@@ -18,14 +18,12 @@ import CalendarRangePickerModal from "@/components/common_components/CalendarRan
 import LogisticsCostDetailModal, {
   type LogisticsDetailRecord,
 } from "@/components/cost/LogisticsCostDetailModal";
-
-// Data objects co-located in the same file for easy replacement with RTK Query / API hooks later
-export interface LogisticsKpiData {
-  totalLogisticsCost: string;
-  totalSavings: string;
-  pendingInvoices: number;
-  disputedItems: number;
-}
+import {
+  useGetLogisticsSummaryQuery,
+  useGetLogisticsRecordsQuery,
+  useGetCostFiltersQuery,
+} from "@/redux/api/costsApi";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export interface LogisticsRecord {
   id: string;
@@ -40,226 +38,40 @@ export interface LogisticsRecord {
   paymentStatus?: "Paid" | "Unpaid" | "Pending";
 }
 
-const INITIAL_LOGISTICS_KPI: LogisticsKpiData = {
-  totalLogisticsCost: "$24,400",
-  totalSavings: "$1,300",
-  pendingInvoices: 2,
-  disputedItems: 1,
-};
-
-const INITIAL_LOGISTICS_RECORDS: LogisticsRecord[] = [
-  {
-    id: "log-1",
-    deliveryId: "DEL-1234",
-    deliveryCompany: "Fulltruck Logistics",
-    project: "SMDT Warehouse",
-    finalAmount: 4500,
-    finalAmountFormatted: "$4,500",
-    date: "12 Aug 2026",
-    approvalStatus: "Pending",
-    carrier: "Fulltruck Logistics",
-    paymentStatus: "Pending",
-  },
-  {
-    id: "log-2",
-    deliveryId: "DEL-1234",
-    deliveryCompany: "QuickHaul Transport",
-    project: "Steel Unit",
-    finalAmount: 1440,
-    finalAmountFormatted: "$1,440",
-    date: "12 Aug 2026",
-    approvalStatus: "Approved",
-    carrier: "QuickHaul Transport",
-    paymentStatus: "Paid",
-  },
-  {
-    id: "log-3",
-    deliveryId: "DEL-1234",
-    deliveryCompany: "Reliable Freights",
-    project: "SMDT Warehouse",
-    finalAmount: 1440,
-    finalAmountFormatted: "$1,440",
-    date: "12 Aug 2026",
-    approvalStatus: "Approved",
-    carrier: "Reliable Freights",
-    paymentStatus: "Paid",
-  },
-  {
-    id: "log-4",
-    deliveryId: "DEL-1234",
-    deliveryCompany: "Express Logistics",
-    project: "Industrial Shed",
-    finalAmount: 1440,
-    finalAmountFormatted: "$1,440",
-    date: "12 Aug 2026",
-    approvalStatus: "Approved",
-    carrier: "Express Logistics",
-    paymentStatus: "Paid",
-  },
-  {
-    id: "log-5",
-    deliveryId: "DEL-1234",
-    deliveryCompany: "FastTruck Logistics",
-    project: "Warehouse Expansion",
-    finalAmount: 1440,
-    finalAmountFormatted: "$1,440",
-    date: "12 Aug 2026",
-    approvalStatus: "Approved",
-    carrier: "FastTruck Logistics",
-    paymentStatus: "Paid",
-  },
-  {
-    id: "log-6",
-    deliveryId: "DEL-1234",
-    deliveryCompany: "Fulltruck Logistics",
-    project: "SMDT Warehouse",
-    finalAmount: 1440,
-    finalAmountFormatted: "$1,440",
-    date: "12 Aug 2026",
-    approvalStatus: "Approved",
-    carrier: "Fulltruck Logistics",
-    paymentStatus: "Paid",
-  },
-  {
-    id: "log-7",
-    deliveryId: "DEL-1234",
-    deliveryCompany: "QuickHaul Transport",
-    project: "Steel Unit",
-    finalAmount: 1440,
-    finalAmountFormatted: "$1,440",
-    date: "12 Aug 2026",
-    approvalStatus: "Approved",
-    carrier: "QuickHaul Transport",
-    paymentStatus: "Paid",
-  },
-  {
-    id: "log-8",
-    deliveryId: "DEL-1234",
-    deliveryCompany: "Reliable Freights",
-    project: "SMDT Warehouse",
-    finalAmount: 1440,
-    finalAmountFormatted: "$1,440",
-    date: "12 Aug 2026",
-    approvalStatus: "Approved",
-    carrier: "Reliable Freights",
-    paymentStatus: "Paid",
-  },
-  {
-    id: "log-9",
-    deliveryId: "DEL-1234",
-    deliveryCompany: "Express Logistics",
-    project: "Industrial Shed",
-    finalAmount: 1440,
-    finalAmountFormatted: "$1,440",
-    date: "12 Aug 2026",
-    approvalStatus: "Approved",
-    carrier: "Express Logistics",
-    paymentStatus: "Paid",
-  },
-  {
-    id: "log-10",
-    deliveryId: "DEL-1234",
-    deliveryCompany: "FastTruck Logistics",
-    project: "Warehouse Expansion",
-    finalAmount: 1440,
-    finalAmountFormatted: "$1,440",
-    date: "12 Aug 2026",
-    approvalStatus: "Approved",
-    carrier: "FastTruck Logistics",
-    paymentStatus: "Paid",
-  },
-  {
-    id: "log-11",
-    deliveryId: "DEL-1235",
-    deliveryCompany: "Fulltruck Logistics",
-    project: "SMDT Warehouse",
-    finalAmount: 2100,
-    finalAmountFormatted: "$2,100",
-    date: "11 Aug 2026",
-    approvalStatus: "Approved",
-    carrier: "Fulltruck Logistics",
-    paymentStatus: "Paid",
-  },
-  {
-    id: "log-12",
-    deliveryId: "DEL-1236",
-    deliveryCompany: "QuickHaul Transport",
-    project: "Steel Unit",
-    finalAmount: 1850,
-    finalAmountFormatted: "$1,850",
-    date: "10 Aug 2026",
-    approvalStatus: "Approved",
-    carrier: "QuickHaul Transport",
-    paymentStatus: "Paid",
-  },
-  {
-    id: "log-13",
-    deliveryId: "DEL-1237",
-    deliveryCompany: "Reliable Freights",
-    project: "SMDT Warehouse",
-    finalAmount: 3200,
-    finalAmountFormatted: "$3,200",
-    date: "09 Aug 2026",
-    approvalStatus: "Pending",
-    carrier: "Reliable Freights",
-    paymentStatus: "Pending",
-  },
-  {
-    id: "log-14",
-    deliveryId: "DEL-1238",
-    deliveryCompany: "Express Logistics",
-    project: "Industrial Shed",
-    finalAmount: 1200,
-    finalAmountFormatted: "$1,200",
-    date: "08 Aug 2026",
-    approvalStatus: "Approved",
-    carrier: "Express Logistics",
-    paymentStatus: "Paid",
-  },
-  {
-    id: "log-15",
-    deliveryId: "DEL-1239",
-    deliveryCompany: "FastTruck Logistics",
-    project: "Warehouse Expansion",
-    finalAmount: 2400,
-    finalAmountFormatted: "$2,400",
-    date: "07 Aug 2026",
-    approvalStatus: "Approved",
-    carrier: "FastTruck Logistics",
-    paymentStatus: "Paid",
-  },
-  {
-    id: "log-16",
-    deliveryId: "DEL-1240",
-    deliveryCompany: "Fulltruck Logistics",
-    project: "Steel Unit",
-    finalAmount: 1950,
-    finalAmountFormatted: "$1,950",
-    date: "06 Aug 2026",
-    approvalStatus: "Approved",
-    carrier: "Fulltruck Logistics",
-    paymentStatus: "Paid",
-  },
-];
-
 export const LogisticsCostPage: React.FC = () => {
   const navigate = useNavigate();
 
-  // Load records (combining defaults + any user created ones from AddLogisticCostPage)
-  const [records] = useState<LogisticsRecord[]>(() => {
-    try {
-      const stored = localStorage.getItem("custom_logistic_records");
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return [...parsed, ...INITIAL_LOGISTICS_RECORDS];
-        }
-      }
-    } catch (e) {
-      console.error(e);
-    }
-    return INITIAL_LOGISTICS_RECORDS;
-  });
+  // RTK Query endpoints
+  const { data: summaryData, isLoading: isSummaryLoading } = useGetLogisticsSummaryQuery();
+  const { data: recordsData, isLoading: isRecordsLoading } = useGetLogisticsRecordsQuery();
+  const { data: costFilters } = useGetCostFiltersQuery();
+
+  // Normalized records from API
+  const records: LogisticsRecord[] = useMemo(() => {
+    if (!recordsData?.rows) return [];
+    return recordsData.rows.map((r, idx) => ({
+      id: r.id || `log-${idx}`,
+      deliveryId: r.deliveryRef || r.deliveryId || `DEL-${1000 + idx}`,
+      deliveryCompany: r.deliveryCompany || r.carrier || "-",
+      project: r.projectName || r.project || "-",
+      finalAmount: Number(r.finalAmount) || 0,
+      finalAmountFormatted:
+        r.finalAmountFormatted ||
+        (r.finalAmount != null ? `$${Number(r.finalAmount).toLocaleString()}` : "$0"),
+      date:
+        r.date ||
+        (r.createdAt
+          ? new Date(r.createdAt).toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            })
+          : "-"),
+      approvalStatus: (r.approvalStatus as "Approved" | "Pending" | "Rejected") || "Pending",
+      carrier: r.carrier || r.deliveryCompany,
+      paymentStatus: (r.paymentStatus as "Paid" | "Unpaid" | "Pending") || "Pending",
+    }));
+  }, [recordsData]);
 
   // Top Filter States
   const [topSearch, setTopSearch] = useState("");
@@ -304,10 +116,28 @@ export const LogisticsCostPage: React.FC = () => {
     setOpenDropdown(openDropdown === key ? null : key);
   };
 
-  // Filter options
-  const carrierOptions = ["Carrier", "Fulltruck Logistics", "QuickHaul Transport", "Reliable Freights", "Express Logistics", "FastTruck Logistics"];
-  const companyOptions = ["Delivery Company", "Fulltruck Logistics", "QuickHaul Transport", "Reliable Freights", "Express Logistics", "FastTruck Logistics"];
-  const projectOptions = ["Project", "SMDT Warehouse", "Steel Unit", "Industrial Shed", "Warehouse Expansion"];
+  // Filter options from shared costFilters
+  const carrierOptions = useMemo(() => [
+    "Carrier",
+    ...(costFilters?.vendors
+      ?.map((v) => (typeof v === "string" ? v : (v.name || v.vendorName || "")).trim())
+      .filter(Boolean) || []),
+  ], [costFilters]);
+
+  const companyOptions = useMemo(() => [
+    "Delivery Company",
+    ...(costFilters?.vendors
+      ?.map((v) => (typeof v === "string" ? v : (v.name || v.vendorName || "")).trim())
+      .filter(Boolean) || []),
+  ], [costFilters]);
+
+  const projectOptions = useMemo(() => [
+    "Project",
+    ...(costFilters?.projects
+      ?.map((p) => (p.projectName || p.name || "").trim())
+      .filter(Boolean) || []),
+  ], [costFilters]);
+
   const statusOptions = ["Status", "Approved", "Pending", "Rejected"];
   const paymentStatusOptions = ["Payment Status", "Paid", "Pending", "Unpaid"];
 
@@ -482,9 +312,15 @@ export const LogisticsCostPage: React.FC = () => {
         <div className="bg-[#2E5BFF] text-white rounded-2xl p-5 shadow-sm relative overflow-hidden flex items-center justify-between min-h-[105px]">
           <div>
             <p className="text-xs sm:text-sm font-medium text-white/90">Total Logistics Cost</p>
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1 text-white">
-              {INITIAL_LOGISTICS_KPI.totalLogisticsCost}
-            </h2>
+            {isSummaryLoading ? (
+              <Skeleton className="h-8 w-28 bg-white/20 mt-1" />
+            ) : (
+              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1 text-white">
+                {summaryData?.totalLogisticsCost != null
+                  ? `$${Number(summaryData.totalLogisticsCost).toLocaleString()}`
+                  : "$0"}
+              </h2>
+            )}
           </div>
           <div className="text-white/80 pr-2">
             <span className="text-3xl sm:text-4xl font-light font-mono select-none">$</span>
@@ -495,9 +331,15 @@ export const LogisticsCostPage: React.FC = () => {
         <div className="bg-[#10B981] text-white rounded-2xl p-5 shadow-sm relative overflow-hidden flex items-center justify-between min-h-[105px]">
           <div>
             <p className="text-xs sm:text-sm font-medium text-white/90">Total Savings</p>
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1 text-white">
-              {INITIAL_LOGISTICS_KPI.totalSavings}
-            </h2>
+            {isSummaryLoading ? (
+              <Skeleton className="h-8 w-24 bg-white/20 mt-1" />
+            ) : (
+              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1 text-white">
+                {summaryData?.totalSavings != null
+                  ? `$${Number(summaryData.totalSavings).toLocaleString()}`
+                  : "$0"}
+              </h2>
+            )}
           </div>
           <div className="text-white/85 pr-2">
             <TrendingDown className="w-9 h-9 stroke-[2.5]" />
@@ -508,9 +350,13 @@ export const LogisticsCostPage: React.FC = () => {
         <div className="bg-[#F97316] text-white rounded-2xl p-5 shadow-sm relative overflow-hidden flex items-center justify-between min-h-[105px]">
           <div>
             <p className="text-xs sm:text-sm font-medium text-white/90">Pending Invoices</p>
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1 text-white">
-              {INITIAL_LOGISTICS_KPI.pendingInvoices}
-            </h2>
+            {isSummaryLoading ? (
+              <Skeleton className="h-8 w-16 bg-white/20 mt-1" />
+            ) : (
+              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1 text-white">
+                {summaryData?.pendingInvoices ?? 0}
+              </h2>
+            )}
           </div>
           <div className="text-white/85 pr-2">
             <FileText className="w-8 h-8 stroke-[2]" />
@@ -521,9 +367,13 @@ export const LogisticsCostPage: React.FC = () => {
         <div className="bg-[#EF4444] text-white rounded-2xl p-5 shadow-sm relative overflow-hidden flex items-center justify-between min-h-[105px]">
           <div>
             <p className="text-xs sm:text-sm font-medium text-white/90">Disputed Items</p>
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1 text-white">
-              {INITIAL_LOGISTICS_KPI.disputedItems}
-            </h2>
+            {isSummaryLoading ? (
+              <Skeleton className="h-8 w-16 bg-white/20 mt-1" />
+            ) : (
+              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1 text-white">
+                {summaryData?.disputedItems ?? 0}
+              </h2>
+            )}
           </div>
           <div className="text-white/85 pr-2">
             <AlertCircle className="w-8 h-8 stroke-[2]" />
@@ -875,7 +725,33 @@ export const LogisticsCostPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {currentRows.length === 0 ? (
+              {isRecordsLoading ? (
+                Array.from({ length: 6 }).map((_, i) => (
+                  <tr key={`skel-${i}`} className="border-b border-slate-100">
+                    <td className="py-4 px-4 sm:px-5">
+                      <Skeleton className="h-4 w-20" />
+                    </td>
+                    <td className="py-4 px-4 sm:px-5">
+                      <Skeleton className="h-4 w-32" />
+                    </td>
+                    <td className="py-4 px-4 sm:px-5">
+                      <Skeleton className="h-4 w-28" />
+                    </td>
+                    <td className="py-4 px-4 sm:px-5">
+                      <Skeleton className="h-4 w-20" />
+                    </td>
+                    <td className="py-4 px-4 sm:px-5">
+                      <Skeleton className="h-4 w-24" />
+                    </td>
+                    <td className="py-4 px-4 sm:px-5">
+                      <Skeleton className="h-6 w-16 rounded" />
+                    </td>
+                    <td className="py-4 px-4 sm:px-5 text-right">
+                      <Skeleton className="h-8 w-8 ml-auto rounded" />
+                    </td>
+                  </tr>
+                ))
+              ) : currentRows.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-12 text-center text-slate-400">
                     No logistics records found.

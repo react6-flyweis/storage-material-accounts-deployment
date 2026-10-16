@@ -11,12 +11,19 @@ interface ProjectSelectorDropdownModalProps {
   isOpen: boolean;
   onClose: () => void;
   selectedProject?: string;
-  onSelectProject: (projectLabel: string) => void;
+  projects?: ProjectOptionItem[];
+  onSelectProject: (projectLabel: string, leadId?: string) => void;
 }
 
 export const ProjectSelectorDropdownModal: React.FC<
   ProjectSelectorDropdownModalProps
-> = ({ isOpen, onClose, selectedProject, onSelectProject }) => {
+> = ({
+  isOpen,
+  onClose,
+  selectedProject,
+  projects,
+  onSelectProject,
+}) => {
   const [searchTerm, setSearchTerm] = useState("");
 
   if (!isOpen) return null;
@@ -49,13 +56,15 @@ export const ProjectSelectorDropdownModal: React.FC<
     },
   ];
 
-  const filteredProjects = defaultProjects.filter((item) => {
+  const projectList = projects && projects.length > 0 ? projects : defaultProjects;
+
+  const filteredProjects = projectList.filter((item) => {
     const full = `${item.name} (${item.code})`.toLowerCase();
     return full.includes(searchTerm.toLowerCase());
   });
 
   const handleSelect = (item: ProjectOptionItem) => {
-    onSelectProject(`${item.name} (${item.code})`);
+    onSelectProject(`${item.name} (${item.code})`, item.id);
     onClose();
   };
 

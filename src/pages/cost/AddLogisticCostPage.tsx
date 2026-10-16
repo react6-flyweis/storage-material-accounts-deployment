@@ -1,133 +1,149 @@
-import React, { useState, useRef, useEffect } from "react";
-import {
-  ArrowLeft,
-  Calendar as CalendarIcon,
-  ChevronDown,
-} from "lucide-react";
+import React, { useMemo } from "react";
+import { ArrowLeft, AlertCircle, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
 import SuccessModal from "@/components/common_components/SuccessModal";
-import CalendarRangePickerModal from "@/components/common_components/CalendarRangePickerModal";
+import { getApiErrorMessage } from "@/redux/utils/apiError";
+import {
+  useCreateLogisticsRecordMutation,
+  useLazyLookupLogisticsDeliveryQuery,
+  useGetCostFiltersQuery,
+} from "@/redux/api/costsApi";
 
-const DELIVERY_IDS = [
-  "DEL-0012",
-  "DEL-1234",
-  "DEL-1235",
-  "DEL-1236",
-  "DEL-1237",
-  "DEL-1238",
-  "DEL-1239",
-  "DEL-1240",
-];
+const PAYMENT_STATUSES = [
+  { label: "Paid", value: "paid" },
+  { label: "Pending", value: "pending" },
+] as const;
 
-const PROJECTS = [
-  "ABC Logistic Warehouse",
-  "SMDT Warehouse",
-  "Steel Unit",
-  "Industrial Shed",
-  "Warehouse Expansion",
-];
-
-const PAYMENT_STATUSES = ["Paid", "Pending", "Unpaid"] as const;
+interface LogisticsFormValues {
+  deliveryId: string;
+  date: string;
+  project: string;
+  autoFillDeliveryId: string;
+  finalAmount: string;
+  paymentStatus: "paid" | "pending" | "unpaid" | "";
+  deliveryCompany: string;
+}
 
 export const AddLogisticCostPage: React.FC = () => {
   const navigate = useNavigate();
 
-  // Form states matching user's image 1 precisely:
-  // Title: Add Miscellaneous Cost (or Add Logistic Cost with same structure)
-  // Section: Basic Details
-  // Enter Delivery ID *: DEL-0012 (dropdown)
-  // Date *: 12 Aug 2026 (calendar icon button)
-  // Project (Auto-Fill): ABC Logistic Warehouse (dropdown)
-  // Delivery ID (Auto-Fill) *: Machine Repair (input text)
-  // Final Amount *: $4,500 (input text / currency)
-  // Payment Status *: Paid (dropdown)
-  // Delivery Company (Auto-Fill) *: ABC Logistics (read-only / auto-fill input)
-  // Bottom buttons: Cancel (left) and Submit for Approval (purple button on right)
+  // RTK Query endpoints
+  const [createLogisticsRecord, { isLoading: isMutationLoading }] =
+    useCreateLogisticsRecordMutation();
+  const [triggerLookup, { isFetching: isLookingUp }] =
+    useLazyLookupLogisticsDeliveryQuery();
+  const { data: costFilters } = useGetCostFiltersQuery();
 
-  const [deliveryId, setDeliveryId] = useState("DEL-0012");
-  const [date, setDate] = useState("12 Aug 2026");
-  const [project, setProject] = useState("ABC Logistic Warehouse");
-  const [autoFillDeliveryId, setAutoFillDeliveryId] = useState("Machine Repair");
-  const [finalAmount, setFinalAmount] = useState("$4,500");
-  const [paymentStatus, setPaymentStatus] = useState<"Paid" | "Pending" | "Unpaid">("Paid");
-  const [deliveryCompany, setDeliveryCompany] = useState("ABC Logistics");
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    setError,
+    clearErrors,
+    formState: { errors, isSubmitting },
+  } = useForm<LogisticsFormValues>({
+    defaultValues: {
+      deliveryId: "",
+      date: "",
+      project: "",
+      autoFillDeliveryId: "",
+      finalAmount: "",
+      paymentStatus: "",
+      deliveryCompany: "",
+    },
+  });
 
-  // Dropdown states
-  const [isDeliveryIdOpen, setIsDeliveryIdOpen] = useState(false);
-  const [isProjectOpen, setIsProjectOpen] = useState(false);
-  const [isPaymentStatusOpen, setIsPaymentStatusOpen] = useState(false);
-  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-  const [isSuccessOpen, setIsSuccessOpen] = useState(false);
+  const deliveryId = watch("deliveryId");
+  const project = watch("project");
+  const paymentStatus = watch("paymentStatus");
 
-  const deliveryIdRef = useRef<HTMLDivElement>(null);
-  const projectRef = useRef<HTMLDivElement>(null);
-  const paymentStatusRef = useRef<HTMLDivElement>(null);
+  const [isSuccessOpen, setIsSuccessOpen] = React.useState(false);
+  const projectList = useMemo(() => {
+    if (!costFilters?.projects) return [];
+    const list = costFilters.projects
+      .map((p) => (typeof p.projectName === "string" ? p.projectName.trim() : ""))
+      .filter((p): p is string => Boolean(p));
+    return Array.from(new Set(list));
+  }, [costFilters?.projects]);
 
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (deliveryIdRef.current && !deliveryIdRef.current.contains(event.target as Node)) {
-        setIsDeliveryIdOpen(false);
+  const handleDeliveryLookup = async (id: string) => {
+    if (!id.trim()) return;
+    try {
+      const res = await triggerLookup(id).unwrap();
+      if (res) {
+        if (res.project) setValue("project", res.project, { shouldValidate: true });
+        if (res.deliveryCompany || res.carrier) {
+          setValue("deliveryCompany", res.deliveryCompany || res.carrier || "", { shouldValidate: true });
+        }
+        if (res.finalAmount) {
+          setValue("finalAmount", String(res.finalAmount), { shouldValidate: true });
+        }
+        setValue("autoFillDeliveryId", res.deliveryRef || id, { shouldValidate: true });
+        clearErrors("root");
       }
-      if (projectRef.current && !projectRef.current.contains(event.target as Node)) {
-        setIsProjectOpen(false);
-      }
-      if (paymentStatusRef.current && !paymentStatusRef.current.contains(event.target as Node)) {
-        setIsPaymentStatusOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const handleDeliveryIdSelect = (id: string) => {
-    setDeliveryId(id);
-    setIsDeliveryIdOpen(false);
-    // Auto fill defaults if selecting another delivery id
-    if (id === "DEL-0012") {
-      setProject("ABC Logistic Warehouse");
-      setAutoFillDeliveryId("Machine Repair");
-      setFinalAmount("$4,500");
-      setDeliveryCompany("ABC Logistics");
-    } else {
-      setProject("SMDT Warehouse");
-      setAutoFillDeliveryId(id);
-      setDeliveryCompany("Fulltruck Logistics");
+    } catch {
+      // Lookup failed or no existing bid match
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!deliveryId.trim() || !finalAmount.trim()) return;
+  const onSubmit = async (values: LogisticsFormValues) => {
+    clearErrors("root");
+    if (!values.deliveryId) {
+      setError("deliveryId", { message: "Delivery ID / Reference is required" });
+      return;
+    }
+    if (!values.date) {
+      setError("date", { message: "Date is required" });
+      return;
+    }
+    if (!values.finalAmount) {
+      setError("finalAmount", { message: "Final amount is required" });
+      return;
+    }
+    if (!values.paymentStatus) {
+      setError("paymentStatus", { message: "Payment status is required" });
+      return;
+    }
 
-    // Clean amount
-    const numericAmount = Number(finalAmount.replace(/[^0-9.]/g, "")) || 4500;
+    const numericAmount = Number(values.finalAmount.replace(/[^0-9.]/g, "")) || 0;
 
     try {
-      const stored = localStorage.getItem("custom_logistic_records");
-      const currentList = stored ? JSON.parse(stored) : [];
-      const newRecord = {
-        id: `log-${Date.now()}`,
-        deliveryId,
-        deliveryCompany,
-        project,
+      await createLogisticsRecord({
+        deliveryRef: values.deliveryId,
+        deliveryCompany: values.deliveryCompany,
+        project: values.project,
         finalAmount: numericAmount,
-        finalAmountFormatted: finalAmount.startsWith("$") ? finalAmount : `$${numericAmount.toLocaleString()}`,
-        date,
-        approvalStatus: "Pending",
-        carrier: deliveryCompany,
-        paymentStatus,
-      };
-      localStorage.setItem("custom_logistic_records", JSON.stringify([newRecord, ...currentList]));
-    } catch {
-      // ignore
+        date: values.date,
+        paymentStatus: values.paymentStatus as "Paid" | "Pending" | "Unpaid",
+      }).unwrap();
+      setIsSuccessOpen(true);
+    } catch (err: unknown) {
+      const errorMsg = getApiErrorMessage(
+        err,
+        "Failed to save logistics cost record. Please try again."
+      );
+      setError("root", { message: errorMsg });
     }
-
-    setIsSuccessOpen(true);
   };
+
+  const isPending = isSubmitting || isMutationLoading;
 
   return (
     <div className="space-y-6 max-w-5xl">
-      {/* Top Header / Back Button - matches image: ArrowLeft followed by Add Miscellaneous Cost */}
+      {/* Top Header / Back Button */}
       <div className="flex items-center">
         <button
           type="button"
@@ -135,213 +151,218 @@ export const AddLogisticCostPage: React.FC = () => {
           className="flex items-center gap-3 text-slate-900 hover:text-slate-950 font-bold text-xl sm:text-2xl transition-colors cursor-pointer group"
         >
           <ArrowLeft className="w-5 h-5 text-slate-800 group-hover:-translate-x-0.5 transition-transform stroke-[2.2]" />
-          <span>Add Miscellaneous Cost</span>
+          <span>Add Logistic Cost</span>
         </button>
       </div>
 
-      {/* Main Form Card matching image 1 precisely */}
+      {/* Main Form Card */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-6 sm:p-8">
         <h2 className="text-base sm:text-lg font-bold text-slate-900 mb-6">
           Basic Details
         </h2>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Row 1: Enter Delivery ID * & Date * */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
-            {/* Enter Delivery ID * (Dropdown) */}
-            <div className="relative" ref={deliveryIdRef}>
-              <label className="block text-xs sm:text-[13px] font-semibold text-slate-900 mb-2">
-                Enter Delivery ID <span className="text-rose-500">*</span>
-              </label>
-              <button
-                type="button"
-                onClick={() => setIsDeliveryIdOpen(!isDeliveryIdOpen)}
-                className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg border border-slate-200 bg-white text-xs sm:text-sm font-medium text-slate-800 hover:border-slate-300 focus:outline-none focus:border-blue-500 transition-colors cursor-pointer"
-              >
-                <span>{deliveryId}</span>
-                <ChevronDown className="w-4 h-4 text-slate-500" />
-              </button>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+          {/* Submit Error Alert Banner */}
+          {errors.root?.message && (
+            <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs sm:text-sm flex items-start gap-3 animate-in fade-in">
+              <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="font-semibold text-rose-900">Submission Error</p>
+                <p className="text-rose-700 leading-relaxed">{errors.root.message}</p>
+              </div>
+            </div>
+          )}
 
-              {isDeliveryIdOpen && (
-                <div className="absolute left-0 right-0 top-full mt-1.5 bg-white rounded-xl shadow-lg border border-slate-100 py-1.5 z-30 animate-in fade-in zoom-in-95 max-h-48 overflow-y-auto">
-                  {DELIVERY_IDS.map((id) => (
-                    <button
-                      key={id}
-                      type="button"
-                      onClick={() => handleDeliveryIdSelect(id)}
-                      className="w-full px-4 py-2 text-left text-xs sm:text-sm text-slate-700 hover:bg-slate-50 transition-colors font-medium flex items-center justify-between cursor-pointer"
-                    >
-                      <span>{id}</span>
-                    </button>
-                  ))}
-                </div>
+          {/* Row 1: Enter Delivery ID & Date */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
+            <div className="space-y-2">
+              <Label className="text-xs sm:text-[13px] font-semibold text-slate-900">
+                Enter Delivery ID / Reference <span className="text-rose-500">*</span>
+              </Label>
+              <div className="relative flex items-center">
+                <Input
+                  type="text"
+                  placeholder="e.g. DEL-0012 or bid reference"
+                  {...register("deliveryId", {
+                    required: "Delivery ID / Reference is required",
+                    onChange: () => clearErrors("root"),
+                  })}
+                  onBlur={() => handleDeliveryLookup(deliveryId)}
+                  className="bg-white border-slate-200 h-10 pr-24"
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handleDeliveryLookup(deliveryId)}
+                  disabled={isLookingUp || !deliveryId?.trim()}
+                  className="absolute right-1.5 h-7 px-2.5 text-xs font-semibold bg-blue-50 text-blue-600 hover:bg-blue-100"
+                >
+                  {isLookingUp ? "Looking up..." : "Lookup"}
+                </Button>
+              </div>
+              {errors.deliveryId && (
+                <p className="text-xs text-rose-500">{errors.deliveryId.message}</p>
               )}
             </div>
 
-            {/* Date * */}
-            <div>
-              <label className="block text-xs sm:text-[13px] font-semibold text-slate-900 mb-2">
+            <div className="space-y-2">
+              <Label className="text-xs sm:text-[13px] font-semibold text-slate-900">
                 Date <span className="text-rose-500">*</span>
-              </label>
-              <button
-                type="button"
-                onClick={() => setIsDatePickerOpen(true)}
-                className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg border border-slate-200 bg-white text-xs sm:text-sm font-medium text-slate-800 hover:border-slate-300 focus:outline-none focus:border-blue-500 transition-colors cursor-pointer"
-              >
-                <span>{date}</span>
-                <CalendarIcon className="w-4 h-4 text-slate-600" />
-              </button>
+              </Label>
+              <DatePicker
+                value={watch("date")}
+                onChange={(val) => {
+                  setValue("date", val, { shouldValidate: true });
+                  clearErrors("date");
+                  clearErrors("root");
+                }}
+                placeholder="Select Date"
+              />
+              {errors.date && (
+                <p className="text-xs text-rose-500">{errors.date.message}</p>
+              )}
             </div>
           </div>
 
-          {/* Row 2: Project (Auto-Fill) & Delivery ID (Auto-Fill) * */}
+          {/* Row 2: Project (Auto-Fill) & Delivery ID (Auto-Fill) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
-            {/* Project (Auto-Fill) (Dropdown) */}
-            <div className="relative" ref={projectRef}>
-              <label className="block text-xs sm:text-[13px] font-semibold text-slate-900 mb-2">
+            <div className="space-y-2">
+              <Label className="text-xs sm:text-[13px] font-semibold text-slate-900">
                 Project (Auto-Fill)
-              </label>
-              <button
-                type="button"
-                onClick={() => setIsProjectOpen(!isProjectOpen)}
-                className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg border border-slate-200 bg-white text-xs sm:text-sm font-medium text-slate-800 hover:border-slate-300 focus:outline-none focus:border-blue-500 transition-colors cursor-pointer"
+              </Label>
+              <Select
+                value={project}
+                onValueChange={(val) => {
+                  setValue("project", val, { shouldValidate: true });
+                  clearErrors("root");
+                }}
               >
-                <span>{project}</span>
-                <ChevronDown className="w-4 h-4 text-slate-500" />
-              </button>
-
-              {isProjectOpen && (
-                <div className="absolute left-0 right-0 top-full mt-1.5 bg-white rounded-xl shadow-lg border border-slate-100 py-1.5 z-30 animate-in fade-in zoom-in-95">
-                  {PROJECTS.map((p) => (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => {
-                        setProject(p);
-                        setIsProjectOpen(false);
-                      }}
-                      className="w-full px-4 py-2 text-left text-xs sm:text-sm text-slate-700 hover:bg-slate-50 transition-colors font-medium flex items-center justify-between cursor-pointer"
-                    >
-                      <span>{p}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
+                <SelectTrigger className="w-full bg-white border-slate-200 h-10">
+                  <SelectValue placeholder="Select Project (Optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {projectList.length === 0 ? (
+                    <div className="p-2 text-xs text-slate-400">No projects available</div>
+                  ) : (
+                    projectList
+                      .filter((p) => Boolean(p && p.trim()))
+                      .map((p) => (
+                        <SelectItem key={p} value={p}>
+                          {p}
+                        </SelectItem>
+                      ))
+                  )}
+                </SelectContent>
+              </Select>
             </div>
 
-            {/* Delivery ID (Auto-Fill) * */}
-            <div>
-              <label className="block text-xs sm:text-[13px] font-semibold text-slate-900 mb-2">
-                Delivery ID (Auto-Fill) <span className="text-rose-500">*</span>
-              </label>
-              <input
+            <div className="space-y-2">
+              <Label className="text-xs sm:text-[13px] font-semibold text-slate-900">
+                Delivery ID (Auto-Fill)
+              </Label>
+              <Input
                 type="text"
-                required
-                value={autoFillDeliveryId}
-                onChange={(e) => setAutoFillDeliveryId(e.target.value)}
-                placeholder="Machine Repair"
-                className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-xs sm:text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 transition-colors bg-white"
+                placeholder="Auto-filled on lookup"
+                {...register("autoFillDeliveryId")}
+                className="bg-white border-slate-200 h-10"
               />
             </div>
           </div>
 
-          {/* Row 3: Final Amount * & Payment Status * */}
+          {/* Row 3: Final Amount & Payment Status */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
-            {/* Final Amount * */}
-            <div>
-              <label className="block text-xs sm:text-[13px] font-semibold text-slate-900 mb-2">
+            <div className="space-y-2">
+              <Label className="text-xs sm:text-[13px] font-semibold text-slate-900">
                 Final Amount <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={finalAmount}
-                onChange={(e) => setFinalAmount(e.target.value)}
-                placeholder="$4,500"
-                className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-xs sm:text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 transition-colors bg-white"
+              </Label>
+              <Input
+                type="number"
+                step="any"
+                placeholder="0.00"
+                {...register("finalAmount", {
+                  required: "Final amount is required",
+                  onChange: () => clearErrors("root"),
+                })}
+                className="bg-white border-slate-200 h-10"
               />
+              {errors.finalAmount && (
+                <p className="text-xs text-rose-500">{errors.finalAmount.message}</p>
+              )}
             </div>
 
-            {/* Payment Status * (Dropdown) */}
-            <div className="relative" ref={paymentStatusRef}>
-              <label className="block text-xs sm:text-[13px] font-semibold text-slate-900 mb-2">
+            <div className="space-y-2">
+              <Label className="text-xs sm:text-[13px] font-semibold text-slate-900">
                 Payment Status <span className="text-rose-500">*</span>
-              </label>
-              <button
-                type="button"
-                onClick={() => setIsPaymentStatusOpen(!isPaymentStatusOpen)}
-                className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg border border-slate-200 bg-white text-xs sm:text-sm font-medium text-slate-800 hover:border-slate-300 focus:outline-none focus:border-blue-500 transition-colors cursor-pointer"
+              </Label>
+              <Select
+                value={paymentStatus}
+                onValueChange={(val) => {
+                  setValue("paymentStatus", val as "paid" | "pending" | "unpaid", { shouldValidate: true });
+                  clearErrors("paymentStatus");
+                  clearErrors("root");
+                }}
               >
-                <span>{paymentStatus}</span>
-                <ChevronDown className="w-4 h-4 text-slate-500" />
-              </button>
-
-              {isPaymentStatusOpen && (
-                <div className="absolute left-0 right-0 top-full mt-1.5 bg-white rounded-xl shadow-lg border border-slate-100 py-1.5 z-30 animate-in fade-in zoom-in-95">
-                  {PAYMENT_STATUSES.map((status) => (
-                    <button
-                      key={status}
-                      type="button"
-                      onClick={() => {
-                        setPaymentStatus(status);
-                        setIsPaymentStatusOpen(false);
-                      }}
-                      className="w-full px-4 py-2 text-left text-xs sm:text-sm text-slate-700 hover:bg-slate-50 transition-colors font-medium cursor-pointer"
-                    >
-                      {status}
-                    </button>
+                <SelectTrigger className="w-full bg-white border-slate-200 h-10">
+                  <SelectValue placeholder="Select Payment Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAYMENT_STATUSES.filter((status) => Boolean(status.value)).map((status) => (
+                    <SelectItem key={status.value} value={status.value}>
+                      {status.label}
+                    </SelectItem>
                   ))}
-                </div>
+                </SelectContent>
+              </Select>
+              {errors.paymentStatus && (
+                <p className="text-xs text-rose-500">{errors.paymentStatus.message}</p>
               )}
             </div>
           </div>
 
-          {/* Row 4: Delivery Company (Auto-Fill) * */}
+          {/* Row 4: Delivery Company */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
-            <div>
-              <label className="block text-xs sm:text-[13px] font-semibold text-slate-900 mb-2">
-                Delivery Company (Auto-Fill) <span className="text-rose-500">*</span>
-              </label>
-              <input
+            <div className="space-y-2">
+              <Label className="text-xs sm:text-[13px] font-semibold text-slate-900">
+                Delivery Company (Auto-Fill)
+              </Label>
+              <Input
                 type="text"
-                required
-                value={deliveryCompany}
-                onChange={(e) => setDeliveryCompany(e.target.value)}
-                placeholder="ABC Logistics"
-                className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-xs sm:text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 transition-colors bg-white"
+                placeholder="e.g. Carrier / Company"
+                {...register("deliveryCompany")}
+                className="bg-white border-slate-200 h-10"
               />
             </div>
           </div>
 
-          {/* Form Bottom Actions matching screenshot 1 */}
+          {/* Form Bottom Actions */}
           <div className="flex items-center justify-between pt-8 border-t border-slate-100 mt-6">
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={() => navigate("/cost/logistics-cost")}
-              className="px-6 py-2.5 rounded-lg border border-slate-200 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer bg-white shadow-2xs"
+              className="bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
             >
               Cancel
-            </button>
+            </Button>
 
-            <button
+            <Button
               type="submit"
-              className="px-6 py-2.5 rounded-lg bg-[#635BFF] hover:bg-[#5248EE] text-white text-xs sm:text-sm font-semibold shadow-sm transition-all cursor-pointer active:scale-98"
+              disabled={isPending}
+              className="bg-[#635BFF] hover:bg-[#5248EE] text-white px-6"
             >
-              Submit for Approval
-            </button>
+              {isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  <span>Submitting...</span>
+                </>
+              ) : (
+                <span>Submit for Approval</span>
+              )}
+            </Button>
           </div>
         </form>
       </div>
-
-      {/* Date Picker Modal */}
-      <CalendarRangePickerModal
-        isOpen={isDatePickerOpen}
-        onClose={() => setIsDatePickerOpen(false)}
-        onSelectRange={(rangeStr) => {
-          setDate(rangeStr);
-          setIsDatePickerOpen(false);
-        }}
-      />
 
       {/* Success Modal */}
       <SuccessModal

@@ -21,6 +21,14 @@ import {
   Tooltip,
 } from "recharts";
 import CalendarRangePickerModal from "@/components/common_components/CalendarRangePickerModal";
+import {
+  useGetCostVarianceSummaryQuery,
+  useGetCostVarianceAlertsQuery,
+  useGetCostVarianceTrendQuery,
+  useGetCostVarianceDetailsQuery,
+  useGetCostFiltersQuery,
+} from "@/redux/api/costsApi";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // --- Types ---
 export interface KpiCardData {
@@ -64,260 +72,89 @@ export interface VarianceDetailRow {
   status: "Over Budget" | "Under Budget" | "On Budget";
 }
 
-// --- Initial Mock Data strictly matching image ---
-const INITIAL_KPIS: KpiCardData = {
-  netVariance: "$150",
-  netVarianceSub: "Overall variance",
-  overBudgetCount: 4,
-  overBudgetAmount: "+$1,500 average",
-  underBudgetCount: 3,
-  underBudgetAmount: "$1,650 saved",
-  onBudgetCount: 1,
-  onBudgetSub: "Exact match",
-};
 
-const INITIAL_ALERTS: HighVarianceAlertItem[] = [
-  {
-    id: "alert-1",
-    title: "Equipment Transport",
-    subtitle: "Hospital Extension",
-    awarded: "$4,800",
-    actual: "$5,200",
-    variance: "+$400",
-    percentageBadge: "+8.33%",
-  },
-  {
-    id: "alert-2",
-    title: "Heavy Equipment Transport",
-    subtitle: "Infrastructure Project C",
-    awarded: "$8,500",
-    actual: "$9,200",
-    variance: "+$700",
-    percentageBadge: "+8.24%",
-  },
-];
 
-const INITIAL_TREND_DATA: TrendChartPoint[] = [
-  { month: "Jan", awardedAmount: 35000, actualInvoice: 52000 },
-  { month: "Feb", awardedAmount: 105000, actualInvoice: 64000 },
-  { month: "Mar", awardedAmount: 152000, actualInvoice: 78000 },
-  { month: "Apr", awardedAmount: 89000, actualInvoice: 67000 },
-  { month: "May", awardedAmount: 100000, actualInvoice: 88000 },
-  { month: "Jun", awardedAmount: 89000, actualInvoice: 102000 },
-];
 
-const INITIAL_VARIANCE_ROWS: VarianceDetailRow[] = [
-  {
-    id: "row-1",
-    project: "SMDT Warehouse",
-    description: "Concrete Mix Delivery",
-    deliveryId: "DEL-2024-0045",
-    vendor: "ABC Concrete Suppliers",
-    vendorCode: "VND-2024-0123",
-    awardedAmount: "$15,000",
-    actualInvoice: "$15,250",
-    variance: "+$250",
-    varianceType: "over",
-    status: "Over Budget",
-  },
-  {
-    id: "row-2",
-    project: "Steel Unit",
-    description: "Steel Beams Transport",
-    deliveryId: "DEL-2024-0045",
-    vendor: "FastTruck Logistics",
-    vendorCode: "VND-2024-0123",
-    awardedAmount: "$1,440",
-    actualInvoice: "$1,000",
-    variance: "-$440",
-    varianceType: "under",
-    status: "Under Budget",
-  },
-  {
-    id: "row-3",
-    project: "SMDT Warehouse",
-    description: "Lumber & Plywood Delivery",
-    deliveryId: "DEL-2024-0045",
-    vendor: "Premier Building Materials",
-    vendorCode: "VND-2024-0123",
-    awardedAmount: "$1,440",
-    actualInvoice: "$1,440",
-    variance: "0",
-    varianceType: "exact",
-    status: "On Budget",
-  },
-  {
-    id: "row-4",
-    project: "Industrial Shed",
-    description: "Equipment Transport",
-    deliveryId: "DEL-2024-0045",
-    vendor: "QuickHaul Transport",
-    vendorCode: "VND-2024-0123",
-    awardedAmount: "$1,440",
-    actualInvoice: "$1,440",
-    variance: "0",
-    varianceType: "exact",
-    status: "On Budget",
-  },
-  {
-    id: "row-5",
-    project: "Warehouse Expansion",
-    description: "Structural Steel - Phase 2",
-    deliveryId: "DEL-2024-0045",
-    vendor: "Elite Steel Supply",
-    vendorCode: "VND-2024-0123",
-    awardedAmount: "$1,440",
-    actualInvoice: "$1,440",
-    variance: "0",
-    varianceType: "exact",
-    status: "On Budget",
-  },
-  {
-    id: "row-6",
-    project: "SMDT Warehouse",
-    description: "Aggregate Materials Transport",
-    deliveryId: "DEL-2024-0045",
-    vendor: "Reliable Freight Services",
-    vendorCode: "VND-2024-0123",
-    awardedAmount: "$1,440",
-    actualInvoice: "$1,440",
-    variance: "0",
-    varianceType: "exact",
-    status: "On Budget",
-  },
-  {
-    id: "row-7",
-    project: "Steel Unit",
-    description: "Roofing Materials",
-    deliveryId: "DEL-2024-0045",
-    vendor: "Premium Roofing Supply",
-    vendorCode: "VND-2024-0123",
-    awardedAmount: "$1,440",
-    actualInvoice: "$1,440",
-    variance: "0",
-    varianceType: "exact",
-    status: "On Budget",
-  },
-  {
-    id: "row-8",
-    project: "SMDT Warehouse",
-    description: "Heavy Equipment Transport",
-    deliveryId: "DEL-2024-0045",
-    vendor: "Mega Transport Inc",
-    vendorCode: "VND-2024-0123",
-    awardedAmount: "$1,440",
-    actualInvoice: "$1,440",
-    variance: "0",
-    varianceType: "exact",
-    status: "On Budget",
-  },
-  {
-    id: "row-9",
-    project: "Industrial Shed",
-    description: "Concrete Mix Delivery",
-    deliveryId: "DEL-2024-0045",
-    vendor: "Premier Building Materials",
-    vendorCode: "VND-2024-0123",
-    awardedAmount: "$1,440",
-    actualInvoice: "$1,440",
-    variance: "0",
-    varianceType: "exact",
-    status: "On Budget",
-  },
-  {
-    id: "row-10",
-    project: "Warehouse Expansion",
-    description: "Concrete Mix Delivery",
-    deliveryId: "DEL-2024-0045",
-    vendor: "FastTruck Logistics",
-    vendorCode: "VND-2024-0123",
-    awardedAmount: "$1,440",
-    actualInvoice: "$1,440",
-    variance: "0",
-    varianceType: "exact",
-    status: "On Budget",
-  },
-  {
-    id: "row-11",
-    project: "SMDT Warehouse",
-    description: "Reinforcement Bars Logistics",
-    deliveryId: "DEL-2024-0046",
-    vendor: "Speedy Cargo Express",
-    vendorCode: "VND-2024-0124",
-    awardedAmount: "$5,200",
-    actualInvoice: "$5,450",
-    variance: "+$250",
-    varianceType: "over",
-    status: "Over Budget",
-  },
-  {
-    id: "row-12",
-    project: "Industrial Shed",
-    description: "Roofing Sheets Delivery",
-    deliveryId: "DEL-2024-0047",
-    vendor: "Allied Freight Co",
-    vendorCode: "VND-2024-0125",
-    awardedAmount: "$3,100",
-    actualInvoice: "$2,850",
-    variance: "-$250",
-    varianceType: "under",
-    status: "Under Budget",
-  },
-  {
-    id: "row-13",
-    project: "Steel Unit",
-    description: "HVAC Unit Transit",
-    deliveryId: "DEL-2024-0048",
-    vendor: "Direct Haul Systems",
-    vendorCode: "VND-2024-0126",
-    awardedAmount: "$4,000",
-    actualInvoice: "$4,000",
-    variance: "0",
-    varianceType: "exact",
-    status: "On Budget",
-  },
-  {
-    id: "row-14",
-    project: "Warehouse Expansion",
-    description: "Electrical Conduits",
-    deliveryId: "DEL-2024-0049",
-    vendor: "Express Transport",
-    vendorCode: "VND-2024-0127",
-    awardedAmount: "$1,800",
-    actualInvoice: "$1,800",
-    variance: "0",
-    varianceType: "exact",
-    status: "On Budget",
-  },
-  {
-    id: "row-15",
-    project: "SMDT Warehouse",
-    description: "Floor Screed Delivery",
-    deliveryId: "DEL-2024-0050",
-    vendor: "FastTruck Logistics",
-    vendorCode: "VND-2024-0123",
-    awardedAmount: "$2,400",
-    actualInvoice: "$2,600",
-    variance: "+$200",
-    varianceType: "over",
-    status: "Over Budget",
-  },
-  {
-    id: "row-16",
-    project: "Industrial Shed",
-    description: "Site Office Container Move",
-    deliveryId: "DEL-2024-0051",
-    vendor: "Mega Transport Inc",
-    vendorCode: "VND-2024-0128",
-    awardedAmount: "$3,500",
-    actualInvoice: "$3,500",
-    variance: "0",
-    varianceType: "exact",
-    status: "On Budget",
-  },
-];
+
 
 export default function CostVariancePage() {
+  // RTK Query endpoints
+  const { data: summaryData, isLoading: isSummaryLoading } = useGetCostVarianceSummaryQuery();
+  const { data: alertsData, isLoading: isAlertsLoading } = useGetCostVarianceAlertsQuery();
+  const { data: trendData, isLoading: isTrendLoading } = useGetCostVarianceTrendQuery();
+  const { data: detailsData, isLoading: isDetailsLoading } = useGetCostVarianceDetailsQuery();
+  const { data: costFilters } = useGetCostFiltersQuery();
+
+  // Normalized live records
+  const varianceRows: VarianceDetailRow[] = useMemo(() => {
+    if (!detailsData?.rows) return [];
+    return detailsData.rows.map((row, idx) => ({
+      id: row._id || row.id || `row-${idx}`,
+      project: row.project || "General",
+      description: row.description || "-",
+      deliveryId: row.deliveryId || "-",
+      vendor: row.vendor || "-",
+      vendorCode: row.vendorCode || "-",
+      awardedAmount:
+        typeof row.awardedAmount === "number"
+          ? `$${row.awardedAmount.toLocaleString()}`
+          : String(row.awardedAmount || "$0"),
+      actualInvoice:
+        typeof row.actualInvoice === "number"
+          ? `$${row.actualInvoice.toLocaleString()}`
+          : String(row.actualInvoice || "$0"),
+      variance:
+        typeof row.variance === "number"
+          ? (row.variance > 0
+              ? `+$${row.variance.toLocaleString()}`
+              : `$${row.variance.toLocaleString()}`)
+          : String(row.variance || "0"),
+      varianceType:
+        row.varianceType ||
+        (Number(row.variance) > 0 ? "over" : Number(row.variance) < 0 ? "under" : "exact"),
+      status:
+        (row.status as "Over Budget" | "Under Budget" | "On Budget") ||
+        (Number(row.variance) > 0
+          ? "Over Budget"
+          : Number(row.variance) < 0
+          ? "Under Budget"
+          : "On Budget"),
+    }));
+  }, [detailsData]);
+
+  const highVarianceAlerts = useMemo(() => {
+    if (!alertsData) return [];
+    return alertsData.map((a, idx) => ({
+      id: a._id || a.id || `alert-${idx}`,
+      title: a.title,
+      subtitle: a.subtitle || a.projectName || "Cost Overrun Alert",
+      awarded:
+        typeof a.awarded === "number"
+          ? `$${a.awarded.toLocaleString()}`
+          : String(a.awarded || "$0"),
+      actual:
+        typeof a.actual === "number"
+          ? `$${a.actual.toLocaleString()}`
+          : String(a.actual || "$0"),
+      variance:
+        typeof a.variance === "number"
+          ? (a.variance > 0
+              ? `+$${a.variance.toLocaleString()}`
+              : `$${a.variance.toLocaleString()}`)
+          : String(a.variance || "0"),
+      percentageBadge: a.percentageBadge || "+0%",
+    }));
+  }, [alertsData]);
+
+  const trendChartData: TrendChartPoint[] = useMemo(() => {
+    if (!trendData || trendData.length === 0) return [];
+    return trendData.map((pt) => ({
+      month: pt.month,
+      awardedAmount: Number(pt.awardedAmount) || 0,
+      actualInvoice: Number(pt.actualInvoice) || 0,
+    }));
+  }, [trendData]);
+
   // --- States ---
   const [topSearch, setTopSearch] = useState("");
   const [selectedTopProject, setSelectedTopProject] = useState("All Projects");
@@ -334,14 +171,14 @@ export default function CostVariancePage() {
 
   // Pagination
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [currentPage, setCurrentPage] = useState(4); // matches active 4 in screenshot
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Export dropdown
   const [isExportOpen, setIsExportOpen] = useState(false);
 
   // Filtered rows
   const filteredRows = useMemo(() => {
-    return INITIAL_VARIANCE_ROWS.filter((row) => {
+    return varianceRows.filter((row) => {
       // Top search filter
       if (topSearch.trim()) {
         const q = topSearch.toLowerCase();
@@ -382,6 +219,7 @@ export default function CostVariancePage() {
       return true;
     });
   }, [
+    varianceRows,
     topSearch,
     selectedTopProject,
     selectedTopStatus,
@@ -481,11 +319,15 @@ export default function CostVariancePage() {
             <span className="text-xs md:text-[13px] font-medium text-[#64748B]">
               Net Variance
             </span>
-            <div className="text-2xl font-bold text-[#10B981] tracking-tight">
-              {INITIAL_KPIS.netVariance}
-            </div>
+            {isSummaryLoading ? (
+              <Skeleton className="h-7 w-20" />
+            ) : (
+              <div className="text-2xl font-bold text-[#10B981] tracking-tight">
+                {summaryData?.netVariance != null ? `$${Number(summaryData.netVariance).toLocaleString()}` : "$0"}
+              </div>
+            )}
             <p className="text-[11px] text-[#94A3B8] font-normal">
-              {INITIAL_KPIS.netVarianceSub}
+              {summaryData?.netVarianceSub || "Overall variance"}
             </p>
           </div>
           <div className="w-12 h-12 rounded-xl bg-[#F1F5F9] flex items-center justify-center text-[#64748B] font-semibold text-lg">
@@ -499,11 +341,17 @@ export default function CostVariancePage() {
             <span className="text-xs md:text-[13px] font-medium text-[#64748B]">
               Over Budget
             </span>
-            <div className="text-2xl font-bold text-[#1E293B] tracking-tight">
-              {INITIAL_KPIS.overBudgetCount}
-            </div>
+            {isSummaryLoading ? (
+              <Skeleton className="h-7 w-14" />
+            ) : (
+              <div className="text-2xl font-bold text-[#1E293B] tracking-tight">
+                {summaryData?.overBudgetCount ?? 0}
+              </div>
+            )}
             <p className="text-[11px] text-[#EF4444] font-medium">
-              {INITIAL_KPIS.overBudgetAmount}
+              {summaryData?.overBudgetAmount != null
+                ? `+$${Number(summaryData.overBudgetAmount).toLocaleString()} average`
+                : "$0 average"}
             </p>
           </div>
           <div className="w-12 h-12 rounded-xl bg-[#FEE2E2] flex items-center justify-center text-[#EF4444]">
@@ -517,11 +365,17 @@ export default function CostVariancePage() {
             <span className="text-xs md:text-[13px] font-medium text-[#64748B]">
               Under Budget
             </span>
-            <div className="text-2xl font-bold text-[#1E293B] tracking-tight">
-              {INITIAL_KPIS.underBudgetCount}
-            </div>
+            {isSummaryLoading ? (
+              <Skeleton className="h-7 w-14" />
+            ) : (
+              <div className="text-2xl font-bold text-[#1E293B] tracking-tight">
+                {summaryData?.underBudgetCount ?? 0}
+              </div>
+            )}
             <p className="text-[11px] text-[#10B981] font-medium">
-              {INITIAL_KPIS.underBudgetAmount}
+              {summaryData?.underBudgetAmount != null
+                ? `$${Number(summaryData.underBudgetAmount).toLocaleString()} saved`
+                : "$0 saved"}
             </p>
           </div>
           <div className="w-12 h-12 rounded-xl bg-[#DCFCE7] flex items-center justify-center text-[#10B981]">
@@ -535,11 +389,15 @@ export default function CostVariancePage() {
             <span className="text-xs md:text-[13px] font-medium text-[#64748B]">
               On Budget
             </span>
-            <div className="text-2xl font-bold text-[#1E293B] tracking-tight">
-              {INITIAL_KPIS.onBudgetCount}
-            </div>
+            {isSummaryLoading ? (
+              <Skeleton className="h-7 w-14" />
+            ) : (
+              <div className="text-2xl font-bold text-[#1E293B] tracking-tight">
+                {summaryData?.onBudgetCount ?? 0}
+              </div>
+            )}
             <p className="text-[11px] text-[#3B82F6] font-medium">
-              {INITIAL_KPIS.onBudgetSub}
+              {summaryData?.onBudgetSub || "Exact match"}
             </p>
           </div>
           <div className="w-12 h-12 rounded-xl bg-[#DBEAFE] flex items-center justify-center text-[#3B82F6]">
@@ -556,48 +414,72 @@ export default function CostVariancePage() {
         </div>
 
         <div className="space-y-3">
-          {INITIAL_ALERTS.map((alert) => (
-            <div
-              key={alert.id}
-              className="bg-[#FFF1F2] border border-[#FFE4E6] rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4"
-            >
-              <div>
-                <h4 className="text-sm font-semibold text-[#1E293B]">
-                  {alert.title}
-                </h4>
-                <p className="text-xs text-[#64748B] mt-0.5">
-                  {alert.subtitle}
-                </p>
-                <div className="flex flex-wrap items-center gap-x-8 gap-y-1 mt-2 text-xs">
-                  <div>
-                    <span className="text-[#64748B]">Awarded:</span>{" "}
-                    <span className="font-semibold text-[#1E293B]">
-                      {alert.awarded}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[#64748B]">Actual:</span>{" "}
-                    <span className="font-semibold text-[#1E293B]">
-                      {alert.actual}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[#64748B]">Variance:</span>{" "}
-                    <span className="font-bold text-[#EF4444]">
-                      {alert.variance}
-                    </span>
+          {isAlertsLoading ? (
+            Array.from({ length: 2 }).map((_, idx) => (
+              <div
+                key={`alert-skel-${idx}`}
+                className="bg-[#FFF1F2] border border-[#FFE4E6] rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4"
+              >
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-3 w-28" />
+                  <div className="flex gap-4 pt-1">
+                    <Skeleton className="h-3 w-20" />
+                    <Skeleton className="h-3 w-20" />
+                    <Skeleton className="h-3 w-20" />
                   </div>
                 </div>
+                <Skeleton className="h-6 w-16 rounded-full" />
               </div>
-
-              {/* Red pill badge on right */}
-              <div className="self-start md:self-center">
-                <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#FEE2E2] text-[#EF4444] border border-[#FECACA]">
-                  {alert.percentageBadge}
-                </span>
-              </div>
+            ))
+          ) : highVarianceAlerts.length === 0 ? (
+            <div className="py-4 text-center text-xs text-[#94A3B8]">
+              No high variance alerts detected.
             </div>
-          ))}
+          ) : (
+            highVarianceAlerts.map((alert) => (
+              <div
+                key={alert.id}
+                className="bg-[#FFF1F2] border border-[#FFE4E6] rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4"
+              >
+                <div>
+                  <h4 className="text-sm font-semibold text-[#1E293B]">
+                    {alert.title}
+                  </h4>
+                  <p className="text-xs text-[#64748B] mt-0.5">
+                    {alert.subtitle}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-x-8 gap-y-1 mt-2 text-xs">
+                    <div>
+                      <span className="text-[#64748B]">Awarded:</span>{" "}
+                      <span className="font-semibold text-[#1E293B]">
+                        {alert.awarded}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[#64748B]">Actual:</span>{" "}
+                      <span className="font-semibold text-[#1E293B]">
+                        {alert.actual}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[#64748B]">Variance:</span>{" "}
+                      <span className="font-bold text-[#EF4444]">
+                        {alert.variance}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Red pill badge on right */}
+                <div className="self-start md:self-center">
+                  <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#FEE2E2] text-[#EF4444] border border-[#FECACA]">
+                    {alert.percentageBadge}
+                  </span>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 
@@ -608,70 +490,76 @@ export default function CostVariancePage() {
         </h3>
 
         <div className="w-full h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart
-              data={INITIAL_TREND_DATA}
-              margin={{ top: 10, right: 20, left: 0, bottom: 25 }}
-            >
-              <CartesianGrid
-                strokeDasharray="3 3"
-                vertical={false}
-                stroke="#F1F5F9"
-              />
-              <XAxis
-                dataKey="month"
-                axisLine={{ stroke: "#94A3B8" }}
-                tickLine={{ stroke: "#94A3B8" }}
-                tick={{ fill: "#64748B", fontSize: 11 }}
-              />
-              <YAxis
-                axisLine={{ stroke: "#94A3B8" }}
-                tickLine={{ stroke: "#94A3B8" }}
-                tick={{ fill: "#94A3B8", fontSize: 11 }}
-                domain={[0, 240000]}
-                ticks={[0, 60000, 120000, 180000, 240000]}
-              />
-              <Tooltip
-                formatter={(value: any) => [`$${Number(value).toLocaleString()}`]}
-                contentStyle={{
-                  backgroundColor: "#ffffff",
-                  borderRadius: "8px",
-                  border: "1px solid #E2E8F0",
-                  fontSize: "12px",
-                }}
-              />
-              {/* Awarded Amount Line (Blue) */}
-              <Line
-                type="monotone"
-                dataKey="awardedAmount"
-                name="Awarded Amount"
-                stroke="#3B82F6"
-                strokeWidth={2}
-                dot={{
-                  r: 3.5,
-                  fill: "#ffffff",
-                  stroke: "#3B82F6",
-                  strokeWidth: 2,
-                }}
-                activeDot={{ r: 5 }}
-              />
-              {/* Actual Invoice Line (Red) */}
-              <Line
-                type="monotone"
-                dataKey="actualInvoice"
-                name="Actual Invoice"
-                stroke="#EF4444"
-                strokeWidth={2}
-                dot={{
-                  r: 3.5,
-                  fill: "#ffffff",
-                  stroke: "#EF4444",
-                  strokeWidth: 2,
-                }}
-                activeDot={{ r: 5 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          {isTrendLoading ? (
+            <Skeleton className="w-full h-72 rounded-xl" />
+          ) : trendChartData.length === 0 ? (
+            <div className="w-full h-72 flex items-center justify-center text-xs text-[#94A3B8]">
+              No trend data available.
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={trendChartData}
+                margin={{ top: 10, right: 20, left: 0, bottom: 25 }}
+              >
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  vertical={false}
+                  stroke="#F1F5F9"
+                />
+                <XAxis
+                  dataKey="month"
+                  axisLine={{ stroke: "#94A3B8" }}
+                  tickLine={{ stroke: "#94A3B8" }}
+                  tick={{ fill: "#64748B", fontSize: 11 }}
+                />
+                <YAxis
+                  axisLine={{ stroke: "#94A3B8" }}
+                  tickLine={{ stroke: "#94A3B8" }}
+                  tick={{ fill: "#94A3B8", fontSize: 11 }}
+                />
+                <Tooltip
+                  formatter={(value: unknown) => [`$${Number(value || 0).toLocaleString()}`]}
+                  contentStyle={{
+                    backgroundColor: "#ffffff",
+                    borderRadius: "8px",
+                    border: "1px solid #E2E8F0",
+                    fontSize: "12px",
+                  }}
+                />
+                {/* Awarded Amount Line (Blue) */}
+                <Line
+                  type="monotone"
+                  dataKey="awardedAmount"
+                  name="Awarded Amount"
+                  stroke="#3B82F6"
+                  strokeWidth={2}
+                  dot={{
+                    r: 3.5,
+                    fill: "#ffffff",
+                    stroke: "#3B82F6",
+                    strokeWidth: 2,
+                  }}
+                  activeDot={{ r: 5 }}
+                />
+                {/* Actual Invoice Line (Red) */}
+                <Line
+                  type="monotone"
+                  dataKey="actualInvoice"
+                  name="Actual Invoice"
+                  stroke="#EF4444"
+                  strokeWidth={2}
+                  dot={{
+                    r: 3.5,
+                    fill: "#ffffff",
+                    stroke: "#EF4444",
+                    strokeWidth: 2,
+                  }}
+                  activeDot={{ r: 5 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
         {/* Legend */}
@@ -722,10 +610,15 @@ export default function CostVariancePage() {
               className="w-full appearance-none pl-9 pr-8 py-2.5 bg-white border border-[#E2E8F0] rounded-xl text-xs md:text-sm font-medium text-[#475569] shadow-xs cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="All Projects">All Projects</option>
-              <option value="SMDT Warehouse">SMDT Warehouse</option>
-              <option value="Steel Unit">Steel Unit</option>
-              <option value="Industrial Shed">Industrial Shed</option>
-              <option value="Warehouse Expansion">Warehouse Expansion</option>
+              {costFilters?.projects?.map((p) => {
+                const id = p._id || p.id || "";
+                const name = p.projectName || p.name || "";
+                return (
+                  <option key={id} value={name}>
+                    {name}
+                  </option>
+                );
+              })}
             </select>
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8] pointer-events-none" />
           </div>
@@ -900,7 +793,19 @@ export default function CostVariancePage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#F1F5F9]">
-              {paginatedRows.length === 0 ? (
+              {isDetailsLoading ? (
+                Array.from({ length: 6 }).map((_, idx) => (
+                  <tr key={`row-skel-${idx}`}>
+                    <td className="py-4 px-5"><Skeleton className="h-4 w-28" /></td>
+                    <td className="py-4 px-5"><Skeleton className="h-4 w-36" /></td>
+                    <td className="py-4 px-5"><Skeleton className="h-4 w-32" /></td>
+                    <td className="py-4 px-5"><Skeleton className="h-4 w-20" /></td>
+                    <td className="py-4 px-5"><Skeleton className="h-4 w-20" /></td>
+                    <td className="py-4 px-5"><Skeleton className="h-4 w-20" /></td>
+                    <td className="py-4 px-5"><Skeleton className="h-6 w-24 rounded-full" /></td>
+                  </tr>
+                ))
+              ) : paginatedRows.length === 0 ? (
                 <tr>
                   <td
                     colSpan={7}

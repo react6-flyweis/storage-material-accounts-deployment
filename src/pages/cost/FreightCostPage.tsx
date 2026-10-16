@@ -36,310 +36,16 @@ import type {
   CarrierDistributionItem,
   FreightDeliveryRecord,
 } from "@/components/cost/freightCostData";
-
-// Data objects co-located in the same file for easy replacement with RTK Query / API hooks later
-const INITIAL_FREIGHT_KPI = {
-  totalFreightCost: "$35,300",
-  totalFreightCostSubtitle: "Yearly Total",
-  activeCarriers: 4,
-  activeCarriersSubtitle: "Contracted Carriers",
-  avgCostPerDelivery: "$3,245",
-  avgCostPerDeliverySubtitle: "This Month",
-  pendingInvoices: 12,
-  pendingInvoicesSubtitle: "Awaiting Payment",
-};
-
-const INITIAL_MONTHLY_FREIGHT_TREND: MonthlyFreightTrendItem[] = [
-  { month: "Jan", cost: 46000, deliveries: 12 },
-  { month: "Feb", cost: 52500, deliveries: 14 },
-  { month: "Mar", cost: 38000, deliveries: 11 },
-  { month: "Apr", cost: 62000, deliveries: 18 },
-  { month: "May", cost: 55500, deliveries: 16 },
-  { month: "Jun", cost: 48500, deliveries: 15 },
-];
-
-const INITIAL_CARRIER_DISTRIBUTION: CarrierDistributionItem[] = [
-  { carrier: "FastFreight", amount: 125000 },
-  { carrier: "QuickTransport", amount: 95000 },
-  { carrier: "Regional Freight", amount: 78000 },
-  { carrier: "Local Delivery", amount: 55000 },
-];
-
-const INITIAL_CARRIER_ANALYSIS: CarrierCostItem[] = [
-  {
-    id: "c1",
-    name: "FastFreight",
-    ytdTotal: "YTD Total",
-    totalCost: 125000,
-    totalCostFormatted: "$125,000",
-    percentageOfTotal: "35%",
-  },
-  {
-    id: "c2",
-    name: "QuickTransport",
-    ytdTotal: "YTD Total",
-    totalCost: 95000,
-    totalCostFormatted: "$95,000",
-    percentageOfTotal: "27%",
-  },
-  {
-    id: "c3",
-    name: "Regional Freight",
-    ytdTotal: "YTD Total",
-    totalCost: 78000,
-    totalCostFormatted: "$78,000",
-    percentageOfTotal: "22%",
-  },
-  {
-    id: "c4",
-    name: "Local Delivery",
-    ytdTotal: "YTD Total",
-    totalCost: 55000,
-    totalCostFormatted: "$55,000",
-    percentageOfTotal: "16%",
-  },
-];
-
-// Freight + Delivery Cost Table records matching screenshot exactly:
-const INITIAL_FREIGHT_DELIVERY_RECORDS: FreightDeliveryRecord[] = [
-  {
-    id: "f1",
-    freightId: "FR-22001",
-    project: "SMDT Warehouse",
-    deliveryCompany: "Fulltruck Logistics",
-    deliveryId: "DEL-1234",
-    date: "Mar 25, 2026",
-    cost: 4500,
-    costFormatted: "$4,500",
-    approvalStatus: "Pending",
-    totalLoads: "2 Loads",
-    awardedCarrier: "FastFreight Logistics",
-    awardedBid: "$4,500",
-    averageBid: "$4,850",
-    highestBid: "$5,100",
-    savings: "$350 (Saved $350 (7.2%))",
-    deliveryStatus: "Delivered",
-    invoiceNumber: "INV-45892",
-    invoiceDate: "March 25, 2026",
-    paymentDueDate: "April 1, 2026",
-    invoiceStatus: "Under Review",
-  },
-  {
-    id: "f2",
-    freightId: "FR-22002",
-    project: "Steel Unit",
-    deliveryCompany: "QuickHaul Transport",
-    deliveryId: "DEL-1234",
-    date: "Mar 25, 2026",
-    cost: 1440,
-    costFormatted: "$1,440",
-    approvalStatus: "Approved",
-    totalLoads: "1 Load",
-    awardedCarrier: "QuickHaul Transport",
-    awardedBid: "$1,440",
-    averageBid: "$1,600",
-    highestBid: "$1,750",
-    savings: "$160 (Saved $160 (10%))",
-    deliveryStatus: "Delivered",
-    invoiceNumber: "INV-45893",
-    invoiceDate: "March 25, 2026",
-    paymentDueDate: "April 1, 2026",
-    invoiceStatus: "Approved",
-  },
-  {
-    id: "f3",
-    freightId: "FR-22003",
-    project: "SMDT Warehouse",
-    deliveryCompany: "Reliable Freights",
-    deliveryId: "DEL-1234",
-    date: "Mar 25, 2026",
-    cost: 1440,
-    costFormatted: "$1,440",
-    approvalStatus: "Approved",
-    totalLoads: "1 Load",
-    awardedCarrier: "Reliable Freights",
-    awardedBid: "$1,440",
-    averageBid: "$1,550",
-    highestBid: "$1,700",
-    savings: "$110 (Saved $110 (7.1%))",
-    deliveryStatus: "Delivered",
-    invoiceNumber: "INV-45894",
-    invoiceDate: "March 25, 2026",
-    paymentDueDate: "April 1, 2026",
-    invoiceStatus: "Approved",
-  },
-  {
-    id: "f4",
-    freightId: "FR-22001",
-    project: "Industrial Shed",
-    deliveryCompany: "Express Logistics",
-    deliveryId: "DEL-1234",
-    date: "Mar 25, 2026",
-    cost: 1440,
-    costFormatted: "$1,440",
-    approvalStatus: "Approved",
-    totalLoads: "1 Load",
-    awardedCarrier: "Express Logistics",
-    awardedBid: "$1,440",
-    averageBid: "$1,580",
-    highestBid: "$1,720",
-    savings: "$140 (Saved $140 (8.8%))",
-    deliveryStatus: "Delivered",
-    invoiceNumber: "INV-45895",
-    invoiceDate: "March 25, 2026",
-    paymentDueDate: "April 1, 2026",
-    invoiceStatus: "Approved",
-  },
-  {
-    id: "f5",
-    freightId: "FR-22001",
-    project: "Warehouse Expansion",
-    deliveryCompany: "FastTruck Logistics",
-    deliveryId: "DEL-1234",
-    date: "Mar 25, 2026",
-    cost: 1440,
-    costFormatted: "$1,440",
-    approvalStatus: "Approved",
-    totalLoads: "1 Load",
-    awardedCarrier: "FastTruck Logistics",
-    awardedBid: "$1,440",
-    averageBid: "$1,620",
-    highestBid: "$1,800",
-    savings: "$180 (Saved $180 (11.1%))",
-    deliveryStatus: "Delivered",
-    invoiceNumber: "INV-45896",
-    invoiceDate: "March 25, 2026",
-    paymentDueDate: "April 1, 2026",
-    invoiceStatus: "Approved",
-  },
-  {
-    id: "f6",
-    freightId: "FR-22001",
-    project: "SMDT Warehouse",
-    deliveryCompany: "Fulltruck Logistics",
-    deliveryId: "DEL-1234",
-    date: "Mar 25, 2026",
-    cost: 1440,
-    costFormatted: "$1,440",
-    approvalStatus: "Approved",
-    totalLoads: "1 Load",
-    awardedCarrier: "Fulltruck Logistics",
-    awardedBid: "$1,440",
-    averageBid: "$1,500",
-    highestBid: "$1,650",
-    savings: "$60 (Saved $60 (4%))",
-    deliveryStatus: "Delivered",
-    invoiceNumber: "INV-45897",
-    invoiceDate: "March 25, 2026",
-    paymentDueDate: "April 1, 2026",
-    invoiceStatus: "Approved",
-  },
-  {
-    id: "f7",
-    freightId: "FR-22001",
-    project: "Steel Unit",
-    deliveryCompany: "QuickHaul Transport",
-    deliveryId: "DEL-1234",
-    date: "Mar 25, 2026",
-    cost: 1440,
-    costFormatted: "$1,440",
-    approvalStatus: "Approved",
-    totalLoads: "1 Load",
-    awardedCarrier: "QuickHaul Transport",
-    awardedBid: "$1,440",
-    averageBid: "$1,600",
-    highestBid: "$1,750",
-    savings: "$160 (Saved $160 (10%))",
-    deliveryStatus: "Delivered",
-    invoiceNumber: "INV-45898",
-    invoiceDate: "March 25, 2026",
-    paymentDueDate: "April 1, 2026",
-    invoiceStatus: "Approved",
-  },
-  {
-    id: "f8",
-    freightId: "FR-22001",
-    project: "SMDT Warehouse",
-    deliveryCompany: "Reliable Freights",
-    deliveryId: "DEL-1234",
-    date: "Mar 25, 2026",
-    cost: 1440,
-    costFormatted: "$1,440",
-    approvalStatus: "Approved",
-    totalLoads: "1 Load",
-    awardedCarrier: "Reliable Freights",
-    awardedBid: "$1,440",
-    averageBid: "$1,550",
-    highestBid: "$1,700",
-    savings: "$110 (Saved $110 (7.1%))",
-    deliveryStatus: "Delivered",
-    invoiceNumber: "INV-45899",
-    invoiceDate: "March 25, 2026",
-    paymentDueDate: "April 1, 2026",
-    invoiceStatus: "Approved",
-  },
-  {
-    id: "f9",
-    freightId: "FR-22001",
-    project: "Industrial Shed",
-    deliveryCompany: "Express Logistics",
-    deliveryId: "DEL-1234",
-    date: "Mar 25, 2026",
-    cost: 1440,
-    costFormatted: "$1,440",
-    approvalStatus: "Approved",
-    totalLoads: "1 Load",
-    awardedCarrier: "Express Logistics",
-    awardedBid: "$1,440",
-    averageBid: "$1,580",
-    highestBid: "$1,720",
-    savings: "$140 (Saved $140 (8.8%))",
-    deliveryStatus: "Delivered",
-    invoiceNumber: "INV-45900",
-    invoiceDate: "March 25, 2026",
-    paymentDueDate: "April 1, 2026",
-    invoiceStatus: "Approved",
-  },
-  {
-    id: "f10",
-    freightId: "FR-22001",
-    project: "Warehouse Expansion",
-    deliveryCompany: "FastTruck Logistics",
-    deliveryId: "DEL-1234",
-    date: "Mar 25, 2026",
-    cost: 1440,
-    costFormatted: "$1,440",
-    approvalStatus: "Approved",
-    totalLoads: "1 Load",
-    awardedCarrier: "FastTruck Logistics",
-    awardedBid: "$1,440",
-    averageBid: "$1,620",
-    highestBid: "$1,800",
-    savings: "$180 (Saved $180 (11.1%))",
-    deliveryStatus: "Delivered",
-    invoiceNumber: "INV-45901",
-    invoiceDate: "March 25, 2026",
-    paymentDueDate: "April 1, 2026",
-    invoiceStatus: "Approved",
-  },
-];
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  useGetFreightSummaryQuery,
+  useGetFreightTrendQuery,
+  useGetFreightCarrierDistributionQuery,
+  useGetFreightRecordsQuery,
+  useGetCostFiltersQuery,
+} from "@/redux/api/costsApi";
 
 export const FreightCostPage: React.FC = () => {
-  // Co-located state objects
-  const [kpiData] = useState(INITIAL_FREIGHT_KPI);
-  const [trendData] = useState<MonthlyFreightTrendItem[]>(
-    INITIAL_MONTHLY_FREIGHT_TREND,
-  );
-  const [distributionData] = useState<CarrierDistributionItem[]>(
-    INITIAL_CARRIER_DISTRIBUTION,
-  );
-  const [carrierAnalysisData] = useState<CarrierCostItem[]>(
-    INITIAL_CARRIER_ANALYSIS,
-  );
-  const [deliveryRecords, setDeliveryRecords] = useState<FreightDeliveryRecord[]>(
-    INITIAL_FREIGHT_DELIVERY_RECORDS,
-  );
-
   // Table filter states
   const [searchTerm, setSearchTerm] = useState("");
   const [dateRangeText, setDateRangeText] = useState("dd/mm/yyyy - dd/mm/yyyy");
@@ -349,7 +55,7 @@ export const FreightCostPage: React.FC = () => {
   const [selectedAmountRange, setSelectedAmountRange] = useState("All");
   const [selectedSortBy, setSelectedSortBy] = useState("Last 7 Days");
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [currentPage, setCurrentPage] = useState(4); // Default to page 4 as per screenshot
+  const [currentPage, setCurrentPage] = useState(1);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   // Detail Modal & Success Modal states
@@ -365,39 +71,98 @@ export const FreightCostPage: React.FC = () => {
     message: "",
   });
 
-  // Table filtering and search logic
-  const filteredRecords = useMemo(() => {
-    let result = [...deliveryRecords];
+  const { data: filtersData } = useGetCostFiltersQuery();
+  const { data: summaryData, isLoading: isSummaryLoading } = useGetFreightSummaryQuery();
+  const { data: trendDataApi, isLoading: isTrendLoading } = useGetFreightTrendQuery();
+  const { data: carrierDistApi, isLoading: isDistributionLoading } = useGetFreightCarrierDistributionQuery();
+  const { data: recordsApi, isLoading: isRecordsLoading } = useGetFreightRecordsQuery({
+    page: currentPage,
+    limit: rowsPerPage,
+    search: searchTerm,
+    project: selectedProject !== "All" ? selectedProject : undefined,
+  });
 
-    if (searchTerm.trim()) {
-      const q = searchTerm.toLowerCase();
-      result = result.filter(
-        (r) =>
-          r.freightId.toLowerCase().includes(q) ||
-          r.project.toLowerCase().includes(q) ||
-          r.deliveryCompany.toLowerCase().includes(q) ||
-          r.deliveryId.toLowerCase().includes(q) ||
-          r.costFormatted.toLowerCase().includes(q),
-      );
+  const kpiData = {
+    totalFreightCost: summaryData?.totalFreightCost !== undefined ? `$${Number(summaryData.totalFreightCost).toLocaleString()}` : "$0",
+    totalFreightCostSubtitle: "Yearly Total",
+    activeCarriers: summaryData?.activeCarriers !== undefined ? summaryData.activeCarriers : 0,
+    activeCarriersSubtitle: "Contracted Carriers",
+    avgCostPerDelivery: summaryData?.avgCostPerDelivery !== undefined ? `$${Number(summaryData.avgCostPerDelivery).toLocaleString()}` : "$0",
+    avgCostPerDeliverySubtitle: "This Month",
+    pendingInvoices: summaryData?.pendingInvoices !== undefined ? summaryData.pendingInvoices : 0,
+    pendingInvoicesSubtitle: "Awaiting Payment",
+  };
+
+  const trendData: MonthlyFreightTrendItem[] = useMemo(() => {
+    return (trendDataApi || []).map((t) => ({
+      month: t.month,
+      cost: t.cost,
+      deliveries: t.deliveries ?? 0,
+    }));
+  }, [trendDataApi]);
+  const distributionData: CarrierDistributionItem[] = carrierDistApi || [];
+
+  const carrierAnalysisData = useMemo<CarrierCostItem[]>(() => {
+    if (carrierDistApi && carrierDistApi.length > 0) {
+      const totalAmount = carrierDistApi.reduce((sum, c) => sum + (c.amount || 0), 0) || 1;
+      return carrierDistApi.map((c, i) => ({
+        id: `carrier-${i}`,
+        name: c.carrier,
+        ytdTotal: "YTD Total",
+        totalCost: c.amount,
+        totalCostFormatted: `$${Number(c.amount).toLocaleString()}`,
+        percentageOfTotal: `${Math.round((c.amount / totalAmount) * 100)}%`,
+      }));
     }
+    return [];
+  }, [carrierDistApi]);
 
-    if (selectedProject !== "All") {
-      result = result.filter((r) => r.project === selectedProject);
+  const [localStatusOverrides, setLocalStatusOverrides] = useState<
+    Record<string, "Approved" | "Pending" | "Rejected">
+  >({});
+
+  const effectiveDeliveryRecords: FreightDeliveryRecord[] = useMemo(() => {
+    if (recordsApi?.rows && recordsApi.rows.length > 0) {
+      return recordsApi.rows.map((r, i) => {
+        const id = r.id || r._id || `freight-${i}`;
+        const amount = Number(r.amount ?? r.cost) || 0;
+        const rawStatus = r.approvalStatus || r.status || "Pending";
+        const status: "Approved" | "Pending" | "Rejected" =
+          rawStatus === "Approved"
+            ? "Approved"
+            : rawStatus === "Rejected"
+            ? "Rejected"
+            : "Pending";
+        return {
+          id,
+          freightId: r.freightId || (r.deliveryId ? `FRT-${r.deliveryId}` : `FRT-${1000 + i}`),
+          project: r.projectName || r.project || "-",
+          deliveryCompany: r.carrierName || r.deliveryCompany || "-",
+          deliveryId: r.deliveryId || "-",
+          date: r.date || "-",
+          cost: amount,
+          costFormatted: r.costFormatted || `$${amount.toLocaleString()}`,
+          approvalStatus: status,
+          awardedCarrier: r.carrierName || r.deliveryCompany,
+          statusText: rawStatus,
+        };
+      });
     }
+    return [];
+  }, [recordsApi]);
 
-    return result;
-  }, [deliveryRecords, searchTerm, selectedProject]);
-
-  const displayRows = useMemo(() => {
-    const start = (currentPage - 1) * rowsPerPage;
-    return filteredRecords.slice(start, start + rowsPerPage);
-  }, [filteredRecords, currentPage, rowsPerPage]);
+  const displayRows: FreightDeliveryRecord[] = useMemo(() => {
+    return effectiveDeliveryRecords.map((r) => {
+      const override = localStatusOverrides[r.id];
+      return override ? { ...r, approvalStatus: override } : r;
+    });
+  }, [effectiveDeliveryRecords, localStatusOverrides]);
 
   const handleExport = (type: string) => {
     setIsExportMenuOpen(false);
     if (type === "csv") {
       const headers = "Freight ID,Project,Delivery Company,Delivery ID,Date,Cost,Approval Status\n";
-      const rows = deliveryRecords
+      const rows = displayRows
         .map(
           (c) =>
             `"${c.freightId}","${c.project}","${c.deliveryCompany}","${c.deliveryId}","${c.date}","${c.costFormatted}","${c.approvalStatus}"`,
@@ -427,11 +192,7 @@ export const FreightCostPage: React.FC = () => {
 
   // Modal actions
   const handleApprove = (record: FreightDeliveryRecord) => {
-    setDeliveryRecords((prev) =>
-      prev.map((r) =>
-        r.id === record.id ? { ...r, approvalStatus: "Approved" } : r,
-      ),
-    );
+    setLocalStatusOverrides((prev) => ({ ...prev, [record.id]: "Approved" }));
     setSelectedRecord(null);
     setSuccessDialogConfig({
       isOpen: true,
@@ -441,11 +202,7 @@ export const FreightCostPage: React.FC = () => {
   };
 
   const handleReject = (record: FreightDeliveryRecord) => {
-    setDeliveryRecords((prev) =>
-      prev.map((r) =>
-        r.id === record.id ? { ...r, approvalStatus: "Rejected" } : r,
-      ),
-    );
+    setLocalStatusOverrides((prev) => ({ ...prev, [record.id]: "Rejected" }));
     setSelectedRecord(null);
     setSuccessDialogConfig({
       isOpen: true,
@@ -543,9 +300,13 @@ export const FreightCostPage: React.FC = () => {
             </div>
           </div>
           <div className="mt-4">
-            <div className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              {kpiData.totalFreightCost}
-            </div>
+            {isSummaryLoading ? (
+              <Skeleton className="h-8 w-28 bg-white/30 rounded" />
+            ) : (
+              <div className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+                {kpiData.totalFreightCost}
+              </div>
+            )}
             <p className="text-xs text-blue-100 font-medium mt-2">
               {kpiData.totalFreightCostSubtitle}
             </p>
@@ -563,9 +324,13 @@ export const FreightCostPage: React.FC = () => {
             </div>
           </div>
           <div className="mt-4">
-            <div className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              {kpiData.activeCarriers}
-            </div>
+            {isSummaryLoading ? (
+              <Skeleton className="h-8 w-16 bg-white/30 rounded" />
+            ) : (
+              <div className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+                {kpiData.activeCarriers}
+              </div>
+            )}
             <p className="text-xs text-emerald-100 font-medium mt-2">
               {kpiData.activeCarriersSubtitle}
             </p>
@@ -583,9 +348,13 @@ export const FreightCostPage: React.FC = () => {
             </div>
           </div>
           <div className="mt-4">
-            <div className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              {kpiData.avgCostPerDelivery}
-            </div>
+            {isSummaryLoading ? (
+              <Skeleton className="h-8 w-24 bg-white/30 rounded" />
+            ) : (
+              <div className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+                {kpiData.avgCostPerDelivery}
+              </div>
+            )}
             <p className="text-xs text-orange-100 font-medium mt-2">
               {kpiData.avgCostPerDeliverySubtitle}
             </p>
@@ -603,9 +372,13 @@ export const FreightCostPage: React.FC = () => {
             </div>
           </div>
           <div className="mt-4">
-            <div className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              {kpiData.pendingInvoices}
-            </div>
+            {isSummaryLoading ? (
+              <Skeleton className="h-8 w-16 bg-white/30 rounded" />
+            ) : (
+              <div className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+                {kpiData.pendingInvoices}
+              </div>
+            )}
             <p className="text-xs text-amber-100 font-medium mt-2">
               {kpiData.pendingInvoicesSubtitle}
             </p>
@@ -627,74 +400,82 @@ export const FreightCostPage: React.FC = () => {
           </div>
 
           <div className="h-72 w-full mt-6">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart
-                data={trendData}
-                margin={{ top: 20, right: 20, left: 0, bottom: 25 }}
-              >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  vertical={false}
-                  stroke="#F1F5F9"
-                />
-                <XAxis
-                  dataKey="month"
-                  axisLine={{ stroke: "#E2E8F0" }}
-                  tickLine={false}
-                  tick={{ fill: "#64748B", fontSize: 11 }}
-                  dy={8}
-                />
-                <YAxis
-                  yAxisId="cost"
-                  domain={[0, 80000]}
-                  ticks={[0, 20000, 40000, 60000, 80000]}
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: "#64748B", fontSize: 11 }}
-                />
-                <YAxis yAxisId="deliveries" domain={[0, 40]} hide />
-                <Tooltip
-                  content={({ active, payload, label }) => {
-                    if (active && payload && payload.length) {
-                      return (
-                        <div className="bg-slate-900 text-white rounded-lg p-2.5 text-xs shadow-xl border border-slate-800 space-y-1">
-                          <p className="font-semibold text-slate-300">
-                            {label}
-                          </p>
-                          <p className="text-[#3B82F6]">
-                            Freight Cost: ${payload[0]?.value?.toLocaleString()}
-                          </p>
-                          <p className="text-[#22C55E]">
-                            Deliveries: {payload[1]?.value}
-                          </p>
-                        </div>
-                      );
-                    }
-                    return null;
-                  }}
-                />
-                {/* Freight Cost Line with dot markers */}
-                <Line
-                  yAxisId="cost"
-                  type="monotone"
-                  dataKey="cost"
-                  stroke="#2E5BFF"
-                  strokeWidth={2.5}
-                  dot={{ r: 5, fill: "#2E5BFF", strokeWidth: 0 }}
-                  activeDot={{ r: 7 }}
-                />
-                {/* Deliveries volume Line */}
-                <Line
-                  yAxisId="deliveries"
-                  type="monotone"
-                  dataKey="deliveries"
-                  stroke="#22C55E"
-                  strokeWidth={2.5}
-                  dot={{ r: 5, fill: "#22C55E", strokeWidth: 0 }}
-                  activeDot={{ r: 7 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            {isTrendLoading ? (
+              <div className="h-full w-full flex items-center justify-center">
+                <Skeleton className="h-64 w-full rounded-xl" />
+              </div>
+            ) : trendData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={trendData}
+                  margin={{ top: 20, right: 20, left: 0, bottom: 25 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    vertical={false}
+                    stroke="#F1F5F9"
+                  />
+                  <XAxis
+                    dataKey="month"
+                    axisLine={{ stroke: "#E2E8F0" }}
+                    tickLine={false}
+                    tick={{ fill: "#64748B", fontSize: 11 }}
+                    dy={8}
+                  />
+                  <YAxis
+                    yAxisId="cost"
+                    domain={[0, 80000]}
+                    ticks={[0, 20000, 40000, 60000, 80000]}
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: "#64748B", fontSize: 11 }}
+                  />
+                  <YAxis yAxisId="deliveries" domain={[0, 40]} hide />
+                  <Tooltip
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="bg-slate-900 text-white rounded-lg p-2.5 text-xs shadow-xl border border-slate-800 space-y-1">
+                            <p className="font-semibold text-slate-300">
+                              {label}
+                            </p>
+                            <p className="text-[#3B82F6]">
+                              Freight Cost: ${payload[0]?.value?.toLocaleString()}
+                            </p>
+                            <p className="text-[#22C55E]">
+                              Deliveries: {payload[1]?.value}
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Line
+                    yAxisId="cost"
+                    type="monotone"
+                    dataKey="cost"
+                    stroke="#2E5BFF"
+                    strokeWidth={2.5}
+                    dot={{ r: 5, fill: "#2E5BFF", strokeWidth: 0 }}
+                    activeDot={{ r: 7 }}
+                  />
+                  <Line
+                    yAxisId="deliveries"
+                    type="monotone"
+                    dataKey="deliveries"
+                    stroke="#22C55E"
+                    strokeWidth={2.5}
+                    dot={{ r: 5, fill: "#22C55E", strokeWidth: 0 }}
+                    activeDot={{ r: 7 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-xs text-slate-400">
+                No monthly trend data recorded.
+              </div>
+            )}
           </div>
 
           {/* Custom Legend underneath chart matching image */}
@@ -752,7 +533,7 @@ export const FreightCostPage: React.FC = () => {
                   width={110}
                 />
                 <Tooltip
-                  formatter={(val?: any) => [
+                  formatter={(val) => [
                     `$${Number(val || 0).toLocaleString()}`,
                     "Freight Cost",
                   ]}
@@ -762,8 +543,14 @@ export const FreightCostPage: React.FC = () => {
                   dataKey="amount"
                   radius={[0, 8, 8, 0]}
                   fill="#3B82F6"
-                  shape={(props: any) => {
-                    const { x, y, width, height, index } = props;
+                  shape={(props: unknown) => {
+                    const { x, y, width, height, index } = props as {
+                      x: number;
+                      y: number;
+                      width: number;
+                      height: number;
+                      index: number;
+                    };
                     const shades = [
                       "#2E5BFF",
                       "#5B84F6",
@@ -799,15 +586,32 @@ export const FreightCostPage: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {carrierAnalysisData.map((carrier) => (
-            <div
-              key={carrier.id}
-              className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-2xs hover:shadow-sm transition-shadow flex flex-col justify-between"
-            >
+          {isDistributionLoading ? (
+            Array.from({ length: 4 }).map((_, i) => (
+              <div key={`carrier-skel-${i}`} className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-2xs space-y-3">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="w-10 h-10 rounded-xl" />
+                  <div className="space-y-1">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-3 w-16" />
+                  </div>
+                </div>
+                <div className="pt-2">
+                  <Skeleton className="h-6 w-20" />
+                  <Skeleton className="h-3 w-28 mt-1.5" />
+                </div>
+              </div>
+            ))
+          ) : carrierAnalysisData.length > 0 ? (
+            carrierAnalysisData.map((carrier) => (
+              <div
+                key={carrier.id}
+                className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-2xs hover:shadow-sm transition-shadow flex flex-col justify-between"
+              >
               {/* Carrier Header with Blue Icon */}
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shrink-0">
-                  <Truck className="w-5 h-5 stroke-[2]" />
+                  <Truck className="w-5 h-5 stroke-2" />
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-slate-900">
@@ -840,7 +644,7 @@ export const FreightCostPage: React.FC = () => {
                 </div>
               </div>
             </div>
-          ))}
+          ))) : null}
         </div>
       </div>
 
@@ -892,11 +696,12 @@ export const FreightCostPage: React.FC = () => {
                 }}
                 className="appearance-none bg-white border border-slate-200 rounded-lg pl-3 pr-8 py-1.5 text-xs text-slate-700 font-medium cursor-pointer focus:outline-none focus:border-[#1D51A4]"
               >
-                <option value="All">Project</option>
-                <option value="SMDT Warehouse">SMDT Warehouse</option>
-                <option value="Steel Unit">Steel Unit</option>
-                <option value="Industrial Shed">Industrial Shed</option>
-                <option value="Warehouse Expansion">Warehouse Expansion</option>
+                <option value="All">All Projects</option>
+                {filtersData?.projects?.map((p) => (
+                  <option key={p._id} value={p.projectName}>
+                    {p.projectName}
+                  </option>
+                ))}
               </select>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
@@ -1004,11 +809,31 @@ export const FreightCostPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs sm:text-[13px]">
-              {displayRows.map((row) => (
-                <tr
-                  key={row.id}
-                  className="hover:bg-slate-50/80 transition-colors group"
-                >
+              {isRecordsLoading ? (
+                Array.from({ length: 6 }).map((_, i) => (
+                  <tr key={`freight-skel-${i}`}>
+                    <td className="py-3.5 px-5"><Skeleton className="h-4 w-20" /></td>
+                    <td className="py-3.5 px-5"><Skeleton className="h-4 w-28" /></td>
+                    <td className="py-3.5 px-5"><Skeleton className="h-4 w-32" /></td>
+                    <td className="py-3.5 px-5"><Skeleton className="h-4 w-20" /></td>
+                    <td className="py-3.5 px-5"><Skeleton className="h-4 w-24" /></td>
+                    <td className="py-3.5 px-5"><Skeleton className="h-4 w-16" /></td>
+                    <td className="py-3.5 px-5"><Skeleton className="h-6 w-20 rounded-md" /></td>
+                    <td className="py-3.5 px-5 text-right"><Skeleton className="h-6 w-8 ml-auto rounded-md" /></td>
+                  </tr>
+                ))
+              ) : displayRows.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-12 text-center text-slate-400">
+                    No freight records found matching your criteria.
+                  </td>
+                </tr>
+              ) : (
+                displayRows.map((row) => (
+                  <tr
+                    key={row.id}
+                    className="hover:bg-slate-50/80 transition-colors group"
+                  >
                   {/* Freight ID (Blue link style) */}
                   <td className="py-3.5 px-5 font-semibold text-[#2563EB] whitespace-nowrap cursor-pointer hover:underline">
                     <span onClick={() => setSelectedRecord(row)}>
@@ -1069,7 +894,7 @@ export const FreightCostPage: React.FC = () => {
                     </button>
                   </td>
                 </tr>
-              ))}
+              )))}
             </tbody>
           </table>
         </div>
