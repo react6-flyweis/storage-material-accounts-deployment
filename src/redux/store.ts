@@ -12,6 +12,8 @@ import { customerDirectChatApi } from "./api/customerDirectChatApi";
 import { projectApi } from "./api/projectApi";
 import { marginAnalysisApi } from "./api/marginAnalysisApi";
 import { financialApi } from "./api/financialApi";
+import { reportsApi } from "./api/reportsApi";
+import { costsApi } from "./api/costsApi";
 import authReducer from "./slices/authSlice";
 import inventoryReducer from "./slices/inventorySlice";
 import maintenanceReducer from "./slices/maintenanceSlice";
@@ -40,6 +42,8 @@ export const store = configureStore({
     [projectApi.reducerPath]: projectApi.reducer,
     [marginAnalysisApi.reducerPath]: marginAnalysisApi.reducer,
     [financialApi.reducerPath]: financialApi.reducer,
+    [reportsApi.reducerPath]: reportsApi.reducer,
+    [costsApi.reducerPath]: costsApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -64,7 +68,9 @@ export const store = configureStore({
       customerDirectChatApi.middleware,
       projectApi.middleware,
       marginAnalysisApi.middleware,
-      financialApi.middleware
+      financialApi.middleware,
+      reportsApi.middleware,
+      costsApi.middleware
     ),
 });
 
