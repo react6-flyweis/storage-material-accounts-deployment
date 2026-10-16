@@ -1,186 +1,142 @@
-import React, { useState, useMemo, useRef, useEffect } from "react";
-import { ArrowLeft, Calendar as CalendarIcon, ChevronDown, ChevronUp, Search } from "lucide-react";
+import React, { useMemo } from "react";
+import { ArrowLeft, AlertCircle, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
+import { getApiErrorMessage } from "@/redux/utils/apiError";
+import {
+  useGetCostFiltersQuery,
+  useCreateSalaryRecordMutation,
+} from "@/redux/api/costsApi";
 
 interface EmployeeOption {
   id: string;
   empId: string;
   name: string;
   designation: string;
-  basicSalary: number;
-  deduction: number;
 }
 
-const EMPLOYEES: EmployeeOption[] = [
-  {
-    id: "1",
-    empId: "EMP-001",
-    name: "John Doe",
-    designation: "Production",
-    basicSalary: 40000,
-    deduction: 1000,
-  },
-  {
-    id: "2",
-    empId: "EMP-002",
-    name: "Anthony Lewis",
-    designation: "Finance",
-    basicSalary: 40000,
-    deduction: 1000,
-  },
-  {
-    id: "3",
-    empId: "EMP-003",
-    name: "Brian Villalobos",
-    designation: "Production",
-    basicSalary: 35000,
-    deduction: 1000,
-  },
-  {
-    id: "4",
-    empId: "EMP-004",
-    name: "Harvey Smith",
-    designation: "Production",
-    basicSalary: 20000,
-    deduction: 1000,
-  },
-  {
-    id: "5",
-    empId: "EMP-005",
-    name: "Stephan Peralt",
-    designation: "Executive Officer",
-    basicSalary: 22000,
-    deduction: 1000,
-  },
-  {
-    id: "6",
-    empId: "EMP-006",
-    name: "Doglas Martini",
-    designation: "Manager",
-    basicSalary: 25000,
-    deduction: 1000,
-  },
-  {
-    id: "7",
-    empId: "EMP-007",
-    name: "Linda Ray",
-    designation: "Finance",
-    basicSalary: 30000,
-    deduction: 1000,
-  },
-  {
-    id: "8",
-    empId: "EMP-008",
-    name: "Elliot Murray",
-    designation: "Production",
-    basicSalary: 35000,
-    deduction: 1000,
-  },
-  {
-    id: "9",
-    empId: "EMP-009",
-    name: "Rebecca Smtih",
-    designation: "Executive",
-    basicSalary: 45000,
-    deduction: 1000,
-  },
-  {
-    id: "10",
-    empId: "EMP-010",
-    name: "Connie Waters",
-    designation: "Production",
-    basicSalary: 50000,
-    deduction: 1000,
-  },
-];
+interface SalaryFormValues {
+  employeeId: string;
+  date: string;
+  basicSalary: number | "";
+  deduction: number | "";
+  paymentStatus: "paid" | "pending" | "";
+}
 
 export const AddSalaryPage: React.FC = () => {
   const navigate = useNavigate();
+  const { data: filtersData } = useGetCostFiltersQuery();
+  const [createSalaryRecord, { isLoading: isMutationLoading }] =
+    useCreateSalaryRecordMutation();
 
-  // State matching screenshot
-  const [selectedEmployee, setSelectedEmployee] = useState<EmployeeOption>(EMPLOYEES[0]);
-  const [date, setDate] = useState("12 Aug 2026");
-  const [basicSalary, setBasicSalary] = useState("40000");
-  const [deduction, setDeduction] = useState("1000");
-  const [paymentStatus, setPaymentStatus] = useState<"Paid" | "Unpaid">("Paid");
+  const employeeOptions = useMemo<EmployeeOption[]>(() => {
+    if (!filtersData?.employees) return [];
+    return filtersData.employees
+      .map((emp, index) => {
+        const id = String(emp._id || emp.empId || index + 1).trim();
+        const name = (emp.name || (emp as { employeeName?: string }).employeeName || "").trim();
+        return {
+          id,
+          empId: emp.empId || `EMP-${String(index + 1).padStart(3, "0")}`,
+          name,
+          designation: emp.designation || "",
+        };
+      })
+      .filter((emp) => Boolean(emp.id && emp.name));
+  }, [filtersData]);
 
-  // Dropdown menus state
-  const [isEmployeeDropdownOpen, setIsEmployeeDropdownOpen] = useState(false);
-  const [employeeSearch, setEmployeeSearch] = useState("");
-  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    setError,
+    clearErrors,
+    formState: { errors, isSubmitting },
+  } = useForm<SalaryFormValues>({
+    defaultValues: {
+      employeeId: "",
+      date: "",
+      basicSalary: "",
+      deduction: "",
+      paymentStatus: "",
+    },
+  });
 
-  const employeeDropdownRef = useRef<HTMLDivElement>(null);
-  const statusDropdownRef = useRef<HTMLDivElement>(null);
+  const selectedEmployeeId = watch("employeeId");
+  const basicSalaryVal = watch("basicSalary");
+  const deductionVal = watch("deduction");
+  const paymentStatus = watch("paymentStatus");
 
-  // Close dropdowns on outside click
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        employeeDropdownRef.current &&
-        !employeeDropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsEmployeeDropdownOpen(false);
-      }
-      if (
-        statusDropdownRef.current &&
-        !statusDropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsStatusDropdownOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  // Filtered employees for dropdown
-  const filteredEmployees = useMemo(() => {
-    if (!employeeSearch.trim()) return EMPLOYEES;
-    return EMPLOYEES.filter((emp) =>
-      emp.name.toLowerCase().includes(employeeSearch.toLowerCase())
-    );
-  }, [employeeSearch]);
-
-  // Handle employee selection
-  const handleSelectEmployee = (emp: EmployeeOption) => {
-    setSelectedEmployee(emp);
-    setBasicSalary(String(emp.basicSalary));
-    setDeduction(String(emp.deduction));
-    setIsEmployeeDropdownOpen(false);
-    setEmployeeSearch("");
-  };
+  // Selected employee resolved from options
+  const selectedEmployee = useMemo(() => {
+    if (!selectedEmployeeId) return null;
+    return employeeOptions.find((emp) => emp.id === selectedEmployeeId) || null;
+  }, [employeeOptions, selectedEmployeeId]);
 
   // Calculate Net Salary
   const netSalary = useMemo(() => {
-    const basic = parseFloat(basicSalary) || 0;
-    const ded = parseFloat(deduction) || 0;
+    const basic = Number(basicSalaryVal) || 0;
+    const ded = Number(deductionVal) || 0;
     return Math.max(0, basic - ded);
-  }, [basicSalary, deduction]);
+  }, [basicSalaryVal, deductionVal]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // In a real flow, persist to API / state / localStorage
-    const savedEntry = {
-      empId: selectedEmployee.empId,
-      name: selectedEmployee.name,
-      designation: selectedEmployee.designation,
-      date,
-      basicSalary: parseFloat(basicSalary) || 0,
-      deduction: parseFloat(deduction) || 0,
-      netSalary,
-      paymentStatus,
-    };
-
-    // Store in localStorage for persistence across pages
-    try {
-      const existing = JSON.parse(localStorage.getItem("custom_salary_entries") || "[]");
-      existing.unshift(savedEntry);
-      localStorage.setItem("custom_salary_entries", JSON.stringify(existing));
-    } catch {
-      // ignore
+  const onSubmit = async (values: SalaryFormValues) => {
+    clearErrors("root");
+    if (!selectedEmployee) {
+      setError("employeeId", { message: "Please select an employee" });
+      return;
+    }
+    if (!values.date) {
+      setError("date", { message: "Please select a date" });
+      return;
+    }
+    if (!values.paymentStatus) {
+      setError("paymentStatus", { message: "Please select a payment status" });
+      return;
     }
 
-    navigate("/cost/salary-cost");
+    const basic = Number(values.basicSalary) || 0;
+    const ded = Number(values.deduction) || 0;
+    const net = Math.max(0, basic - ded);
+
+    const payload = {
+      empId: selectedEmployee.empId,
+      employeeId: selectedEmployee.empId,
+      employeeUserId: selectedEmployee.id,
+      employeeName: selectedEmployee.name,
+      designation: selectedEmployee.designation,
+      date: values.date,
+      basicSalary: basic,
+      deductions: ded,
+      netSalary: net,
+      paymentStatus: values.paymentStatus,
+    };
+
+    try {
+      await createSalaryRecord(payload).unwrap();
+      navigate("/cost/salary-cost");
+    } catch (err) {
+      const errorMsg = getApiErrorMessage(
+        err,
+        "Failed to create salary record. Please try again.",
+      );
+      setError("root", { message: errorMsg });
+    }
   };
+
+  const isPending = isSubmitting || isMutationLoading;
 
   return (
     <div className="p-3 sm:p-6 lg:p-8 space-y-6 bg-[#EEF2FB] min-h-full">
@@ -202,270 +158,226 @@ export const AddSalaryPage: React.FC = () => {
           Basic Details
         </h2>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          {/* Submission Error Banner */}
+          {errors.root?.message && (
+            <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs sm:text-sm flex items-start gap-3 animate-in fade-in">
+              <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="font-semibold text-rose-900">Submission Error</p>
+                <p className="text-rose-700 leading-relaxed">
+                  {errors.root.message}
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Row 1: Select Employee & Date */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
             {/* Select Employee */}
-            <div className="relative" ref={employeeDropdownRef}>
-              <label className="block text-xs sm:text-sm font-semibold text-slate-900 mb-2">
+            <div className="space-y-2">
+              <Label className="text-xs sm:text-sm font-semibold text-slate-900">
                 Select Employee <span className="text-rose-500">*</span>
-              </label>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setIsEmployeeDropdownOpen(!isEmployeeDropdownOpen);
-                  setIsStatusDropdownOpen(false);
+              </Label>
+              <Select
+                value={selectedEmployeeId}
+                onValueChange={(val) => {
+                  setValue("employeeId", val, { shouldValidate: true });
                 }}
-                className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg border border-slate-200 bg-white text-xs sm:text-sm font-medium text-slate-800 hover:border-slate-300 focus:outline-none focus:border-blue-500 transition-colors cursor-pointer"
               >
-                <span>{selectedEmployee.name}</span>
-                {isEmployeeDropdownOpen ? (
-                  <ChevronUp className="w-4 h-4 text-slate-400" />
-                ) : (
-                  <ChevronDown className="w-4 h-4 text-slate-400" />
-                )}
-              </button>
-
-              {/* Employee Custom Dropdown Popover matching Image 2 */}
-              {isEmployeeDropdownOpen && (
-                <div className="absolute left-0 right-0 top-full mt-2 bg-white rounded-xl shadow-lg border border-slate-200 p-4 z-50 animate-in fade-in zoom-in-95">
-                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                    <span className="text-sm font-bold text-slate-900">
-                      Select Employee
-                    </span>
-                    <ChevronUp
-                      className="w-4 h-4 text-slate-500 cursor-pointer"
-                      onClick={() => setIsEmployeeDropdownOpen(false)}
-                    />
-                  </div>
-
-                  {/* Search Bar inside Popover */}
-                  <div className="relative my-3">
-                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    <input
-                      type="text"
-                      autoFocus
-                      value={employeeSearch}
-                      onChange={(e) => setEmployeeSearch(e.target.value)}
-                      placeholder="Search"
-                      className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-500"
-                    />
-                  </div>
-
-                  {/* Employee Items */}
-                  <div className="max-h-48 overflow-y-auto divide-y divide-slate-50 py-1">
-                    {filteredEmployees.map((emp) => (
-                      <button
-                        key={emp.id}
-                        type="button"
-                        onClick={() => handleSelectEmployee(emp)}
-                        className={`w-full py-2.5 px-3 text-center text-xs sm:text-sm font-semibold transition-colors cursor-pointer rounded-md ${
-                          selectedEmployee.id === emp.id
-                            ? "bg-slate-100 text-slate-900"
-                            : "text-slate-800 hover:bg-slate-50"
-                        }`}
-                      >
-                        {emp.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <SelectTrigger className="w-full bg-white border-slate-200 h-10">
+                  <SelectValue placeholder="Select Employee" />
+                </SelectTrigger>
+                <SelectContent>
+                  {employeeOptions.length === 0 ? (
+                    <div className="p-2 text-xs text-slate-400">
+                      No employees found
+                    </div>
+                  ) : (
+                    employeeOptions
+                      .filter((emp) => Boolean(emp.id && emp.id.trim()))
+                      .map((emp) => (
+                        <SelectItem key={emp.id} value={emp.id}>
+                          {emp.name}{" "}
+                          {emp.designation ? `(${emp.designation})` : ""}
+                        </SelectItem>
+                      ))
+                  )}
+                </SelectContent>
+              </Select>
+              {errors.employeeId && (
+                <p className="text-xs text-rose-500">
+                  {errors.employeeId.message}
+                </p>
               )}
             </div>
 
             {/* Date */}
-            <div>
-              <label className="block text-xs sm:text-sm font-semibold text-slate-900 mb-2">
+            <div className="space-y-2">
+              <Label className="text-xs sm:text-sm font-semibold text-slate-900">
                 Date <span className="text-rose-500">*</span>
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="w-full pl-4 pr-10 py-2.5 rounded-lg border border-slate-200 bg-white text-xs sm:text-sm font-medium text-slate-800 focus:outline-none focus:border-blue-500"
-                />
-                <CalendarIcon className="w-4 h-4 text-slate-500 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              </div>
+              </Label>
+              <DatePicker
+                value={watch("date")}
+                onChange={(val) => {
+                  setValue("date", val, { shouldValidate: true });
+                }}
+                placeholder="Select Date"
+              />
+              {errors.date && (
+                <p className="text-xs text-rose-500">{errors.date.message}</p>
+              )}
             </div>
           </div>
 
           {/* Row 2: Employee ID (Auto-Fill) & Designation (Auto-Fill) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
-            {/* Employee ID */}
-            <div>
-              <label className="block text-xs sm:text-sm font-semibold text-slate-900 mb-2">
-                Employee ID (Auto-Fill) <span className="text-rose-500">*</span>
-              </label>
-              <input
+            <div className="space-y-2">
+              <Label className="text-xs sm:text-sm font-semibold text-slate-900">
+                Employee ID (Auto-Fill)
+              </Label>
+              <Input
                 type="text"
                 readOnly
-                value={selectedEmployee.empId}
-                className="w-full px-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50/70 text-xs sm:text-sm font-medium text-slate-700 cursor-not-allowed focus:outline-none"
+                value={selectedEmployee?.empId || ""}
+                placeholder="Auto-filled on employee select"
+                className="bg-slate-50 border-slate-200 text-slate-700 cursor-not-allowed h-10"
               />
             </div>
 
-            {/* Designation */}
-            <div>
-              <label className="block text-xs sm:text-sm font-semibold text-slate-900 mb-2">
-                Designation (Auto-Fill) <span className="text-rose-500">*</span>
-              </label>
-              <input
+            <div className="space-y-2">
+              <Label className="text-xs sm:text-sm font-semibold text-slate-900">
+                Designation (Auto-Fill)
+              </Label>
+              <Input
                 type="text"
                 readOnly
-                value={selectedEmployee.designation}
-                className="w-full px-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50/70 text-xs sm:text-sm font-medium text-slate-700 cursor-not-allowed focus:outline-none"
+                value={selectedEmployee?.designation || ""}
+                placeholder="Auto-filled on employee select"
+                className="bg-slate-50 border-slate-200 text-slate-700 cursor-not-allowed h-10"
               />
             </div>
           </div>
 
           {/* Row 3: Basic Salary & Deduction */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
-            {/* Basic Salary */}
-            <div>
-              <label className="block text-xs sm:text-sm font-semibold text-slate-900 mb-2">
+            <div className="space-y-2">
+              <Label className="text-xs sm:text-sm font-semibold text-slate-900">
                 Basic Salary <span className="text-rose-500">*</span>
-              </label>
-              <div className="relative">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs sm:text-sm font-medium text-slate-700">
-                  $
-                </span>
-                <input
-                  type="number"
-                  required
-                  value={basicSalary}
-                  onChange={(e) => setBasicSalary(e.target.value)}
-                  className="w-full pl-7 pr-4 py-2.5 rounded-lg border border-slate-200 bg-white text-xs sm:text-sm font-medium text-slate-800 focus:outline-none focus:border-blue-500"
-                />
-              </div>
+              </Label>
+              <Input
+                type="number"
+                step="any"
+                placeholder="0.00"
+                {...register("basicSalary", {
+                  required: "Basic salary is required",
+                  valueAsNumber: true,
+                  min: { value: 0, message: "Salary must be non-negative" },
+                  onChange: () => clearErrors("root"),
+                })}
+                className="bg-white border-slate-200 h-10"
+              />
+              {errors.basicSalary && (
+                <p className="text-xs text-rose-500">
+                  {errors.basicSalary.message}
+                </p>
+              )}
             </div>
 
-            {/* Deduction */}
-            <div>
-              <label className="block text-xs sm:text-sm font-semibold text-slate-900 mb-2">
+            <div className="space-y-2">
+              <Label className="text-xs sm:text-sm font-semibold text-slate-900">
                 Deduction <span className="text-rose-500">*</span>
-              </label>
-              <div className="relative">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs sm:text-sm font-medium text-slate-700">
-                  $
-                </span>
-                <input
-                  type="number"
-                  required
-                  value={deduction}
-                  onChange={(e) => setDeduction(e.target.value)}
-                  className="w-full pl-7 pr-4 py-2.5 rounded-lg border border-slate-200 bg-white text-xs sm:text-sm font-medium text-slate-800 focus:outline-none focus:border-blue-500"
-                />
-              </div>
+              </Label>
+              <Input
+                type="number"
+                step="any"
+                placeholder="0.00"
+                {...register("deduction", {
+                  required: "Deduction is required",
+                  valueAsNumber: true,
+                  min: { value: 0, message: "Deduction must be non-negative" },
+                  onChange: () => clearErrors("root"),
+                })}
+                className="bg-white border-slate-200 h-10"
+              />
+              {errors.deduction && (
+                <p className="text-xs text-rose-500">
+                  {errors.deduction.message}
+                </p>
+              )}
             </div>
           </div>
 
           {/* Row 4: Net Salary & Payment Status */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
-            {/* Net Salary */}
-            <div>
-              <label className="block text-xs sm:text-sm font-semibold text-slate-900 mb-2">
-                Net Salary <span className="text-rose-500">*</span>
-              </label>
-              <div className="relative">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs sm:text-sm font-medium text-slate-700">
-                  $
-                </span>
-                <input
-                  type="text"
-                  readOnly
-                  value={netSalary}
-                  className="w-full pl-7 pr-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50/70 text-xs sm:text-sm font-medium text-slate-800 cursor-not-allowed focus:outline-none"
-                />
-              </div>
+            <div className="space-y-2">
+              <Label className="text-xs sm:text-sm font-semibold text-slate-900">
+                Net Salary
+              </Label>
+              <Input
+                type="text"
+                readOnly
+                value={
+                  basicSalaryVal !== "" ? `$${netSalary.toLocaleString()}` : ""
+                }
+                placeholder="$0.00"
+                className="bg-slate-50 border-slate-200 text-slate-700 cursor-not-allowed h-10"
+              />
             </div>
 
-            {/* Payment Status Dropdown */}
-            <div className="relative" ref={statusDropdownRef}>
-              <label className="block text-xs sm:text-sm font-semibold text-slate-900 mb-2">
+            <div className="space-y-2">
+              <Label className="text-xs sm:text-sm font-semibold text-slate-900">
                 Payment Status <span className="text-rose-500">*</span>
-              </label>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsStatusDropdownOpen(!isStatusDropdownOpen);
-                  setIsEmployeeDropdownOpen(false);
+              </Label>
+              <Select
+                value={paymentStatus}
+                onValueChange={(val) => {
+                  setValue("paymentStatus", val as "paid" | "pending", {
+                    shouldValidate: true,
+                  });
                 }}
-                className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg border border-slate-200 bg-white text-xs sm:text-sm font-medium text-slate-800 hover:border-slate-300 focus:outline-none focus:border-blue-500 transition-colors cursor-pointer"
               >
-                <span>{paymentStatus}</span>
-                {isStatusDropdownOpen ? (
-                  <ChevronUp className="w-4 h-4 text-slate-400" />
-                ) : (
-                  <ChevronDown className="w-4 h-4 text-slate-400" />
-                )}
-              </button>
-
-              {/* Status Popover matching Image 2 */}
-              {isStatusDropdownOpen && (
-                <div className="absolute left-0 right-0 top-full mt-2 bg-white rounded-xl shadow-lg border border-slate-200 p-4 z-50 animate-in fade-in zoom-in-95">
-                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                    <span className="text-sm font-bold text-slate-900">
-                      Payment Status
-                    </span>
-                    <ChevronUp
-                      className="w-4 h-4 text-slate-500 cursor-pointer"
-                      onClick={() => setIsStatusDropdownOpen(false)}
-                    />
-                  </div>
-
-                  <div className="py-2 space-y-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPaymentStatus("Paid");
-                        setIsStatusDropdownOpen(false);
-                      }}
-                      className={`w-full py-2.5 px-3 text-center text-xs sm:text-sm font-semibold transition-colors cursor-pointer rounded-md ${
-                        paymentStatus === "Paid"
-                          ? "bg-slate-100 text-slate-900"
-                          : "text-slate-800 hover:bg-slate-50"
-                      }`}
-                    >
-                      Paid
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPaymentStatus("Unpaid");
-                        setIsStatusDropdownOpen(false);
-                      }}
-                      className={`w-full py-2.5 px-3 text-center text-xs sm:text-sm font-semibold transition-colors cursor-pointer rounded-md ${
-                        paymentStatus === "Unpaid"
-                          ? "bg-slate-100 text-slate-900"
-                          : "text-slate-800 hover:bg-slate-50"
-                      }`}
-                    >
-                      Unpaid
-                    </button>
-                  </div>
-                </div>
+                <SelectTrigger className="w-full bg-white border-slate-200 h-10">
+                  <SelectValue placeholder="Select Payment Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="paid">Paid</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.paymentStatus && (
+                <p className="text-xs text-rose-500">
+                  {errors.paymentStatus.message}
+                </p>
               )}
             </div>
           </div>
 
           {/* Bottom Buttons: Cancel & Submit */}
           <div className="flex items-center justify-between pt-4">
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={() => navigate("/cost/salary-cost")}
-              className="px-5 py-2 rounded-lg border border-slate-200 text-xs sm:text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer bg-white"
+              className="bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
             >
               Cancel
-            </button>
+            </Button>
 
-            <button
+            <Button
               type="submit"
-              className="px-6 py-2 rounded-lg bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-xs sm:text-sm font-semibold shadow-xs transition-colors cursor-pointer"
+              disabled={isPending}
+              className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white px-6"
             >
-              Submit
-            </button>
+              {isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  <span>Submitting...</span>
+                </>
+              ) : (
+                <span>Submit</span>
+              )}
+            </Button>
           </div>
         </form>
       </div>
