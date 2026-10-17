@@ -253,8 +253,12 @@ export interface FreightTrendItem {
 export interface FreightCarrierDistributionItem {
   carrier: string;
   amount: number;
+  carrierName?: string;
+  carrierId?: string;
+  total?: number;
   deliveriesCount?: number;
   percentage?: string | number;
+  pct?: number;
 }
 
 export interface FreightDeliveryRecordItem {
@@ -824,7 +828,36 @@ export const costsApi = createApi({
         method: "GET",
         params: cleanQueryParams(params || undefined),
       }),
-      transformResponse: unwrapData<FreightCarrierDistributionItem[]>,
+      transformResponse: (
+        res: ApiResponse<unknown> | unknown
+      ): FreightCarrierDistributionItem[] => {
+        const unwrapped = unwrapData<unknown>(res);
+        let list: unknown[] = [];
+        if (Array.isArray(unwrapped)) {
+          list = unwrapped;
+        } else if (unwrapped && typeof unwrapped === "object") {
+          const obj = unwrapped as Record<string, unknown>;
+          if (Array.isArray(obj.carriers)) list = obj.carriers;
+          else if (Array.isArray(obj.distribution)) list = obj.distribution;
+          else if (Array.isArray(obj.rows)) list = obj.rows;
+          else if (Array.isArray(obj.data)) list = obj.data;
+        }
+        return list.map((item: any) => {
+          const carrier = item.carrier || item.carrierName || "Unknown Carrier";
+          const amount = Number(item.amount ?? item.total ?? 0);
+          const percentage = item.pct !== undefined ? item.pct : item.percentage;
+          return {
+            carrier,
+            carrierName: carrier,
+            carrierId: item.carrierId || item._id,
+            amount,
+            total: amount,
+            percentage,
+            pct: Number(item.pct ?? percentage) || undefined,
+            deliveriesCount: item.deliveriesCount,
+          };
+        });
+      },
       providesTags: ["FreightCarriers"],
     }),
     getFreightRecords: builder.query<FreightRecordsResponse, CostListQueryParams | void>({
