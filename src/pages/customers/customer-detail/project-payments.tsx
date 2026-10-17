@@ -228,34 +228,117 @@ export default function ProjectPaymentsPage() {
     setCurrentPage(1);
   };
 
+  // Downloading state tracking by paymentId
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
   // Helper to resolve full downloadable URL (prepending origin if relative path)
   const getFullDownloadUrl = (url?: string | null) => {
     if (!url) return "";
-    if (url.startsWith("/")) {
-      const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
-      return `${apiBaseUrl}${url}`;
-    }
-    return url;
+    if (url.startsWith("http://") || url.startsWith("https://")) return url;
+    const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
+    return `${apiBaseUrl}${url.startsWith("/") ? "" : "/"}${url}`;
   };
 
-  // Download payment receipt / invoice document handler
-  const handleDownloadInvoice = (item: ProjectPaymentRecordItem) => {
-    if (item.documentUrl) {
-      const fullUrl = getFullDownloadUrl(item.documentUrl);
-      const link = document.createElement("a");
-      link.href = fullUrl;
-      link.target = "_blank";
-      link.rel = "noopener noreferrer";
-      link.setAttribute("download", `Invoice_${item.invoiceNumber || item.paymentId}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      return;
-    }
+  // Helper to trigger saving a blob to file
+  const triggerBlobSave = (blob: Blob, filename: string) => {
+    const blobUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = blobUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(blobUrl);
+  };
 
-    const textContent = `PAYMENT RECEIPT
+  // Navigate to invoice detail page
+  const handleViewInvoiceDetail = (item: ProjectPaymentRecordItem) => {
+    const targetInvoiceId = item.invoiceId || item.invoiceNumber || item.paymentId;
+    if (!targetInvoiceId) return;
+
+    // Use current project id or location state
+    const projId = currentProjectId || locationState?.projectId || "";
+    const customerId = locationState?.customerId || "";
+
+    const navOptions = {
+      state: {
+        invoiceId: item.invoiceId,
+        invoiceNumber: item.invoiceNumber,
+        projectId: projId,
+        projectName: displayProjectName,
+        customerName: locationState?.customerName,
+        customerId: customerId,
+        payment: item,
+      },
+    };
+
+    if (projId) {
+      navigate(`/customers/projects/${projId}/project-invoices/${targetInvoiceId}`, navOptions);
+    } else {
+      navigate(`/invoices/project-invoices/${targetInvoiceId}`, navOptions);
+    }
+  };
+
+  // Download payment receipt / invoice document handler as binary blob
+  const handleDownloadInvoice = async (item: ProjectPaymentRecordItem) => {
+    const itemKey = item.paymentId || item.invoiceId;
+    setDownloadingId(itemKey);
+
+    const invoiceIdentifier = item.invoiceNumber || item.invoiceId || item.paymentId;
+    const defaultFilename = `Invoice_${invoiceIdentifier}.pdf`;
+
+    try {
+      const apiBase = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
+      const token = (await import("@/redux/store")).store.getState().auth?.accessToken;
+      const headers: Record<string, string> = {};
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      // 1. Build candidates to fetch binary
+      const candidateUrls: string[] = [];
+      if (item.documentUrl) {
+        candidateUrls.push(getFullDownloadUrl(item.documentUrl));
+      }
+      if (item.invoiceId) {
+        candidateUrls.push(`${apiBase}/api/invoices/${encodeURIComponent(item.invoiceId)}/pdf`);
+        candidateUrls.push(`${apiBase}/api/invoices/${encodeURIComponent(item.invoiceId)}/download`);
+        candidateUrls.push(`${apiBase}/api/account/invoices/${encodeURIComponent(item.invoiceId)}/pdf`);
+      }
+      if (item.paymentId) {
+        candidateUrls.push(`${apiBase}/api/account/payments/${encodeURIComponent(item.paymentId)}/receipt`);
+        candidateUrls.push(`${apiBase}/api/account/payments/${encodeURIComponent(item.paymentId)}/download`);
+      }
+
+      let downloadedBlob: Blob | null = null;
+      for (const url of candidateUrls) {
+        try {
+          const response = await fetch(url, { headers });
+          if (response.ok) {
+            downloadedBlob = await response.blob();
+            break;
+          }
+        } catch {
+          // continue to next candidate
+        }
+      }
+
+      if (downloadedBlob && downloadedBlob.size > 0) {
+        // Derive filename if documentUrl has a file extension
+        let filename = defaultFilename;
+        if (item.documentUrl) {
+          const urlParts = item.documentUrl.split("?")[0].split("/");
+          const lastPart = urlParts[urlParts.length - 1];
+          if (lastPart && lastPart.includes(".")) {
+            filename = lastPart;
+          }
+        }
+        triggerBlobSave(downloadedBlob, filename);
+        return;
+      }
+
+      // 2. Fallback: Generate receipt text file if no remote binary was retrieved
+      const textContent = `PAYMENT RECEIPT
 Payment ID: ${item.paymentId}
-Invoice: ${item.invoiceNumber || item.invoiceId}
+Invoice: ${item.invoiceNumber || item.invoiceId || "N/A"}
 Date: ${formatDisplayDate(item.date)}
 Amount: ${formatCurrency(item.amount)}
 Related To: ${item.relatedTo}
@@ -263,15 +346,17 @@ Status: ${item.status}
 Source: ${item.source || "N/A"}
 Project: ${displayProjectName}
 `;
-    const blob = new Blob([textContent], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Receipt_${item.invoiceNumber || item.paymentId}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+      const fallbackBlob = new Blob([textContent], { type: "text/plain;charset=utf-8" });
+      triggerBlobSave(fallbackBlob, `Receipt_${item.invoiceNumber || item.paymentId}.txt`);
+    } catch (error) {
+      console.error("Failed to download payment file:", error);
+      // Fallback text receipt on any unexpected error
+      const textContent = `PAYMENT RECEIPT\nPayment ID: ${item.paymentId}\nInvoice: ${item.invoiceNumber || item.invoiceId || "N/A"}\nAmount: ${formatCurrency(item.amount)}\n`;
+      const fallbackBlob = new Blob([textContent], { type: "text/plain;charset=utf-8" });
+      triggerBlobSave(fallbackBlob, `Receipt_${item.invoiceNumber || item.paymentId}.txt`);
+    } finally {
+      setDownloadingId(null);
+    }
   };
 
   // Render status badge
@@ -731,9 +816,18 @@ Project: ${displayProjectName}
                     </td>
                     <td className="px-5 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs text-slate-700">
-                          {item.invoiceNumber || "-"}
-                        </span>
+                        {item.invoiceNumber || item.invoiceId ? (
+                          <button
+                            type="button"
+                            onClick={() => handleViewInvoiceDetail(item)}
+                            className="font-mono text-xs text-slate-700 hover:text-blue-600 hover:underline cursor-pointer font-medium text-left"
+                            title="View invoice detail"
+                          >
+                            {item.invoiceNumber || item.invoiceId}
+                          </button>
+                        ) : (
+                          <span className="font-mono text-xs text-slate-700">-</span>
+                        )}
                         {item.source && (
                           <span className="text-[10px] uppercase font-semibold tracking-wider text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
                             {item.source.replace(/_/g, " ")}
@@ -745,16 +839,25 @@ Project: ${displayProjectName}
                       <div className="inline-flex items-center gap-2">
                         <Button
                           type="button"
+                          disabled={downloadingId === (item.paymentId || item.invoiceId)}
                           onClick={() => handleDownloadInvoice(item)}
-                          className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-semibold px-4 py-1.5 h-auto rounded-lg shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
+                          className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-semibold px-4 py-1.5 h-auto rounded-lg shadow-xs transition-colors cursor-pointer flex items-center gap-1.5 disabled:opacity-60"
                         >
-                          <Download className="w-3 h-3" />
-                          <span>Download</span>
+                          {downloadingId === (item.paymentId || item.invoiceId) ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <Download className="w-3 h-3" />
+                          )}
+                          <span>
+                            {downloadingId === (item.paymentId || item.invoiceId)
+                              ? "Downloading..."
+                              : "Download"}
+                          </span>
                         </Button>
                         <button
                           type="button"
-                          onClick={() => setPreviewPayment(item)}
-                          title="View payment details"
+                          onClick={() => handleViewInvoiceDetail(item)}
+                          title="View invoice details"
                           className="p-1 text-slate-800 hover:text-blue-600 transition-colors cursor-pointer"
                         >
                           <Eye className="w-4 h-4" />
@@ -922,7 +1025,7 @@ Project: ${displayProjectName}
               >
                 <Download className="w-3.5 h-3.5" />
                 <span>
-                  {previewPayment.documentUrl ? "Open Document" : "Download Receipt"}
+                  {previewPayment.documentUrl ? "Download Document" : "Download Receipt"}
                 </span>
               </Button>
             </div>
