@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import ReactDOM from "react-dom";
 import { X, Upload, ChevronDown, Loader2 } from "lucide-react";
+import ProjectSelectorDropdownModal from "@/components/common_components/ProjectSelectorDropdownModal";
 
 export interface NewMiscInvoiceData {
   invoiceNumber: string;
@@ -68,7 +69,6 @@ export const UploadMiscInvoiceDialog: React.FC<UploadMiscInvoiceDialogProps> = (
   // Dropdown states
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
-  const [showProjectDropdown, setShowProjectDropdown] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -86,7 +86,6 @@ export const UploadMiscInvoiceDialog: React.FC<UploadMiscInvoiceDialogProps> = (
     setIsDragging(false);
     setShowCategoryDropdown(false);
     setShowStatusDropdown(false);
-    setShowProjectDropdown(false);
   };
 
   const handleClose = () => {
@@ -223,54 +222,47 @@ export const UploadMiscInvoiceDialog: React.FC<UploadMiscInvoiceDialogProps> = (
             <label className="block text-xs font-semibold text-slate-800 mb-1.5">
               Project
             </label>
-            <div
-              onClick={() => {
-                setShowProjectDropdown(!showProjectDropdown);
-                setShowCategoryDropdown(false);
-                setShowStatusDropdown(false);
-              }}
-              className="w-full h-10 px-3 rounded-lg bg-slate-100 flex items-center justify-between text-xs text-slate-700 cursor-pointer border border-transparent hover:border-slate-200 transition-colors"
-            >
-              <span className="text-slate-800 font-medium truncate">
-                {selectedProjectObj ? `${selectedProjectObj.projectName} ${selectedProjectObj.jobId ? `(${selectedProjectObj.jobId})` : ""}` : "Select a project (optional)"}
-              </span>
-              <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
-            </div>
-
-            {showProjectDropdown && (
-              <div className="absolute z-30 top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-lg shadow-lg py-1 max-h-48 overflow-y-auto">
+            <ProjectSelectorDropdownModal
+              trigger={
                 <button
                   type="button"
                   onClick={() => {
-                    setSelectedProjectId("");
-                    setShowProjectDropdown(false);
+                    setShowCategoryDropdown(false);
+                    setShowStatusDropdown(false);
                   }}
-                  className="w-full text-left px-3 py-2 text-xs text-slate-500 hover:bg-slate-50 cursor-pointer"
+                  className="w-full h-10 px-3 rounded-lg bg-slate-100 flex items-center justify-between text-xs text-slate-700 cursor-pointer border border-transparent hover:border-slate-200 transition-colors"
                 >
-                  None (General Expense)
+                  <span className="text-slate-800 font-medium truncate">
+                    {selectedProjectObj
+                      ? `${selectedProjectObj.projectName} ${selectedProjectObj.jobId ? `(${selectedProjectObj.jobId})` : ""}`
+                      : "Select a project (optional)"}
+                  </span>
+                  <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
                 </button>
-                {projects.map((proj) => {
-                  const id = proj.projectId || proj.leadId || "";
-                  return (
-                    <button
-                      key={id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedProjectId(id);
-                        setShowProjectDropdown(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 text-xs cursor-pointer truncate ${
-                        selectedProjectId === id
-                          ? "bg-blue-50 text-blue-600 font-semibold"
-                          : "text-slate-700 hover:bg-slate-50"
-                      }`}
-                    >
-                      {proj.projectName} {proj.jobId ? `(${proj.jobId})` : ""}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+              }
+              selectedProjectId={selectedProjectId || undefined}
+              selectedProject={
+                selectedProjectObj
+                  ? selectedProjectObj.jobId
+                    ? `${selectedProjectObj.projectName} (${selectedProjectObj.jobId})`
+                    : selectedProjectObj.projectName
+                  : undefined
+              }
+              projects={projects.map((p) => ({
+                id: p.projectId || p.leadId || "",
+                name: p.projectName,
+                code: p.jobId,
+              }))}
+              onSelectProject={(label, leadId) => {
+                if (!leadId || label === "All Projects") {
+                  setSelectedProjectId("");
+                } else {
+                  setSelectedProjectId(leadId);
+                }
+              }}
+              align="start"
+              className="w-full"
+            />
           </div>
 
           {/* Row 4: Category & Status */}
@@ -284,7 +276,6 @@ export const UploadMiscInvoiceDialog: React.FC<UploadMiscInvoiceDialogProps> = (
                 onClick={() => {
                   setShowCategoryDropdown(!showCategoryDropdown);
                   setShowStatusDropdown(false);
-                  setShowProjectDropdown(false);
                 }}
                 className="w-full h-10 px-3 rounded-lg bg-slate-100 flex items-center justify-between text-xs text-slate-700 cursor-pointer border border-transparent hover:border-slate-200 transition-colors"
               >
@@ -324,7 +315,6 @@ export const UploadMiscInvoiceDialog: React.FC<UploadMiscInvoiceDialogProps> = (
                 onClick={() => {
                   setShowStatusDropdown(!showStatusDropdown);
                   setShowCategoryDropdown(false);
-                  setShowProjectDropdown(false);
                 }}
                 className="w-full h-10 px-3 rounded-lg bg-slate-100 flex items-center justify-between text-xs text-slate-700 cursor-pointer border border-transparent hover:border-slate-200 transition-colors"
               >
