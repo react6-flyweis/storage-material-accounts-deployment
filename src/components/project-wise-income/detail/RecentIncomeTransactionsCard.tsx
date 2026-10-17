@@ -1,182 +1,242 @@
 import React, { useState, useMemo } from "react";
 import {
-  Calendar,
   ChevronsUpDown,
   Eye,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
   Plus,
+  Search,
+  X,
+  RefreshCw,
 } from "lucide-react";
+import type {
+  ProjectWiseIncomeTransaction,
+  PaginationInfo,
+  IncomeTypeOption,
+} from "@/redux/api/reportsApi";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import AddIncomeModal from "./AddIncomeModal";
+import TransactionDetailModal from "./TransactionDetailModal";
 import SuccessModal from "@/components/common_components/SuccessModal";
+import DateRangePickerPopover from "./DateRangePickerPopover";
+import {
+  formatCurrency,
+  formatDisplayDate,
+} from "@/lib/dashboardFormatters";
 
-export interface IncomeTransaction {
-  id: string;
-  incomeType: string;
-  date: string;
-  description: string;
-  invoiceRef: string;
-  amount: string;
-  amountNum: number;
-  status: "Received" | "Pending";
+export interface RecentIncomeTransactionsCardProps {
+  projectIdOrLeadId: string;
+  transactions?: ProjectWiseIncomeTransaction[];
+  pagination?: PaginationInfo;
+  incomeTypeOptions?: IncomeTypeOption[];
+  activeTab: "all" | "received" | "pending" | "overdue";
+  onTabChange: (tab: "all" | "received" | "pending" | "overdue") => void;
+  searchTerm?: string;
+  onSearchChange?: (val: string) => void;
+  startDate?: string;
+  endDate?: string;
+  dateRangeText?: string;
+  onDateRangeChange?: (
+    startDate?: string,
+    endDate?: string,
+    displayText?: string
+  ) => void;
+  page: number;
+  onPageChange: (page: number) => void;
+  limit: number;
+  onLimitChange: (limit: number) => void;
+  isLoading?: boolean;
+  isFetching?: boolean;
+  onRefresh?: () => void;
 }
 
-const initialTransactions: IncomeTransaction[] = [
-  {
-    id: "tx-1",
-    incomeType: "Milestone Income",
-    date: "31 April 2026",
-    description: "Structure Completion - Phase 3",
-    invoiceRef: "INV-001",
-    amount: "$25,00,000",
-    amountNum: 2500000,
-    status: "Received",
-  },
-  {
-    id: "tx-2",
-    incomeType: "Advance Received",
-    date: "29 April 2026",
-    description: "Advance against PO #PO-1123",
-    invoiceRef: "INV-001",
-    amount: "$25,00,000",
-    amountNum: 2500000,
-    status: "Received",
-  },
-  {
-    id: "tx-3",
-    incomeType: "Variation Order",
-    date: "25 April 2026",
-    description: "Steel Rate Variation -Jan 2024",
-    invoiceRef: "INV-001",
-    amount: "$25,00,000",
-    amountNum: 2500000,
-    status: "Received",
-  },
-  {
-    id: "tx-4",
-    incomeType: "Milestone Income",
-    date: "25 April 2026",
-    description: "Cladding Work Completion",
-    invoiceRef: "INV-001",
-    amount: "$25,00,000",
-    amountNum: 2500000,
-    status: "Received",
-  },
-  {
-    id: "tx-5",
-    incomeType: "Claims & Adjustments",
-    date: "25 April 2026",
-    description: "Site Extra Work Claim #12",
-    invoiceRef: "INV-001",
-    amount: "$25,00,000",
-    amountNum: 2500000,
-    status: "Received",
-  },
-  // Pending items for when switching to Pending tab
-  {
-    id: "tx-6",
-    incomeType: "Milestone Income",
-    date: "10 May 2026",
-    description: "Roofing Installation Milestone",
-    invoiceRef: "INV-002",
-    amount: "$15,00,000",
-    amountNum: 1500000,
-    status: "Pending",
-  },
-  {
-    id: "tx-7",
-    incomeType: "Retention Release",
-    date: "15 June 2026",
-    description: "First Half Retention Warranty",
-    invoiceRef: "INV-003",
-    amount: "$10,00,000",
-    amountNum: 1000000,
-    status: "Pending",
-  },
-];
+type SortField =
+  | "incomeTypeLabel"
+  | "date"
+  | "description"
+  | "invoiceNumber"
+  | "amount"
+  | "status";
 
-type SortField = "incomeType" | "date" | "description" | "invoiceRef" | "amountNum";
-
-export const RecentIncomeTransactionsCard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<"Received" | "Pending">("Received");
-  const [transactions, setTransactions] = useState<IncomeTransaction[]>(
-    initialTransactions
-  );
+export const RecentIncomeTransactionsCard: React.FC<
+  RecentIncomeTransactionsCardProps
+> = ({
+  projectIdOrLeadId,
+  transactions = [],
+  pagination,
+  incomeTypeOptions,
+  activeTab,
+  onTabChange,
+  searchTerm = "",
+  onSearchChange,
+  startDate,
+  endDate,
+  dateRangeText = "",
+  onDateRangeChange,
+  page,
+  onPageChange,
+  limit,
+  onLimitChange,
+  isLoading = false,
+  isFetching = false,
+  onRefresh,
+}) => {
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [currentPage, setCurrentPage] = useState(4); // Default to page 4 to match the screenshot!
-  const [dateRangeText, setDateRangeText] = useState("01 Jan 2024 - 07 Jan 2024");
-  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [successModalTitle, setSuccessModalTitle] = useState(
     "Payment Received Added Successfully"
   );
-  const [viewTx, setViewTx] = useState<IncomeTransaction | null>(null);
+  const [viewTxId, setViewTxId] = useState<string | null>(null);
+  const [viewInvoiceNo, setViewInvoiceNo] = useState<string | undefined>(undefined);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
     } else {
       setSortField(field);
       setSortDirection("asc");
     }
   };
 
-  const filteredTransactions = useMemo(() => {
-    let result = transactions.filter((t) => t.status === activeTab);
+  const sortedTransactions = useMemo(() => {
+    if (!sortField) return transactions;
+    const sorted = [...transactions];
+    sorted.sort((a, b) => {
+      let valA: any = a[sortField];
+      let valB: any = b[sortField];
 
-    if (sortField) {
-      result.sort((a, b) => {
-        const valA = a[sortField];
-        const valB = b[sortField];
-        if (typeof valA === "string") {
-          return sortDirection === "asc"
-            ? (valA as string).localeCompare(valB as string)
-            : (valB as string).localeCompare(valA as string);
-        }
+      if (sortField === "incomeTypeLabel") {
+        valA = a.incomeTypeLabel || a.incomeType || "";
+        valB = b.incomeTypeLabel || b.incomeType || "";
+      }
+
+      if (typeof valA === "string" && typeof valB === "string") {
         return sortDirection === "asc"
-          ? (valA as number) - (valB as number)
-          : (valB as number) - (valA as number);
-      });
-    }
+          ? valA.localeCompare(valB)
+          : valB.localeCompare(valA);
+      }
+      const numA = Number(valA) || 0;
+      const numB = Number(valB) || 0;
+      return sortDirection === "asc" ? numA - numB : numB - numA;
+    });
+    return sorted;
+  }, [transactions, sortField, sortDirection]);
 
-    return result;
-  }, [transactions, activeTab, sortField, sortDirection]);
+  const totalPages = pagination?.totalPages || 1;
+  const totalEntries = pagination?.total || transactions.length;
+  const startEntry = totalEntries === 0 ? 0 : (page - 1) * limit + 1;
+  const endEntry = Math.min(startEntry + transactions.length - 1, totalEntries);
 
-  const totalDisplayPages = 15;
-
-  const handleAddTransaction = (newTx: Omit<IncomeTransaction, "id" | "amountNum">) => {
-    const created: IncomeTransaction = {
-      ...newTx,
-      id: `tx-${Date.now()}`,
-      amountNum: parseInt(newTx.amount.replace(/[^0-9]/g, ""), 10) || 0,
-    };
-    setTransactions((prev) => [created, ...prev]);
+  const handleAddSuccess = () => {
     setSuccessModalTitle(
-      newTx.status === "Received"
-        ? "Payment Received Added Successfully"
-        : "Pending Payment Added Successfully"
+      activeTab === "pending"
+        ? "Pending Payment Added Successfully"
+        : "Payment Received Added Successfully"
     );
     setIsSuccessModalOpen(true);
+    onRefresh?.();
+  };
+
+  const renderPaginationButtons = () => {
+    if (totalPages <= 1) return null;
+
+    const pageNumbers: (number | string)[] = [];
+    if (totalPages <= 5) {
+      for (let i = 1; i <= totalPages; i++) pageNumbers.push(i);
+    } else {
+      if (page <= 3) {
+        pageNumbers.push(1, 2, 3, 4, "...", totalPages);
+      } else if (page >= totalPages - 2) {
+        pageNumbers.push(1, "...", totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+      } else {
+        pageNumbers.push(1, "...", page - 1, page, page + 1, "...", totalPages);
+      }
+    }
+
+    return (
+      <div className="flex items-center gap-1.5 text-xs">
+        <button
+          type="button"
+          disabled={page <= 1 || isFetching}
+          onClick={() => onPageChange(Math.max(1, page - 1))}
+          className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+          aria-label="Previous page"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+
+        {pageNumbers.map((p, idx) => {
+          if (p === "...") {
+            return (
+              <span key={`ellipsis-${idx}`} className="text-slate-400 px-1 select-none">
+                ...
+              </span>
+            );
+          }
+          const isCurrent = p === page;
+          return (
+            <button
+              key={`page-${p}`}
+              type="button"
+              disabled={isFetching}
+              onClick={() => onPageChange(p as number)}
+              className={`w-6 h-6 rounded-full text-xs transition-colors flex items-center justify-center cursor-pointer ${
+                isCurrent
+                  ? "bg-[#2563EB] text-white font-bold shadow-xs"
+                  : "text-slate-600 hover:bg-slate-100 font-medium"
+              }`}
+            >
+              {p}
+            </button>
+          );
+        })}
+
+        <button
+          type="button"
+          disabled={page >= totalPages || isFetching}
+          onClick={() => onPageChange(Math.min(totalPages, page + 1))}
+          className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+          aria-label="Next page"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+    );
   };
 
   return (
     <div className="space-y-4">
       {/* Top Filter Tabs & Action Button Row */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        {/* Tabs: Received / Pending */}
+        {/* Tabs: All at first pos, followed by Received, Pending, Overdue */}
         <div className="flex items-center gap-6 border-b border-transparent">
           <button
             type="button"
             onClick={() => {
-              setActiveTab("Received");
-              setCurrentPage(4);
+              onTabChange("all");
+              onPageChange(1);
             }}
             className={`pb-2 text-sm font-semibold transition-colors cursor-pointer border-b-2 ${
-              activeTab === "Received"
+              activeTab === "all"
+                ? "text-[#2563EB] border-[#2563EB]"
+                : "text-slate-500 border-transparent hover:text-slate-800"
+            }`}
+          >
+            All
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              onTabChange("received");
+              onPageChange(1);
+            }}
+            className={`pb-2 text-sm font-semibold transition-colors cursor-pointer border-b-2 ${
+              activeTab === "received"
                 ? "text-[#2563EB] border-[#2563EB]"
                 : "text-slate-500 border-transparent hover:text-slate-800"
             }`}
@@ -186,82 +246,95 @@ export const RecentIncomeTransactionsCard: React.FC = () => {
           <button
             type="button"
             onClick={() => {
-              setActiveTab("Pending");
-              setCurrentPage(1);
+              onTabChange("pending");
+              onPageChange(1);
             }}
             className={`pb-2 text-sm font-semibold transition-colors cursor-pointer border-b-2 ${
-              activeTab === "Pending"
+              activeTab === "pending"
                 ? "text-[#2563EB] border-[#2563EB]"
                 : "text-slate-500 border-transparent hover:text-slate-800"
             }`}
           >
             Pending
           </button>
+          <button
+            type="button"
+            onClick={() => {
+              onTabChange("overdue");
+              onPageChange(1);
+            }}
+            className={`pb-2 text-sm font-semibold transition-colors cursor-pointer border-b-2 ${
+              activeTab === "overdue"
+                ? "text-[#2563EB] border-[#2563EB]"
+                : "text-slate-500 border-transparent hover:text-slate-800"
+            }`}
+          >
+            Overdue
+          </button>
         </div>
 
-        {/* Action Button: + Add Received / Pending Payment */}
-        <button
+        {/* Action Button: single Plus icon, no duplicate plus in text */}
+        <Button
           type="button"
           onClick={() => setIsAddModalOpen(true)}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs sm:text-sm font-semibold transition-colors shadow-xs cursor-pointer"
+          className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs sm:text-sm font-semibold h-9 px-4 rounded-lg shadow-xs cursor-pointer flex items-center gap-1.5"
         >
           <Plus className="w-4 h-4" />
-          <span>
-            + Add {activeTab === "Received" ? "Received Payment" : "Pending Payment"}
-          </span>
-        </button>
+          <span>Add {activeTab === "pending" ? "Pending Payment" : "Received Income"}</span>
+        </Button>
       </div>
 
       {/* Table Card */}
       <div className="bg-white rounded-xl shadow-xs border border-slate-100 overflow-hidden">
-        {/* Card Header */}
-        <div className="p-4 sm:p-5 flex items-center justify-between flex-wrap gap-3 border-b border-slate-100">
-          <h3 className="font-bold text-slate-800 text-sm sm:text-base">
-            Recent Income Transactions
-          </h3>
-
-          {/* Date Range Selector */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setIsDatePickerOpen(!isDatePickerOpen)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
-            >
-              <Calendar className="w-3.5 h-3.5 text-slate-500" />
-              <span>{dateRangeText}</span>
-            </button>
-
-            {isDatePickerOpen && (
-              <div className="absolute right-0 mt-1 w-64 bg-white rounded-xl shadow-xl border border-slate-200 p-3 z-30 space-y-2">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-                  Select Date Range
-                </span>
-                <div className="space-y-1">
-                  {[
-                    "01 Jan 2024 - 07 Jan 2024",
-                    "08 Jan 2024 - 14 Jan 2024",
-                    "01 Dec 2023 - 31 Dec 2023",
-                    "01 Nov 2023 - 30 Nov 2023",
-                  ].map((range) => (
-                    <button
-                      key={range}
-                      type="button"
-                      onClick={() => {
-                        setDateRangeText(range);
-                        setIsDatePickerOpen(false);
-                      }}
-                      className={`w-full text-left px-2.5 py-1.5 rounded-md text-xs transition-colors cursor-pointer ${
-                        dateRangeText === range
-                          ? "bg-blue-50 text-blue-600 font-semibold"
-                          : "text-slate-700 hover:bg-slate-50"
-                      }`}
-                    >
-                      {range}
-                    </button>
-                  ))}
-                </div>
-              </div>
+        {/* Card Header with Search & Date Range */}
+        <div className="p-4 sm:p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <h3 className="font-bold text-slate-800 text-sm sm:text-base">
+              Recent Income Transactions
+            </h3>
+            {isFetching && !isLoading && (
+              <RefreshCw className="w-4 h-4 text-blue-500 animate-spin" />
             )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Search Input using shadcn Input */}
+            <div className="relative min-w-50 sm:min-w-60">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => {
+                  onSearchChange?.(e.target.value);
+                  onPageChange(1);
+                }}
+                placeholder="Search Invoice #, description..."
+                className="h-8 pl-9 pr-8 text-xs bg-white border-slate-200"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onSearchChange?.("");
+                    onPageChange(1);
+                  }}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Date Range Selector Popover */}
+            <DateRangePickerPopover
+              startDate={startDate}
+              endDate={endDate}
+              dateRangeText={dateRangeText}
+              onApply={(start, end, text) => {
+                onDateRangeChange?.(start, end, text);
+                onPageChange(1);
+              }}
+            />
           </div>
         </div>
 
@@ -272,7 +345,7 @@ export const RecentIncomeTransactionsCard: React.FC = () => {
               <tr className="border-b border-slate-100 bg-[#F8FAFC] text-[11px] sm:text-xs text-slate-700 font-semibold">
                 {/* Income Type */}
                 <th
-                  onClick={() => handleSort("incomeType")}
+                  onClick={() => handleSort("incomeTypeLabel")}
                   className="px-5 py-3.5 cursor-pointer select-none hover:bg-slate-100/60 transition-colors"
                 >
                   <div className="flex items-center gap-1.5">
@@ -305,7 +378,7 @@ export const RecentIncomeTransactionsCard: React.FC = () => {
 
                 {/* Invoice / Ref No. */}
                 <th
-                  onClick={() => handleSort("invoiceRef")}
+                  onClick={() => handleSort("invoiceNumber")}
                   className="px-5 py-3.5 cursor-pointer select-none hover:bg-slate-100/60 transition-colors"
                 >
                   <div className="flex items-center gap-1.5">
@@ -316,7 +389,7 @@ export const RecentIncomeTransactionsCard: React.FC = () => {
 
                 {/* Amount */}
                 <th
-                  onClick={() => handleSort("amountNum")}
+                  onClick={() => handleSort("amount")}
                   className="px-5 py-3.5 cursor-pointer select-none hover:bg-slate-100/60 transition-colors"
                 >
                   <div className="flex items-center gap-1.5">
@@ -331,62 +404,86 @@ export const RecentIncomeTransactionsCard: React.FC = () => {
                 </th>
 
                 {/* Action */}
-                <th className="px-5 py-3.5 select-none">
+                <th className="px-5 py-3.5 select-none text-right">
                   <span>Action</span>
                 </th>
               </tr>
             </thead>
 
             <tbody className="divide-y divide-slate-100 text-xs">
-              {filteredTransactions.length === 0 ? (
+              {isLoading ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-8 text-slate-400">
+                  <td colSpan={7} className="text-center py-12 text-slate-400">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <RefreshCw className="w-6 h-6 animate-spin text-blue-600" />
+                      <span>Loading transactions...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : sortedTransactions.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="text-center py-10 text-slate-400">
                     No transactions found for {activeTab}
                   </td>
                 </tr>
               ) : (
-                filteredTransactions.map((tx) => (
+                sortedTransactions.map((tx) => (
                   <tr
-                    key={tx.id}
+                    key={tx.transactionId}
                     className="hover:bg-slate-50/60 transition-colors"
                   >
                     {/* Income Type */}
                     <td className="px-5 py-4 font-semibold text-[#2563EB]">
-                      {tx.incomeType}
+                      {tx.incomeTypeLabel || tx.incomeType || "-"}
                     </td>
 
                     {/* Date */}
-                    <td className="px-5 py-4 text-slate-700">{tx.date}</td>
+                    <td className="px-5 py-4 text-slate-700">
+                      {formatDisplayDate(tx.date)}
+                    </td>
 
                     {/* Description */}
-                    <td className="px-5 py-4 text-slate-600">
-                      {tx.description}
+                    <td className="px-5 py-4 text-slate-600 max-w-xs truncate">
+                      {tx.description || "-"}
                     </td>
 
                     {/* Invoice / Ref No. */}
                     <td className="px-5 py-4 font-semibold text-[#16A34A]">
-                      {tx.invoiceRef}
+                      {tx.invoiceNumber || "-"}
                     </td>
 
                     {/* Amount */}
                     <td className="px-5 py-4 font-semibold text-[#2563EB]">
-                      {tx.amount}
+                      {formatCurrency(tx.amount)}
                     </td>
 
                     {/* Status Badge */}
                     <td className="px-5 py-4">
-                      <span className="inline-block px-2.5 py-1 rounded-md text-[11px] font-semibold border border-slate-200 bg-slate-50 text-slate-700">
-                        {tx.status}
-                      </span>
+                      <Badge
+                        variant="outline"
+                        className={`text-[11px] font-semibold border ${
+                          (tx.status || "").toLowerCase() === "received" ||
+                          tx.invoiceStatus === "paid"
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                            : (tx.status || "").toLowerCase() === "pending"
+                            ? "border-amber-200 bg-amber-50 text-amber-700"
+                            : "border-slate-200 bg-slate-50 text-slate-700"
+                        }`}
+                      >
+                        {tx.status || tx.invoiceStatus || "-"}
+                      </Badge>
                     </td>
 
                     {/* Action: Eye Icon Button */}
-                    <td className="px-5 py-4">
+                    <td className="px-5 py-4 text-right">
                       <button
                         type="button"
-                        onClick={() => setViewTx(tx)}
-                        aria-label={`View transaction ${tx.invoiceRef}`}
-                        className="w-7 h-7 rounded border border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                        onClick={() => {
+                          setViewTxId(tx.transactionId);
+                          setViewInvoiceNo(tx.invoiceNumber);
+                        }}
+                        aria-label={`View transaction ${tx.invoiceNumber || tx.transactionId}`}
+                        className="w-7 h-7 rounded border border-slate-200 inline-flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 hover:border-slate-300 transition-colors cursor-pointer"
                       >
                         <Eye className="w-3.5 h-3.5" />
                       </button>
@@ -398,85 +495,38 @@ export const RecentIncomeTransactionsCard: React.FC = () => {
           </table>
         </div>
 
-        {/* Pagination Footer matching screenshot */}
+        {/* Pagination Footer */}
         <div className="px-5 py-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
-          {/* Left: Row Per Page [10 v] Entries */}
-          <div className="flex items-center gap-2 text-xs text-slate-500 font-normal">
-            <span>Row Per Page</span>
-            <div className="relative">
-              <select
-                value={rowsPerPage}
-                onChange={(e) => {
-                  setRowsPerPage(Number(e.target.value));
-                  setCurrentPage(1);
-                }}
-                className="appearance-none bg-white border border-slate-200 rounded-md pl-2.5 pr-6 py-1 text-xs text-slate-700 font-medium cursor-pointer focus:outline-none focus:border-blue-500"
-              >
-                <option value={10}>10</option>
-                <option value={20}>20</option>
-                <option value={50}>50</option>
-              </select>
-              <ChevronDown className="w-3 h-3 text-slate-400 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
-            <span>Entries</span>
-          </div>
-
-          {/* Right: < 1 2 3 [4] ... 15 > */}
-          <div className="flex items-center gap-1.5 text-xs">
-            <button
-              type="button"
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
-              aria-label="Previous page"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-
-            {[1, 2, 3, 4].map((page) => {
-              const isCurrent = page === currentPage;
-              return (
-                <button
-                  key={`page-${page}`}
-                  type="button"
-                  onClick={() => setCurrentPage(page)}
-                  className={`w-6 h-6 rounded-full text-xs transition-colors flex items-center justify-center cursor-pointer ${
-                    isCurrent
-                      ? "bg-[#2563EB] text-white font-bold shadow-xs"
-                      : "text-slate-600 hover:bg-slate-100 font-medium"
-                  }`}
+          {/* Left: Row Per Page and count */}
+          <div className="flex items-center gap-3 text-xs text-slate-500 font-normal">
+            <div className="flex items-center gap-2">
+              <span>Row Per Page</span>
+              <div className="relative">
+                <select
+                  value={limit}
+                  onChange={(e) => {
+                    onLimitChange(Number(e.target.value));
+                    onPageChange(1);
+                  }}
+                  className="appearance-none bg-white border border-slate-200 rounded-md pl-2.5 pr-6 py-1 text-xs text-slate-700 font-medium cursor-pointer focus:outline-none focus:border-blue-500"
                 >
-                  {page}
-                </button>
-              );
-            })}
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </select>
+                <ChevronDown className="w-3 h-3 text-slate-400 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+              <span>Entries</span>
+            </div>
 
-            <span className="text-slate-400 px-1 select-none">...</span>
-
-            <button
-              type="button"
-              onClick={() => setCurrentPage(15)}
-              className={`w-6 h-6 rounded-full text-xs transition-colors flex items-center justify-center cursor-pointer ${
-                currentPage === 15
-                  ? "bg-[#2563EB] text-white font-bold shadow-xs"
-                  : "text-slate-600 hover:bg-slate-100 font-medium"
-              }`}
-            >
-              15
-            </button>
-
-            <button
-              type="button"
-              disabled={currentPage === totalDisplayPages}
-              onClick={() =>
-                setCurrentPage((p) => Math.min(totalDisplayPages, p + 1))
-              }
-              className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
-              aria-label="Next page"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
+            <span className="hidden sm:inline text-slate-400">|</span>
+            <span className="hidden sm:inline">
+              Showing {startEntry} to {endEntry} of {totalEntries} entries
+            </span>
           </div>
+
+          {/* Right: Pagination buttons */}
+          {renderPaginationButtons()}
         </div>
       </div>
 
@@ -484,61 +534,23 @@ export const RecentIncomeTransactionsCard: React.FC = () => {
       <AddIncomeModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        onAdd={handleAddTransaction}
-        defaultType={activeTab}
+        projectIdOrLeadId={projectIdOrLeadId}
+        incomeTypeOptions={incomeTypeOptions}
+        defaultType={activeTab === "pending" ? "pending" : "received"}
+        onSuccess={handleAddSuccess}
       />
 
-      {/* View Detail Quick Modal */}
-      {viewTx && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-sm p-5 space-y-4">
-            <h4 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-2">
-              Transaction Details
-            </h4>
-            <div className="space-y-2 text-xs">
-              <div className="flex justify-between text-slate-600">
-                <span>Income Type:</span>
-                <span className="font-semibold text-slate-900">
-                  {viewTx.incomeType}
-                </span>
-              </div>
-              <div className="flex justify-between text-slate-600">
-                <span>Date:</span>
-                <span className="font-semibold text-slate-900">
-                  {viewTx.date}
-                </span>
-              </div>
-              <div className="flex justify-between text-slate-600">
-                <span>Invoice / Ref:</span>
-                <span className="font-semibold text-[#16A34A]">
-                  {viewTx.invoiceRef}
-                </span>
-              </div>
-              <div className="flex justify-between text-slate-600">
-                <span>Amount:</span>
-                <span className="font-semibold text-[#2563EB]">
-                  {viewTx.amount}
-                </span>
-              </div>
-              <div className="flex justify-between text-slate-600">
-                <span>Description:</span>
-                <span className="font-medium text-slate-700">
-                  {viewTx.description}
-                </span>
-              </div>
-            </div>
-            <div className="flex justify-end pt-2">
-              <button
-                type="button"
-                onClick={() => setViewTx(null)}
-                className="px-4 py-1.5 bg-slate-800 text-white rounded-lg text-xs font-semibold cursor-pointer"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Transaction Detail Eye Modal */}
+      <TransactionDetailModal
+        isOpen={Boolean(viewTxId)}
+        onClose={() => {
+          setViewTxId(null);
+          setViewInvoiceNo(undefined);
+        }}
+        projectIdOrLeadId={projectIdOrLeadId}
+        transactionId={viewTxId}
+        invoiceNumber={viewInvoiceNo}
+      />
 
       {/* Success Modal */}
       <SuccessModal
