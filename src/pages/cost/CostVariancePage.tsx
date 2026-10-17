@@ -10,6 +10,7 @@ import {
   FileText,
   TrendingUp,
   TrendingDown,
+  X,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -21,14 +22,24 @@ import {
   Tooltip,
 } from "recharts";
 import CalendarRangePickerModal from "@/components/common_components/CalendarRangePickerModal";
+import ProjectSelectorDropdownModal from "@/components/common_components/ProjectSelectorDropdownModal";
 import {
   useGetCostVarianceSummaryQuery,
   useGetCostVarianceAlertsQuery,
   useGetCostVarianceTrendQuery,
   useGetCostVarianceDetailsQuery,
-  useGetCostFiltersQuery,
 } from "@/redux/api/costsApi";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // --- Types ---
 export interface KpiCardData {
@@ -68,63 +79,143 @@ export interface VarianceDetailRow {
   awardedAmount: string;
   actualInvoice: string;
   variance: string;
+  rawVariance: number;
   varianceType: "over" | "under" | "exact";
   status: "Over Budget" | "Under Budget" | "On Budget";
 }
 
-
-
-
-
-
 export default function CostVariancePage() {
+  // --- Unified Filter States ---
+  // 1. Single unified search input
+  const [search, setSearch] = useState("");
+
+  // 2. Unified project selector (standard component across project)
+  const [selectedProjectLabel, setSelectedProjectLabel] =
+    useState("All Projects");
+  const [selectedLeadId, setSelectedLeadId] = useState("");
+
+  // 3. Status filter state
+  const [selectedStatus, setSelectedStatus] = useState("All Status");
+
+  // 4. Date range filter states
+  const [dateRangeStr, setDateRangeStr] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+
+  /*
+   * =========================================================================
+   * FILTERS NOT CONNECTED TO API (Documented as requested):
+   * 1. Designation (selectedDesignation):
+   *    - The backend /api/account/costs/variance endpoints do not accept a
+   *      designation parameter. Designation is specific to employee/salary costs.
+   * 2. Price Range (selectedPriceRange):
+   *    - The backend variance endpoints do not have price range filtering.
+   * 3. Sort By (selectedSort):
+   *    - The backend does not support custom variance sort ordering;
+   *      therefore, sorting is handled client-side on the records.
+   * =========================================================================
+   */
+  const [selectedSort, setSelectedSort] = useState("Sort By : Last 7 Days");
+
+  // Pagination
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Export dropdown
+  const [isExportOpen, setIsExportOpen] = useState(false);
+
+  // Query parameters connected to API
+  const queryParams = useMemo(
+    () => ({
+      search: search.trim() || undefined,
+      leadId: selectedLeadId || undefined,
+      project:
+        selectedProjectLabel !== "All Projects"
+          ? selectedProjectLabel
+          : undefined,
+      status: selectedStatus !== "All Status" ? selectedStatus : undefined,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+    }),
+    [
+      search,
+      selectedLeadId,
+      selectedProjectLabel,
+      selectedStatus,
+      startDate,
+      endDate,
+    ],
+  );
+
   // RTK Query endpoints
-  const { data: summaryData, isLoading: isSummaryLoading } = useGetCostVarianceSummaryQuery();
-  const { data: alertsData, isLoading: isAlertsLoading } = useGetCostVarianceAlertsQuery();
-  const { data: trendData, isLoading: isTrendLoading } = useGetCostVarianceTrendQuery();
-  const { data: detailsData, isLoading: isDetailsLoading } = useGetCostVarianceDetailsQuery();
-  const { data: costFilters } = useGetCostFiltersQuery();
+  const { data: summaryData, isLoading: isSummaryLoading } =
+    useGetCostVarianceSummaryQuery(queryParams);
+  const { data: alertsData, isLoading: isAlertsLoading } =
+    useGetCostVarianceAlertsQuery(queryParams);
+  const { data: trendData, isLoading: isTrendLoading } =
+    useGetCostVarianceTrendQuery(queryParams);
+  const { data: detailsData, isLoading: isDetailsLoading } =
+    useGetCostVarianceDetailsQuery(queryParams);
 
   // Normalized live records
   const varianceRows: VarianceDetailRow[] = useMemo(() => {
-    if (!detailsData?.rows) return [];
-    return detailsData.rows.map((row, idx) => ({
-      id: row._id || row.id || `row-${idx}`,
-      project: row.project || "General",
-      description: row.description || "-",
-      deliveryId: row.deliveryId || "-",
-      vendor: row.vendor || "-",
-      vendorCode: row.vendorCode || "-",
-      awardedAmount:
-        typeof row.awardedAmount === "number"
-          ? `$${row.awardedAmount.toLocaleString()}`
-          : String(row.awardedAmount || "$0"),
-      actualInvoice:
-        typeof row.actualInvoice === "number"
-          ? `$${row.actualInvoice.toLocaleString()}`
-          : String(row.actualInvoice || "$0"),
-      variance:
+    const rawRows = Array.isArray(detailsData?.rows)
+      ? detailsData.rows
+      : Array.isArray(detailsData)
+        ? detailsData
+        : [];
+    return rawRows.map((row, idx) => {
+      const rawVariance =
         typeof row.variance === "number"
-          ? (row.variance > 0
-              ? `+$${row.variance.toLocaleString()}`
-              : `$${row.variance.toLocaleString()}`)
-          : String(row.variance || "0"),
-      varianceType:
-        row.varianceType ||
-        (Number(row.variance) > 0 ? "over" : Number(row.variance) < 0 ? "under" : "exact"),
-      status:
-        (row.status as "Over Budget" | "Under Budget" | "On Budget") ||
-        (Number(row.variance) > 0
-          ? "Over Budget"
-          : Number(row.variance) < 0
-          ? "Under Budget"
-          : "On Budget"),
-    }));
+          ? row.variance
+          : Number(row.variance) || 0;
+      return {
+        id: row._id || row.id || `row-${idx}`,
+        project: row.project || "General",
+        description: row.description || "-",
+        deliveryId: row.deliveryId || "-",
+        vendor: row.vendor || "-",
+        vendorCode: row.vendorCode || "-",
+        awardedAmount:
+          typeof row.awardedAmount === "number"
+            ? `$${row.awardedAmount.toLocaleString()}`
+            : String(row.awardedAmount || "$0"),
+        actualInvoice:
+          typeof row.actualInvoice === "number"
+            ? `$${row.actualInvoice.toLocaleString()}`
+            : String(row.actualInvoice || "$0"),
+        variance:
+          rawVariance > 0
+            ? `+$${rawVariance.toLocaleString()}`
+            : `$${rawVariance.toLocaleString()}`,
+        rawVariance,
+        varianceType:
+          row.varianceType ||
+          (rawVariance > 0 ? "over" : rawVariance < 0 ? "under" : "exact"),
+        status:
+          (row.status as "Over Budget" | "Under Budget" | "On Budget") ||
+          (rawVariance > 0
+            ? "Over Budget"
+            : rawVariance < 0
+              ? "Under Budget"
+              : "On Budget"),
+      };
+    });
   }, [detailsData]);
 
   const highVarianceAlerts = useMemo(() => {
-    if (!alertsData) return [];
-    return alertsData.map((a, idx) => ({
+    const rawList = Array.isArray(alertsData)
+      ? alertsData
+      : Array.isArray((alertsData as unknown as { alerts?: unknown[] })?.alerts)
+        ? (alertsData as unknown as { alerts: unknown[] }).alerts
+        : Array.isArray((alertsData as unknown as { rows?: unknown[] })?.rows)
+          ? (alertsData as unknown as { rows: unknown[] }).rows
+          : Array.isArray((alertsData as unknown as { data?: unknown[] })?.data)
+            ? (alertsData as unknown as { data: unknown[] }).data
+            : [];
+
+    return rawList.map((a: any, idx: number) => ({
       id: a._id || a.id || `alert-${idx}`,
       title: a.title,
       subtitle: a.subtitle || a.projectName || "Cost Overrun Alert",
@@ -138,93 +229,81 @@ export default function CostVariancePage() {
           : String(a.actual || "$0"),
       variance:
         typeof a.variance === "number"
-          ? (a.variance > 0
-              ? `+$${a.variance.toLocaleString()}`
-              : `$${a.variance.toLocaleString()}`)
+          ? a.variance > 0
+            ? `+$${a.variance.toLocaleString()}`
+            : `$${a.variance.toLocaleString()}`
           : String(a.variance || "0"),
       percentageBadge: a.percentageBadge || "+0%",
     }));
   }, [alertsData]);
 
   const trendChartData: TrendChartPoint[] = useMemo(() => {
-    if (!trendData || trendData.length === 0) return [];
-    return trendData.map((pt) => ({
-      month: pt.month,
+    const rawList = Array.isArray(trendData)
+      ? trendData
+      : Array.isArray((trendData as unknown as { points?: unknown[] })?.points)
+        ? (trendData as unknown as { points: unknown[] }).points
+        : Array.isArray((trendData as unknown as { trend?: unknown[] })?.trend)
+          ? (trendData as unknown as { trend: unknown[] }).trend
+          : Array.isArray((trendData as unknown as { rows?: unknown[] })?.rows)
+            ? (trendData as unknown as { rows: unknown[] }).rows
+            : [];
+
+    return rawList.map((pt: any) => ({
+      month: pt.month || pt.label || "",
       awardedAmount: Number(pt.awardedAmount) || 0,
       actualInvoice: Number(pt.actualInvoice) || 0,
     }));
   }, [trendData]);
 
-  // --- States ---
-  const [topSearch, setTopSearch] = useState("");
-  const [selectedTopProject, setSelectedTopProject] = useState("All Projects");
-  const [selectedTopStatus, setSelectedTopStatus] = useState("All Status");
-
-  // Table filters
-  const [tableSearch, setTableSearch] = useState("");
-  const [dateRangeStr, setDateRangeStr] = useState("");
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [selectedDesignation, setSelectedDesignation] = useState("Designation");
-  const [selectedTableProject, setSelectedTableProject] = useState("Project");
-  const [selectedPriceRange, setSelectedPriceRange] = useState("$0.00 - $100+");
-  const [selectedSort, setSelectedSort] = useState("Sort By : Last 7 Days");
-
-  // Pagination
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [currentPage, setCurrentPage] = useState(1);
-
-  // Export dropdown
-  const [isExportOpen, setIsExportOpen] = useState(false);
-
-  // Filtered rows
+  // Filtered rows (client-side matching and sorting for instant reactivity)
   const filteredRows = useMemo(() => {
-    return varianceRows.filter((row) => {
-      // Top search filter
-      if (topSearch.trim()) {
-        const q = topSearch.toLowerCase();
+    let rows = varianceRows.filter((row) => {
+      // Unified search filter
+      if (search.trim()) {
+        const q = search.toLowerCase();
         const matches =
           row.description.toLowerCase().includes(q) ||
           row.vendor.toLowerCase().includes(q) ||
           row.deliveryId.toLowerCase().includes(q) ||
-          row.project.toLowerCase().includes(q);
+          row.project.toLowerCase().includes(q) ||
+          row.vendorCode.toLowerCase().includes(q);
         if (!matches) return false;
       }
 
-      // Top project filter
-      if (selectedTopProject !== "All Projects") {
-        if (row.project !== selectedTopProject) return false;
+      // Project filter
+      if (selectedProjectLabel !== "All Projects") {
+        if (
+          row.project.toLowerCase() !== selectedProjectLabel.toLowerCase() &&
+          !row.project
+            .toLowerCase()
+            .includes(selectedProjectLabel.toLowerCase())
+        ) {
+          return false;
+        }
       }
 
-      // Top status filter
-      if (selectedTopStatus !== "All Status") {
-        if (row.status !== selectedTopStatus) return false;
-      }
-
-      // Table search
-      if (tableSearch.trim()) {
-        const q = tableSearch.toLowerCase();
-        const matches =
-          row.description.toLowerCase().includes(q) ||
-          row.vendor.toLowerCase().includes(q) ||
-          row.deliveryId.toLowerCase().includes(q) ||
-          row.project.toLowerCase().includes(q);
-        if (!matches) return false;
-      }
-
-      // Table project filter
-      if (selectedTableProject !== "Project") {
-        if (row.project !== selectedTableProject) return false;
+      // Status filter
+      if (selectedStatus !== "All Status") {
+        if (row.status !== selectedStatus) return false;
       }
 
       return true;
     });
+
+    // Client-side sort handling
+    if (selectedSort === "Sort By : Highest Variance") {
+      rows = [...rows].sort((a, b) => b.rawVariance - a.rawVariance);
+    } else if (selectedSort === "Sort By : Lowest Variance") {
+      rows = [...rows].sort((a, b) => a.rawVariance - b.rawVariance);
+    }
+
+    return rows;
   }, [
     varianceRows,
-    topSearch,
-    selectedTopProject,
-    selectedTopStatus,
-    tableSearch,
-    selectedTableProject,
+    search,
+    selectedProjectLabel,
+    selectedStatus,
+    selectedSort,
   ]);
 
   const totalEntries = filteredRows.length;
@@ -236,13 +315,35 @@ export default function CostVariancePage() {
     return filteredRows.slice(startIndex, startIndex + rowsPerPage);
   }, [filteredRows, validCurrentPage, rowsPerPage]);
 
-  const startEntryIndex = totalEntries === 0 ? 0 : (validCurrentPage - 1) * rowsPerPage + 1;
+  const startEntryIndex =
+    totalEntries === 0 ? 0 : (validCurrentPage - 1) * rowsPerPage + 1;
   const endEntryIndex = Math.min(validCurrentPage * rowsPerPage, totalEntries);
 
   const handleExport = (type: "csv" | "excel" | "pdf") => {
     setIsExportOpen(false);
-    // Standard mock export action
-    alert(`Exporting ${type.toUpperCase()}...`);
+    if (type === "csv" || type === "excel") {
+      const headers =
+        "Project,Description,Delivery ID,Vendor,Vendor Code,Awarded Amount,Actual Invoice,Variance,Status\n";
+      const rows = filteredRows
+        .map(
+          (r) =>
+            `"${r.project}","${r.description}","${r.deliveryId}","${r.vendor}","${r.vendorCode}","${r.awardedAmount}","${r.actualInvoice}","${r.variance}","${r.status}"`,
+        )
+        .join("\n");
+      const blob = new Blob([headers + rows], {
+        type: "text/csv;charset=utf-8;",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute(
+        "download",
+        `Cost_Variance_Report_${new Date().toISOString().slice(0, 10)}.csv`,
+      );
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   };
 
   return (
@@ -266,7 +367,8 @@ export default function CostVariancePage() {
               </svg>
             </span>
             <span>
-              Track awarded amounts vs actual invoices and identify cost discrepancies
+              Track awarded amounts vs actual invoices and identify cost
+              discrepancies
             </span>
           </div>
         </div>
@@ -323,7 +425,9 @@ export default function CostVariancePage() {
               <Skeleton className="h-7 w-20" />
             ) : (
               <div className="text-2xl font-bold text-[#10B981] tracking-tight">
-                {summaryData?.netVariance != null ? `$${Number(summaryData.netVariance).toLocaleString()}` : "$0"}
+                {summaryData?.netVariance != null
+                  ? `$${Number(summaryData.netVariance).toLocaleString()}`
+                  : "$0"}
               </div>
             )}
             <p className="text-[11px] text-[#94A3B8] font-normal">
@@ -473,9 +577,9 @@ export default function CostVariancePage() {
 
                 {/* Red pill badge on right */}
                 <div className="self-start md:self-center">
-                  <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#FEE2E2] text-[#EF4444] border border-[#FECACA]">
+                  <Badge className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#FEE2E2] text-[#EF4444] border border-[#FECACA] hover:bg-[#FEE2E2]">
                     {alert.percentageBadge}
-                  </span>
+                  </Badge>
                 </div>
               </div>
             ))
@@ -519,7 +623,9 @@ export default function CostVariancePage() {
                   tick={{ fill: "#94A3B8", fontSize: 11 }}
                 />
                 <Tooltip
-                  formatter={(value: unknown) => [`$${Number(value || 0).toLocaleString()}`]}
+                  formatter={(value: unknown) => [
+                    `$${Number(value || 0).toLocaleString()}`,
+                  ]}
                   contentStyle={{
                     backgroundColor: "#ffffff",
                     borderRadius: "8px",
@@ -577,78 +683,64 @@ export default function CostVariancePage() {
 
       {/* ----------------- Top Controls (Search & Filters Above Table) ----------------- */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-        {/* Search Input */}
+        {/* Unified Search Input (replaces duplicate top/table search) */}
         <div className="md:col-span-6 relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
-          <input
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8] pointer-events-none" />
+          <Input
             type="text"
-            value={topSearch}
-            onChange={(e) => setTopSearch(e.target.value)}
-            placeholder="Search by description, vendor, or invoice..."
-            className="w-full pl-9.5 pr-4 py-2.5 bg-white border border-[#E2E8F0] rounded-xl text-xs md:text-sm text-[#1E293B] placeholder-[#94A3B8] shadow-xs focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setCurrentPage(1);
+            }}
+            placeholder="Search by description, vendor, delivery ID, or project..."
+            className="w-full pl-9.5 pr-4 py-2.5 h-10 bg-white border border-[#E2E8F0] rounded-xl text-xs md:text-sm text-[#1E293B] placeholder-[#94A3B8] shadow-xs focus-visible:ring-1 focus-visible:ring-blue-500"
           />
         </div>
 
-        {/* All Projects Filter */}
-        <div className="md:col-span-3 relative">
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]">
-              {/* Small cube icon matching screenshot */}
-              <svg
-                className="w-4 h-4 stroke-current fill-none"
-                viewBox="0 0 24 24"
-                strokeWidth="1.8"
+        {/* Unified Project Selector (Standard ProjectSelectorDropdownModal used across the project) */}
+        <div className="md:col-span-3">
+          <ProjectSelectorDropdownModal
+            trigger={
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full h-10 px-3 bg-white border border-[#E2E8F0] rounded-xl text-xs md:text-sm font-medium text-[#475569] hover:bg-[#F8FAFC] shadow-xs cursor-pointer flex items-center justify-between gap-2"
               >
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-                <line x1="12" y1="22.08" x2="12" y2="12" />
-              </svg>
-            </span>
-            <select
-              value={selectedTopProject}
-              onChange={(e) => setSelectedTopProject(e.target.value)}
-              className="w-full appearance-none pl-9 pr-8 py-2.5 bg-white border border-[#E2E8F0] rounded-xl text-xs md:text-sm font-medium text-[#475569] shadow-xs cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="All Projects">All Projects</option>
-              {costFilters?.projects?.map((p) => {
-                const id = p._id || p.id || "";
-                const name = p.projectName || p.name || "";
-                return (
-                  <option key={id} value={name}>
-                    {name}
-                  </option>
-                );
-              })}
-            </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8] pointer-events-none" />
-          </div>
+                <span className="truncate">{selectedProjectLabel}</span>
+                <ChevronDown className="w-4 h-4 text-[#94A3B8] shrink-0" />
+              </Button>
+            }
+            selectedProject={selectedProjectLabel}
+            selectedProjectId={selectedLeadId}
+            onSelectProject={(label, leadId) => {
+              setSelectedProjectLabel(label);
+              setSelectedLeadId(leadId || "");
+              setCurrentPage(1);
+            }}
+            align="start"
+          />
         </div>
 
-        {/* All Status Filter */}
-        <div className="md:col-span-3 relative">
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]">
-              {/* Funnel/Filter icon */}
-              <svg
-                className="w-4 h-4 stroke-current fill-none"
-                viewBox="0 0 24 24"
-                strokeWidth="1.8"
-              >
-                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-              </svg>
-            </span>
-            <select
-              value={selectedTopStatus}
-              onChange={(e) => setSelectedTopStatus(e.target.value)}
-              className="w-full appearance-none pl-9 pr-8 py-2.5 bg-white border border-[#E2E8F0] rounded-xl text-xs md:text-sm font-medium text-[#475569] shadow-xs cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="All Status">All Status</option>
-              <option value="Over Budget">Over Budget</option>
-              <option value="Under Budget">Under Budget</option>
-              <option value="On Budget">On Budget</option>
-            </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8] pointer-events-none" />
-          </div>
+        {/* Status Filter (shadcn Select component) */}
+        <div className="md:col-span-3">
+          <Select
+            value={selectedStatus}
+            onValueChange={(val) => {
+              setSelectedStatus(val);
+              setCurrentPage(1);
+            }}
+          >
+            <SelectTrigger className="w-full h-10 bg-white border border-[#E2E8F0] rounded-xl text-xs md:text-sm font-medium text-[#475569] shadow-xs">
+              <SelectValue placeholder="All Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="All Status">All Status</SelectItem>
+              <SelectItem value="Over Budget">Over Budget</SelectItem>
+              <SelectItem value="Under Budget">Under Budget</SelectItem>
+              <SelectItem value="On Budget">On Budget</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -663,119 +755,132 @@ export default function CostVariancePage() {
           {/* Action filters bar */}
           <div className="flex flex-wrap items-center gap-2">
             {/* Date range picker trigger button */}
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={() => setIsCalendarOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#E2E8F0] rounded-lg text-xs text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
+              className="inline-flex items-center gap-1.5 h-8 px-3 bg-white border border-[#E2E8F0] rounded-lg text-xs text-[#64748B] hover:bg-[#F8FAFC] cursor-pointer"
             >
               <Calendar className="w-3.5 h-3.5 text-[#94A3B8]" />
               <span>{dateRangeStr || "dd/mm/yyyy - dd/mm/yyyy"}</span>
-            </button>
+              {dateRangeStr && (
+                <span
+                  role="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDateRangeStr("");
+                    setStartDate("");
+                    setEndDate("");
+                    setCurrentPage(1);
+                  }}
+                  className="ml-1 p-0.5 hover:bg-slate-200 rounded-full text-slate-400 hover:text-slate-700"
+                >
+                  <X className="w-3 h-3" />
+                </span>
+              )}
+            </Button>
 
-            {/* Designation dropdown */}
+            {/*
+              =================================================================
+              FILTER NOT CONNECTED TO API:
+              Designation is an employee/payroll filter and is not applicable
+              to material/vendor cost variance endpoints.
+              =================================================================
+            */}
+            {/* 
             <div className="relative">
-              <select
-                value={selectedDesignation}
-                onChange={(e) => setSelectedDesignation(e.target.value)}
-                className="appearance-none pl-3 pr-7 py-1.5 bg-white border border-[#E2E8F0] rounded-lg text-xs font-medium text-[#64748B] cursor-pointer hover:bg-[#F8FAFC]"
-              >
-                <option value="Designation">Designation</option>
-                <option value="Manager">Manager</option>
-                <option value="Supervisor">Supervisor</option>
-                <option value="Coordinator">Coordinator</option>
-              </select>
-              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#94A3B8] pointer-events-none" />
+              <Select disabled value={selectedDesignation}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Designation (Not Connected)" />
+                </SelectTrigger>
+              </Select>
             </div>
+            */}
 
-            {/* Project dropdown */}
+            {/*
+              =================================================================
+              REDUNDANT DUPLICATE PROJECT SELECTOR REMOVED:
+              Previously, a second project dropdown with hardcoded names was
+              placed here. Removed in favor of the unified ProjectSelector above.
+              =================================================================
+            */}
+
+            {/*
+              =================================================================
+              FILTER NOT CONNECTED TO API:
+              Price Range filter ($0.00 - $100+, etc.) is not supported by the
+              backend variance API endpoints.
+              =================================================================
+            */}
+            {/* 
             <div className="relative">
-              <select
-                value={selectedTableProject}
-                onChange={(e) => setSelectedTableProject(e.target.value)}
-                className="appearance-none pl-3 pr-7 py-1.5 bg-white border border-[#E2E8F0] rounded-lg text-xs font-medium text-[#64748B] cursor-pointer hover:bg-[#F8FAFC]"
-              >
-                <option value="Project">Project</option>
-                <option value="SMDT Warehouse">SMDT Warehouse</option>
-                <option value="Steel Unit">Steel Unit</option>
-                <option value="Industrial Shed">Industrial Shed</option>
-                <option value="Warehouse Expansion">Warehouse Expansion</option>
-              </select>
-              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#94A3B8] pointer-events-none" />
+              <Select disabled value={selectedPriceRange}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Price Range (Not Connected)" />
+                </SelectTrigger>
+              </Select>
             </div>
+            */}
 
-            {/* Price filter dropdown */}
-            <div className="relative">
-              <select
-                value={selectedPriceRange}
-                onChange={(e) => setSelectedPriceRange(e.target.value)}
-                className="appearance-none pl-3 pr-7 py-1.5 bg-white border border-[#E2E8F0] rounded-lg text-xs font-medium text-[#64748B] cursor-pointer hover:bg-[#F8FAFC]"
-              >
-                <option value="$0.00 - $100+">$0.00 - $100+</option>
-                <option value="$1,000 - $5,000">$1,000 - $5,000</option>
-                <option value="$5,000 - $20,000">$5,000 - $20,000</option>
-              </select>
-              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#94A3B8] pointer-events-none" />
-            </div>
-
-            {/* Sort by dropdown */}
-            <div className="relative">
-              <select
-                value={selectedSort}
-                onChange={(e) => setSelectedSort(e.target.value)}
-                className="appearance-none pl-3 pr-7 py-1.5 bg-white border border-[#E2E8F0] rounded-lg text-xs font-medium text-[#64748B] cursor-pointer hover:bg-[#F8FAFC]"
-              >
-                <option value="Sort By : Last 7 Days">
+            {/* Sort by dropdown (shadcn Select - sorted client-side as API does not support variance sort) */}
+            <Select
+              value={selectedSort}
+              onValueChange={(val) => setSelectedSort(val)}
+            >
+              <SelectTrigger className="h-8 text-xs bg-white border border-[#E2E8F0] rounded-lg text-[#64748B]">
+                <SelectValue placeholder="Sort By : Last 7 Days" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Sort By : Last 7 Days">
                   Sort By : Last 7 Days
-                </option>
-                <option value="Sort By : Highest Variance">
+                </SelectItem>
+                <SelectItem value="Sort By : Highest Variance">
                   Sort By : Highest Variance
-                </option>
-                <option value="Sort By : Lowest Variance">
+                </SelectItem>
+                <SelectItem value="Sort By : Lowest Variance">
                   Sort By : Lowest Variance
-                </option>
-                <option value="Sort By : Newest">Sort By : Newest</option>
-              </select>
-              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#94A3B8] pointer-events-none" />
-            </div>
+                </SelectItem>
+                <SelectItem value="Sort By : Newest">
+                  Sort By : Newest
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
-        {/* Row count & search bar inside table */}
+        {/* Row count inside table */}
         <div className="px-5 py-3.5 flex flex-wrap items-center justify-between gap-3 text-xs text-[#64748B]">
           <div className="flex items-center gap-1.5">
             <span>Row Per Page</span>
-            <div className="relative">
-              <select
-                value={rowsPerPage}
-                onChange={(e) => {
-                  setRowsPerPage(Number(e.target.value));
-                  setCurrentPage(1);
-                }}
-                className="appearance-none bg-white border border-[#E2E8F0] rounded-md px-2 py-1 pr-6 font-semibold text-[#1E293B] cursor-pointer"
-              >
-                <option value={5}>5</option>
-                <option value={10}>10</option>
-                <option value={20}>20</option>
-              </select>
-              <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-[#94A3B8] pointer-events-none" />
-            </div>
+            <Select
+              value={String(rowsPerPage)}
+              onValueChange={(val) => {
+                setRowsPerPage(Number(val));
+                setCurrentPage(1);
+              }}
+            >
+              <SelectTrigger className="h-7 w-16 bg-white border border-[#E2E8F0] rounded-md px-2 py-1 font-semibold text-[#1E293B]">
+                <SelectValue placeholder="10" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5">5</SelectItem>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="20">20</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+              </SelectContent>
+            </Select>
             <span>Entries</span>
           </div>
 
-          {/* Quick search input */}
-          <div className="relative w-48 md:w-56">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#94A3B8]" />
-            <input
-              type="text"
-              value={tableSearch}
-              onChange={(e) => {
-                setTableSearch(e.target.value);
-                setCurrentPage(1);
-              }}
-              placeholder="Search"
-              className="w-full pl-8 pr-3 py-1 bg-white border border-[#E2E8F0] rounded-md text-xs placeholder-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
+          {/* 
+            =================================================================
+            REDUNDANT DUPLICATE SEARCH REMOVED:
+            Previously, a second search input ('tableSearch') existed here,
+            causing confusion with 'topSearch'. All search filtering is now
+            handled through the unified search input above.
+            =================================================================
+          */}
         </div>
 
         {/* ----------------- Table Component ----------------- */}
@@ -796,13 +901,27 @@ export default function CostVariancePage() {
               {isDetailsLoading ? (
                 Array.from({ length: 6 }).map((_, idx) => (
                   <tr key={`row-skel-${idx}`}>
-                    <td className="py-4 px-5"><Skeleton className="h-4 w-28" /></td>
-                    <td className="py-4 px-5"><Skeleton className="h-4 w-36" /></td>
-                    <td className="py-4 px-5"><Skeleton className="h-4 w-32" /></td>
-                    <td className="py-4 px-5"><Skeleton className="h-4 w-20" /></td>
-                    <td className="py-4 px-5"><Skeleton className="h-4 w-20" /></td>
-                    <td className="py-4 px-5"><Skeleton className="h-4 w-20" /></td>
-                    <td className="py-4 px-5"><Skeleton className="h-6 w-24 rounded-full" /></td>
+                    <td className="py-4 px-5">
+                      <Skeleton className="h-4 w-28" />
+                    </td>
+                    <td className="py-4 px-5">
+                      <Skeleton className="h-4 w-36" />
+                    </td>
+                    <td className="py-4 px-5">
+                      <Skeleton className="h-4 w-32" />
+                    </td>
+                    <td className="py-4 px-5">
+                      <Skeleton className="h-4 w-20" />
+                    </td>
+                    <td className="py-4 px-5">
+                      <Skeleton className="h-4 w-20" />
+                    </td>
+                    <td className="py-4 px-5">
+                      <Skeleton className="h-4 w-20" />
+                    </td>
+                    <td className="py-4 px-5">
+                      <Skeleton className="h-6 w-24 rounded-full" />
+                    </td>
                   </tr>
                 ))
               ) : paginatedRows.length === 0 ? (
@@ -871,19 +990,19 @@ export default function CostVariancePage() {
                     {/* Approval Status Badge */}
                     <td className="py-4 px-5">
                       {row.status === "Over Budget" && (
-                        <span className="inline-block px-3 py-1 rounded-md text-xs font-medium bg-[#FEE2E2] text-[#EF4444]">
+                        <Badge className="bg-[#FEE2E2] text-[#EF4444] border-transparent font-medium text-xs hover:bg-[#FEE2E2] rounded-md px-2.5 py-0.5">
                           Over Budget
-                        </span>
+                        </Badge>
                       )}
                       {row.status === "Under Budget" && (
-                        <span className="inline-block px-3 py-1 rounded-md text-xs font-medium bg-[#DCFCE7] text-[#10B981]">
+                        <Badge className="bg-[#DCFCE7] text-[#10B981] border-transparent font-medium text-xs hover:bg-[#DCFCE7] rounded-md px-2.5 py-0.5">
                           Under Budget
-                        </span>
+                        </Badge>
                       )}
                       {row.status === "On Budget" && (
-                        <span className="inline-block px-3 py-1 rounded-md text-xs font-medium bg-[#EFF6FF] text-[#3B82F6]">
+                        <Badge className="bg-[#EFF6FF] text-[#3B82F6] border-transparent font-medium text-xs hover:bg-[#EFF6FF] rounded-md px-2.5 py-0.5">
                           On Budget
-                        </span>
+                        </Badge>
                       )}
                     </td>
                   </tr>
@@ -896,7 +1015,8 @@ export default function CostVariancePage() {
         {/* ----------------- Table Pagination Footer ----------------- */}
         <div className="p-4 px-5 border-t border-[#F1F5F9] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#64748B]">
           <div>
-            Showing {startEntryIndex} to {endEntryIndex} of {totalEntries} entries
+            Showing {startEntryIndex} to {endEntryIndex} of {totalEntries}{" "}
+            entries
           </div>
 
           <div className="flex items-center gap-1">
@@ -964,9 +1084,7 @@ export default function CostVariancePage() {
               </button>
             )}
 
-            {totalPages > 5 && (
-              <span className="px-1 text-[#94A3B8]">...</span>
-            )}
+            {totalPages > 5 && <span className="px-1 text-[#94A3B8]">...</span>}
 
             {totalPages >= 5 && (
               <button
@@ -1001,7 +1119,10 @@ export default function CostVariancePage() {
           onClose={() => setIsCalendarOpen(false)}
           onApply={(range) => {
             if (range && range.startDate && range.endDate) {
+              setStartDate(range.startDate);
+              setEndDate(range.endDate);
               setDateRangeStr(`${range.startDate} - ${range.endDate}`);
+              setCurrentPage(1);
             }
             setIsCalendarOpen(false);
           }}
