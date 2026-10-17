@@ -1,316 +1,321 @@
-import React, { useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { ChevronDown, Calendar as CalendarIcon, X } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { useForm, Controller } from "react-hook-form";
+import { Loader2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  useAddProjectWiseIncomeReceivedMutation,
+  type IncomeTypeOption,
+  type AddProjectWiseIncomeReceivedPayload,
+} from "@/redux/api/reportsApi";
+import { formatDateToIso } from "@/lib/dashboardFormatters";
 
 export interface AddReceivedPaymentFormData {
   incomeType: string;
-  invoiceId?: string;
-  description: string;
+  invoiceNumber?: string;
+  description?: string;
   amount: string;
   date: string;
-  status: "Received" | "Pending";
+  status: "received" | "pending";
 }
 
 interface AddIncomeModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAdd: (transaction: {
-    incomeType: string;
-    date: string;
-    description: string;
-    invoiceRef: string;
-    amount: string;
-    status: "Received" | "Pending";
-  }) => void;
-  defaultType?: "Received" | "Pending";
+  projectIdOrLeadId: string;
+  incomeTypeOptions?: IncomeTypeOption[];
+  defaultType?: "received" | "pending";
+  onSuccess?: (createdTransaction?: any) => void;
 }
 
 export const AddIncomeModal: React.FC<AddIncomeModalProps> = ({
   isOpen,
   onClose,
-  onAdd,
-  defaultType = "Received",
+  projectIdOrLeadId,
+  incomeTypeOptions,
+  defaultType = "received",
+  onSuccess,
 }) => {
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [addIncome, { isLoading: isSubmitting }] =
+    useAddProjectWiseIncomeReceivedMutation();
+
+  const options = incomeTypeOptions || [];
+
   const {
     register,
     handleSubmit,
     reset,
+    control,
     watch,
     formState: { errors },
   } = useForm<AddReceivedPaymentFormData>({
     defaultValues: {
-      incomeType: "Milestone Income",
-      invoiceId: defaultType === "Received" ? "INV-0018" : "",
-      description: "Site Extra Work claim #12",
-      amount: "$5,000",
-      date: "12 April 2026",
+      incomeType: options[0]?.key || "",
+      invoiceNumber: "",
+      description: "",
+      amount: "",
+      date: formatDateToIso(new Date()),
       status: defaultType,
     },
   });
 
   const currentStatus = watch("status");
-  const isPending = currentStatus === "Pending";
+  const isPending = currentStatus === "pending";
 
   useEffect(() => {
     if (isOpen) {
+      setErrorMessage(null);
       reset({
-        incomeType: "Milestone Income",
-        invoiceId: defaultType === "Received" ? "INV-0018" : "",
-        description: "Site Extra Work claim #12",
-        amount: "$5,000",
-        date: "12 April 2026",
+        incomeType: options[0]?.key || "",
+        invoiceNumber: "",
+        description: "",
+        amount: "",
+        date: formatDateToIso(new Date()),
         status: defaultType,
       });
     }
-  }, [isOpen, defaultType, reset]);
+  }, [isOpen, defaultType, options, reset]);
 
-  if (!isOpen) return null;
+  const onFormSubmit = async (data: AddReceivedPaymentFormData) => {
+    try {
+      setErrorMessage(null);
+      const cleanAmount = parseFloat(String(data.amount).replace(/[^0-9.]/g, ""));
+      if (isNaN(cleanAmount) || cleanAmount <= 0) {
+        setErrorMessage("Please enter a valid positive amount.");
+        return;
+      }
 
-  const onFormSubmit = (data: AddReceivedPaymentFormData) => {
-    onAdd({
-      incomeType: data.incomeType,
-      date: data.date,
-      description: data.description,
-      invoiceRef: isPending
-        ? data.invoiceId || "INV-DUE"
-        : data.invoiceId || "INV-0018",
-      amount: data.amount,
-      status: data.status,
-    });
-    onClose();
+      const payload: AddProjectWiseIncomeReceivedPayload = {
+        amount: cleanAmount,
+        incomeType: data.incomeType || undefined,
+        invoiceNumber: data.invoiceNumber?.trim() || undefined,
+        description: data.description?.trim() || undefined,
+        date: data.date ? data.date : undefined,
+        status: data.status || "received",
+      };
+
+      const result = await addIncome({
+        projectIdOrLeadId,
+        body: payload,
+      }).unwrap();
+
+      onSuccess?.(result?.transaction);
+      onClose();
+    } catch (err: any) {
+      console.error("Failed to add income transaction:", err);
+      const msg =
+        err?.data?.message ||
+        err?.message ||
+        "Failed to save income payment. Please check your inputs and try again.";
+      setErrorMessage(msg);
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
-      <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-200 bg-white">
-          <h2 className="text-lg font-bold text-gray-900 leading-none">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-lg p-0 gap-0 overflow-hidden bg-white border border-slate-200 shadow-xl rounded-2xl">
+        <DialogHeader className="px-6 py-4 border-b border-slate-100 bg-white">
+          <DialogTitle className="text-lg font-bold text-slate-900">
             {isPending ? "Add Pending Payment" : "Add Received Payment"}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
-            aria-label="Close dialog"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+          </DialogTitle>
+        </DialogHeader>
 
-        {/* Modal Form with react-hook-form */}
         <form onSubmit={handleSubmit(onFormSubmit)}>
-          <div className="p-6 space-y-4">
-            {/* Row 1: If Received -> Income Type & Invoice ID; If Pending -> Income Type Full Width */}
+          <div className="p-6 space-y-4 text-xs sm:text-sm">
+            {errorMessage && (
+              <div className="p-3 rounded-lg bg-red-50 text-red-700 text-xs border border-red-200">
+                {errorMessage}
+              </div>
+            )}
+
+            {/* Row 1: Income Type and Invoice Number */}
             {isPending ? (
-              /* Pending Mode: Full Width Income Type matching image */
-              <div>
-                <label className="block text-sm font-medium text-gray-800 mb-1.5">
+              <div className="space-y-1.5">
+                <Label htmlFor="incomeType" className="text-xs font-semibold text-slate-700">
                   Income Type
-                </label>
-                <div className="relative">
-                  <select
-                    {...register("incomeType", {
-                      required: "Income type is required",
-                    })}
-                    className={`w-full h-11 px-3.5 pr-10 rounded-lg border bg-white text-sm text-gray-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 appearance-none cursor-pointer ${
-                      errors.incomeType ? "border-red-500" : "border-gray-300"
-                    }`}
-                  >
-                    <option value="Milestone Income">Milestone Income</option>
-                    <option value="Advance Received">Advance Received</option>
-                    <option value="Variation Order">Variation Order</option>
-                    <option value="Claims & Adjustments">
-                      Claims & Adjustments
-                    </option>
-                    <option value="Retention Release">Retention Release</option>
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-gray-700 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
-                {errors.incomeType && (
-                  <span className="text-[11px] text-red-500 mt-1 block">
-                    {errors.incomeType.message}
-                  </span>
-                )}
+                </Label>
+                <Controller
+                  name="incomeType"
+                  control={control}
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger id="incomeType" className="w-full h-10 text-xs sm:text-sm bg-white">
+                        <SelectValue placeholder="Select income type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {options.map((opt) => (
+                          <SelectItem key={opt.key} value={opt.key} className="text-xs sm:text-sm">
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
               </div>
             ) : (
-              /* Received Mode: 2 Columns (Income Type & Invoice ID) */
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-800 mb-1.5">
+                <div className="space-y-1.5">
+                  <Label htmlFor="incomeType" className="text-xs font-semibold text-slate-700">
                     Income Type
-                  </label>
-                  <div className="relative">
-                    <select
-                      {...register("incomeType", {
-                        required: "Income type is required",
-                      })}
-                      className={`w-full h-11 px-3.5 pr-10 rounded-lg border bg-white text-sm text-gray-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 appearance-none cursor-pointer ${
-                        errors.incomeType ? "border-red-500" : "border-gray-300"
-                      }`}
-                    >
-                      <option value="Milestone Income">Milestone Income</option>
-                      <option value="Advance Received">Advance Received</option>
-                      <option value="Variation Order">Variation Order</option>
-                      <option value="Claims & Adjustments">
-                        Claims & Adjustments
-                      </option>
-                      <option value="Retention Release">
-                        Retention Release
-                      </option>
-                    </select>
-                    <ChevronDown className="w-4 h-4 text-gray-700 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  </div>
-                  {errors.incomeType && (
-                    <span className="text-[11px] text-red-500 mt-1 block">
-                      {errors.incomeType.message}
-                    </span>
-                  )}
+                  </Label>
+                  <Controller
+                    name="incomeType"
+                    control={control}
+                    render={({ field }) => (
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger id="incomeType" className="w-full h-10 text-xs sm:text-sm bg-white">
+                          <SelectValue placeholder="Select income type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {options.map((opt) => (
+                            <SelectItem key={opt.key} value={opt.key} className="text-xs sm:text-sm">
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-800 mb-1.5">
-                    Invoice ID
-                  </label>
-                  <input
+                <div className="space-y-1.5">
+                  <Label htmlFor="invoiceNumber" className="text-xs font-semibold text-slate-700">
+                    Invoice ID <span className="text-slate-400 font-normal">(Optional)</span>
+                  </Label>
+                  <Input
+                    id="invoiceNumber"
                     type="text"
-                    placeholder="INV-0018"
-                    {...register("invoiceId", {
-                      required: "Invoice ID is required",
-                    })}
-                    className={`w-full h-11 px-3.5 rounded-lg border bg-white text-sm text-gray-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 ${
-                      errors.invoiceId ? "border-red-500" : "border-gray-300"
-                    }`}
+                    placeholder="Auto INV-#### if blank"
+                    {...register("invoiceNumber")}
+                    className="h-10 text-xs sm:text-sm bg-white"
                   />
-                  {errors.invoiceId && (
-                    <span className="text-[11px] text-red-500 mt-1 block">
-                      {errors.invoiceId.message}
-                    </span>
-                  )}
                 </div>
               </div>
             )}
 
-            {/* Row 2: Description (Full Width) */}
-            <div>
-              <label className="block text-sm font-medium text-gray-800 mb-1.5">
-                Description
-              </label>
-              <input
+            {/* Row 2: Description */}
+            <div className="space-y-1.5">
+              <Label htmlFor="description" className="text-xs font-semibold text-slate-700">
+                Description <span className="text-slate-400 font-normal">(Optional)</span>
+              </Label>
+              <Input
+                id="description"
                 type="text"
-                placeholder="Site Extra Work claim #12"
-                {...register("description", {
-                  required: "Description is required",
-                })}
-                className={`w-full h-11 px-3.5 rounded-lg border bg-white text-sm text-gray-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 ${
-                  errors.description ? "border-red-500" : "border-gray-300"
-                }`}
+                placeholder="Defaults to income type label if blank"
+                {...register("description")}
+                className="h-10 text-xs sm:text-sm bg-white"
               />
-              {errors.description && (
-                <span className="text-[11px] text-red-500 mt-1 block">
-                  {errors.description.message}
-                </span>
-              )}
             </div>
 
-            {/* Row 3: Amount & Date / Expected Due */}
+            {/* Row 3: Amount and Date */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Amount */}
-              <div>
-                <label className="block text-sm font-medium text-gray-800 mb-1.5">
-                  Amount
-                </label>
-                <input
-                  type="text"
-                  placeholder="$5,000"
+              <div className="space-y-1.5">
+                <Label htmlFor="amount" className="text-xs font-semibold text-slate-700">
+                  Amount <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="amount"
+                  type="number"
+                  step="any"
+                  min="0"
+                  placeholder="0.00"
                   {...register("amount", {
                     required: "Amount is required",
+                    validate: (val) => {
+                      const num = parseFloat(String(val).replace(/[^0-9.]/g, ""));
+                      return num > 0 || "Amount must be a positive number";
+                    },
                   })}
-                  className={`w-full h-11 px-3.5 rounded-lg border bg-white text-sm text-gray-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 ${
-                    errors.amount ? "border-red-500" : "border-gray-300"
+                  className={`h-10 text-xs sm:text-sm bg-white ${
+                    errors.amount ? "border-red-500" : ""
                   }`}
                 />
                 {errors.amount && (
-                  <span className="text-[11px] text-red-500 mt-1 block">
+                  <span className="text-[11px] text-red-500 block">
                     {errors.amount.message}
                   </span>
                 )}
               </div>
 
-              {/* Date / Expected Due */}
-              <div>
-                <label className="block text-sm font-medium text-gray-800 mb-1.5">
-                  {isPending ? "Expected Due" : "Date"}
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="12 April 2026"
-                    {...register("date", {
-                      required: isPending
-                        ? "Expected due date is required"
-                        : "Date is required",
-                    })}
-                    className={`w-full h-11 px-3.5 pr-10 rounded-lg border bg-white text-sm text-gray-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 ${
-                      errors.date ? "border-red-500" : "border-gray-300"
-                    }`}
-                  />
-                  <CalendarIcon className="w-5 h-5 text-gray-900 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none stroke-[1.75]" />
-                </div>
-                {errors.date && (
-                  <span className="text-[11px] text-red-500 mt-1 block">
-                    {errors.date.message}
-                  </span>
-                )}
+              <div className="space-y-1.5">
+                <Label htmlFor="date" className="text-xs font-semibold text-slate-700">
+                  {isPending ? "Expected Due Date" : "Date"}
+                </Label>
+                <Input
+                  id="date"
+                  type="date"
+                  {...register("date")}
+                  className="h-10 text-xs sm:text-sm bg-white"
+                />
               </div>
             </div>
 
             {/* Row 4: Status */}
-            <div>
-              <label className="block text-sm font-medium text-gray-800 mb-1.5">
+            <div className="space-y-1.5">
+              <Label htmlFor="status" className="text-xs font-semibold text-slate-700">
                 Status
-              </label>
-              <div className="relative">
-                <select
-                  {...register("status", {
-                    required: "Status is required",
-                  })}
-                  className={`w-full h-11 px-3.5 pr-10 rounded-lg border bg-white text-sm text-gray-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 appearance-none cursor-pointer ${
-                    errors.status ? "border-red-500" : "border-gray-300"
-                  }`}
-                >
-                  <option value="Received">Received</option>
-                  <option value="Pending">Pending</option>
-                </select>
-                <ChevronDown className="w-4 h-4 text-gray-700 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              </div>
-              {errors.status && (
-                <span className="text-[11px] text-red-500 mt-1 block">
-                  {errors.status.message}
-                </span>
-              )}
+              </Label>
+              <Controller
+                name="status"
+                control={control}
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger id="status" className="w-full h-10 text-xs sm:text-sm bg-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="received" className="text-xs sm:text-sm">
+                        Received (creates paid invoice)
+                      </SelectItem>
+                      <SelectItem value="pending" className="text-xs sm:text-sm">
+                        Pending
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
             </div>
           </div>
 
-          {/* Modal Footer */}
-          <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-end gap-3 bg-white">
-            <button
+          <DialogFooter className="px-6 py-3.5 border-t border-slate-100 bg-slate-50/50 flex sm:justify-end gap-2.5">
+            <Button
               type="button"
+              variant="outline"
               onClick={onClose}
-              className="px-6 py-2.5 rounded-lg bg-[#ECEEF1] hover:bg-gray-200 text-sm font-medium text-gray-800 transition-colors cursor-pointer"
+              disabled={isSubmitting}
+              className="text-xs sm:text-sm h-9 px-5 cursor-pointer"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
-              className="px-8 py-2.5 rounded-lg bg-[#1E64EB] hover:bg-blue-700 text-sm font-medium text-white transition-colors shadow-xs cursor-pointer"
+              disabled={isSubmitting}
+              className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs sm:text-sm h-9 px-6 font-semibold cursor-pointer shadow-xs"
             >
-              Save
-            </button>
-          </div>
+              {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />}
+              <span>{isSubmitting ? "Saving..." : "Save"}</span>
+            </Button>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 

@@ -16,6 +16,7 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -28,7 +29,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import ProjectSelectorDropdownModal from "@/components/common_components/ProjectSelectorDropdownModal";
 import SuccessModal from "@/components/common_components/SuccessModal";
+import { getProjectDisplayName } from "@/lib/projectUtils";
+import { useGetBudgetVsActualProjectsQuery } from "@/redux/api/financialApi";
 import PaymentApprovalDetailsModal, {
   type PaymentApprovalItem,
   type ApprovalStatus,
@@ -104,7 +108,7 @@ function mapApiItemToUi(item: PaymentApprovalApiItem): PaymentApprovalItem {
     invoiceType,
     companyName: item.companyName,
     invoiceNumber: item.invoiceNumber,
-    project: item.project?.projectName ?? "",
+    project: item.project ? getProjectDisplayName(item.project) : "",
     amount: `$${item.amount?.toLocaleString()}`,
     rawAmount: item.amount,
     dueDate: formatted,
@@ -140,6 +144,20 @@ const PaymentApprovalsPage = () => {
 
   // 3.1 Filters (projects, payeeTypes, statuses, workflowStages)
   const { data: filtersData } = useGetPaymentApprovalFiltersQuery();
+  const { data: budgetProjects = [] } = useGetBudgetVsActualProjectsQuery();
+
+  const selectedProjectLabel = useMemo(() => {
+    if (!projectFilter || projectFilter === "All") return "All Projects";
+    const matched =
+      budgetProjects.find((p) => p._id === projectFilter) ||
+      filtersData?.projects?.find((p) => p.leadId === projectFilter);
+    if (matched) {
+      const pName = getProjectDisplayName(matched);
+      const pJob = "jobId" in matched ? matched.jobId : "";
+      return pJob ? `${pName} (${pJob})` : pName;
+    }
+    return projectFilter;
+  }, [projectFilter, budgetProjects, filtersData?.projects]);
 
   // 3.6 Export
   const [exportPaymentApprovals, { isLoading: isExporting }] =
@@ -458,35 +476,28 @@ const PaymentApprovalsPage = () => {
             </SelectContent>
           </Select>
 
-          {/* Project Dropdown */}
-          <Select value={projectFilter} onValueChange={handleProjectChange}>
-            <SelectTrigger className="w-full sm:w-44 h-10 text-sm text-gray-700 bg-[#F3F4F6] border-none rounded-xl px-3.5 focus:ring-1 focus:ring-blue-500 shadow-none cursor-pointer">
-              <SelectValue placeholder="Project">
-                {projectFilter === "All"
-                  ? "All Projects"
-                  : filtersData?.projects?.find((p) => p.leadId === projectFilter)?.projectName ||
-                    projectFilter}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="All">All Projects</SelectItem>
-              {filtersData?.projects && filtersData.projects.length > 0 ? (
-                filtersData.projects.map((proj) => (
-                  <SelectItem key={proj.leadId} value={proj.leadId}>
-                    {proj.projectName}
-                  </SelectItem>
-                ))
-              ) : (
-                <>
-                  <SelectItem value="Downtown Plaza">Downtown Plaza</SelectItem>
-                  <SelectItem value="Riverside Complex">Riverside Complex</SelectItem>
-                  <SelectItem value="Tech Park Development">Tech Park Development</SelectItem>
-                  <SelectItem value="Medical Center Expansion">Medical Center Expansion</SelectItem>
-                  <SelectItem value="Green Valley Homes">Green Valley Homes</SelectItem>
-                </>
-              )}
-            </SelectContent>
-          </Select>
+          {/* Project Filter Trigger & Dropdown Modal */}
+          <ProjectSelectorDropdownModal
+            trigger={
+              <button
+                type="button"
+                className="w-full sm:w-48 h-10 text-sm text-gray-700 bg-[#F3F4F6] border-none rounded-xl px-3.5 focus:ring-1 focus:ring-blue-500 shadow-none cursor-pointer flex items-center justify-between gap-2 transition-colors hover:bg-gray-200/60"
+              >
+                <span className="truncate">{selectedProjectLabel}</span>
+                <ChevronDown className="w-4 h-4 text-gray-500 shrink-0" />
+              </button>
+            }
+            selectedProjectId={projectFilter}
+            selectedProject={selectedProjectLabel}
+            onSelectProject={(label, leadId) => {
+              if (!leadId || label === "All Projects") {
+                handleProjectChange("All");
+              } else {
+                handleProjectChange(leadId);
+              }
+            }}
+            align="right"
+          />
         </div>
       </Card>
 

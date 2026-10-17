@@ -376,7 +376,8 @@ export interface CostVarianceAlertItem {
 }
 
 export interface CostVarianceTrendItem {
-  month: string;
+  month?: string;
+  label?: string;
   awardedAmount: number;
   actualInvoice: number;
 }
@@ -887,7 +888,21 @@ export const costsApi = createApi({
         method: "GET",
         params: cleanQueryParams(params || undefined),
       }),
-      transformResponse: unwrapData<CostVarianceAlertItem[]>,
+      transformResponse: (
+        res: ApiResponse<unknown> | unknown
+      ): CostVarianceAlertItem[] => {
+        const unwrapped = unwrapData<unknown>(res);
+        if (Array.isArray(unwrapped)) {
+          return unwrapped as CostVarianceAlertItem[];
+        }
+        if (unwrapped && typeof unwrapped === "object") {
+          const obj = unwrapped as Record<string, unknown>;
+          if (Array.isArray(obj.alerts)) return obj.alerts as CostVarianceAlertItem[];
+          if (Array.isArray(obj.rows)) return obj.rows as CostVarianceAlertItem[];
+          if (Array.isArray(obj.data)) return obj.data as CostVarianceAlertItem[];
+        }
+        return [];
+      },
       providesTags: ["VarianceAlerts"],
     }),
     getCostVarianceTrend: builder.query<CostVarianceTrendItem[], CostListQueryParams | void>({
@@ -896,7 +911,22 @@ export const costsApi = createApi({
         method: "GET",
         params: cleanQueryParams(params || undefined),
       }),
-      transformResponse: unwrapData<CostVarianceTrendItem[]>,
+      transformResponse: (
+        res: ApiResponse<unknown> | unknown
+      ): CostVarianceTrendItem[] => {
+        const unwrapped = unwrapData<unknown>(res);
+        if (Array.isArray(unwrapped)) {
+          return unwrapped as CostVarianceTrendItem[];
+        }
+        if (unwrapped && typeof unwrapped === "object") {
+          const obj = unwrapped as Record<string, unknown>;
+          if (Array.isArray(obj.points)) return obj.points as CostVarianceTrendItem[];
+          if (Array.isArray(obj.trend)) return obj.trend as CostVarianceTrendItem[];
+          if (Array.isArray(obj.rows)) return obj.rows as CostVarianceTrendItem[];
+          if (Array.isArray(obj.data)) return obj.data as CostVarianceTrendItem[];
+        }
+        return [];
+      },
       providesTags: ["VarianceTrend"],
     }),
     getCostVarianceDetails: builder.query<CostVarianceDetailsResponse, CostListQueryParams | void>({

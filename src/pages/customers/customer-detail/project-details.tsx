@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { AlertCircle, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,7 +8,6 @@ import { ProjectOverviewCard } from "./components/ProjectOverviewCard";
 import { ProjectFinancialKpiGrid } from "./components/ProjectFinancialKpiGrid";
 import { ProjectProgressStepper } from "./components/ProjectProgressStepper";
 import { ProjectFinancialPerformanceTable } from "./components/ProjectFinancialPerformanceTable";
-import { MaterialDeliveryModal } from "./components/MaterialDeliveryModal";
 
 export default function ProjectDetailsPage() {
   const navigate = useNavigate();
@@ -34,7 +32,6 @@ export default function ProjectDetailsPage() {
   const actualCustomerId = customerId || passedState?.customerId || "";
   const actualProjectId = projectId || id || passedState?.projectId || "";
 
-  const [isDeliveryModalOpen, setIsDeliveryModalOpen] = useState(false);
 
   // Pure API Call: GET /api/account/projects/:projectId
   const {
@@ -103,7 +100,6 @@ export default function ProjectDetailsPage() {
         contact={projectDetail?.contact}
         agreement={projectDetail?.agreement}
         actionLinks={projectDetail?.actionLinks}
-        onOpenMaterialDelivery={() => setIsDeliveryModalOpen(true)}
       />
 
       {/* Section Title */}
@@ -135,13 +131,6 @@ export default function ProjectDetailsPage() {
       {/* 6. Project Financial Performance Table */}
       <ProjectFinancialPerformanceTable
         profitabilityOverview={projectDetail?.profitabilityOverview}
-      />
-
-      {/* 7. Material Delivery Modal */}
-      <MaterialDeliveryModal
-        isOpen={isDeliveryModalOpen}
-        onClose={() => setIsDeliveryModalOpen(false)}
-        overview={projectDetail?.overview}
       />
     </div>
   );

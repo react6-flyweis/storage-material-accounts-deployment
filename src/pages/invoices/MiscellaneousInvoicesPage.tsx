@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Upload,
   Search,
@@ -10,9 +10,12 @@ import {
   ChevronDown,
   Eye,
   Download,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 import { CalendarRangePickerModal } from "@/components/common_components/CalendarRangePickerModal";
-import { InvoiceStatsCards } from "@/components/invoices/InvoiceStatsCards";
+import { InvoiceStatsCards, type InvoiceStatCardItem } from "@/components/invoices/InvoiceStatsCards";
 import {
   UploadMiscInvoiceDialog,
   type NewMiscInvoiceData,
@@ -22,400 +25,266 @@ import {
   type MiscInvoiceDetailsModalData,
 } from "@/components/invoices/MiscInvoiceDetailsModal";
 import SuccessModal from "@/components/common_components/SuccessModal";
-
-export interface MiscInvoiceItem {
-  id: string;
-  invoiceNumber: string;
-  serviceProvider: string;
-  category: string;
-  amount: number;
-  amountFormatted: string;
-  invoiceDate: string;
-  dueDate: string;
-  approvalStatus: "Approved" | "Pending";
-  paymentStatus: "Pending" | "Paid";
-  project?: string;
-  linkedDelivery?: string;
-}
-
-const DEFAULT_MISC_INVOICES: MiscInvoiceItem[] = [
-  {
-    id: "misc-1",
-    invoiceNumber: "INC00025",
-    serviceProvider: "ABC Repairs",
-    category: "Maintenance",
-    amount: 10000,
-    amountFormatted: "$10,000",
-    invoiceDate: "22 Feb 2025",
-    dueDate: "22 Feb 2025",
-    approvalStatus: "Approved",
-    paymentStatus: "Pending",
-    project: "ABC Warehouse",
-    linkedDelivery: "DEL-2024-0045",
-  },
-  {
-    id: "misc-2",
-    invoiceNumber: "INC00024",
-    serviceProvider: "TechSoft",
-    category: "Software",
-    amount: 25750,
-    amountFormatted: "$25,750",
-    invoiceDate: "07 Feb 2025",
-    dueDate: "07 Feb 2025",
-    approvalStatus: "Approved",
-    paymentStatus: "Pending",
-    project: "Industrial Park",
-    linkedDelivery: "DEL-2024-0046",
-  },
-  {
-    id: "misc-3",
-    invoiceNumber: "INC00023",
-    serviceProvider: "SecureGuard",
-    category: "Security",
-    amount: 50125,
-    amountFormatted: "$50,125",
-    invoiceDate: "30 Jan 2025",
-    dueDate: "30 Jan 2025",
-    approvalStatus: "Approved",
-    paymentStatus: "Paid",
-    project: "Office Complex",
-    linkedDelivery: "DEL-2024-0047",
-  },
-  {
-    id: "misc-4",
-    invoiceNumber: "INC00022",
-    serviceProvider: "Legal Associates",
-    category: "Professional",
-    amount: 75900,
-    amountFormatted: "$75,900",
-    invoiceDate: "17 Jan 2025",
-    dueDate: "17 Jan 2025",
-    approvalStatus: "Pending",
-    paymentStatus: "Pending",
-    project: "Corporate Office",
-    linkedDelivery: "DEL-2024-0048",
-  },
-  {
-    id: "misc-5",
-    invoiceNumber: "INC00021",
-    serviceProvider: "Power Utility",
-    category: "Utilities",
-    amount: 99999,
-    amountFormatted: "$99,999",
-    invoiceDate: "04 Jan 2025",
-    dueDate: "04 Jan 2025",
-    approvalStatus: "Approved",
-    paymentStatus: "Pending",
-    project: "Industrial Park",
-    linkedDelivery: "DEL-2024-0049",
-  },
-  {
-    id: "misc-6",
-    invoiceNumber: "INC00020",
-    serviceProvider: "ABC Repairs",
-    category: "Maintenance",
-    amount: 120500,
-    amountFormatted: "$1,20,500",
-    invoiceDate: "09 Dec 2024",
-    dueDate: "09 Dec 2024",
-    approvalStatus: "Approved",
-    paymentStatus: "Paid",
-    project: "ABC Warehouse",
-    linkedDelivery: "DEL-2024-0050",
-  },
-  {
-    id: "misc-7",
-    invoiceNumber: "INC00019",
-    serviceProvider: "TechSoft",
-    category: "Software",
-    amount: 250000,
-    amountFormatted: "$2,50,000",
-    invoiceDate: "02 Dec 2024",
-    dueDate: "02 Dec 2024",
-    approvalStatus: "Approved",
-    paymentStatus: "Pending",
-    project: "Corporate Office",
-    linkedDelivery: "DEL-2024-0051",
-  },
-  {
-    id: "misc-8",
-    invoiceNumber: "INC00018",
-    serviceProvider: "SecureGuard",
-    category: "Security",
-    amount: 500750,
-    amountFormatted: "$5,00,750",
-    invoiceDate: "15 Nov 2024",
-    dueDate: "15 Nov 2024",
-    approvalStatus: "Pending",
-    paymentStatus: "Pending",
-    project: "Office Complex",
-    linkedDelivery: "DEL-2024-0052",
-  },
-];
+import {
+  useGetMiscInvoicesSummaryQuery,
+  useGetMiscInvoicesRecordsQuery,
+  useCreateMiscInvoiceMutation,
+  useMarkPayablePaidMutation,
+  useGetInvoiceManagementFiltersQuery,
+  downloadInvoiceExport,
+  type MiscInvoiceRecordItem,
+} from "@/redux/api/invoiceManagementApi";
+import { formatCurrency, formatDisplayDate, formatDateToIso } from "@/lib/dashboardFormatters";
+import { uploadFileToS3 } from "@/lib/upload";
 
 export default function MiscellaneousInvoicesPage() {
-  const [invoices, setInvoices] = useState<MiscInvoiceItem[]>(() => {
-    try {
-      const stored = localStorage.getItem("misc_invoices_table_data");
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch {
-      // ignore
-    }
-    return DEFAULT_MISC_INVOICES;
-  });
-
-  // Filters state
+  // Search & Filter state
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
-  const [projectFilter, setProjectFilter] = useState("All");
-  const [dateRangeLabel, setDateRangeLabel] = useState(
-    "01 Jan 2025 - 31 Jan 2025",
-  );
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("All");
+  const [selectedPayment, setSelectedPayment] = useState<string>("All");
+  const [selectedProject, setSelectedProject] = useState<string>("All");
+  const [dateRange, setDateRange] = useState<{ startDate?: string; endDate?: string }>({});
+  const [dateRangeLabel, setDateRangeLabel] = useState<string>("All Dates");
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [isUploadOpen, setIsUploadOpen] = useState(false);
-  const [isSuccessOpen, setIsSuccessOpen] = useState(false);
-  const [successModalContent, setSuccessModalContent] = useState({
-    title: "Invoice Uploaded Successfully",
-    subTitle:
-      "The miscellaneous invoice has been recorded and submitted for approval.",
-  });
-  const [showStatusMenu, setShowStatusMenu] = useState(false);
+
+  // Dropdowns
+  const [showCategoryMenu, setShowCategoryMenu] = useState(false);
+  const [showPaymentMenu, setShowPaymentMenu] = useState(false);
   const [showProjectMenu, setShowProjectMenu] = useState(false);
 
   // Sorting
-  const [sortField, setSortField] = useState<"amount" | "invoiceDate" | null>(
-    null,
-  );
+  const [sortField, setSortField] = useState<"dueDate" | "amount" | "date">("dueDate");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   // Pagination
-  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(20);
 
-  // Details Modal state
-  const [detailInvoice, setDetailInvoice] =
-    useState<MiscInvoiceDetailsModalData | null>(null);
+  // Modals
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [isSubmittingUpload, setIsSubmittingUpload] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<MiscInvoiceDetailsModalData | null>(null);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [isSuccessOpen, setIsSuccessOpen] = useState(false);
+  const [successModalContent, setSuccessModalContent] = useState({
+    title: "",
+    subTitle: "",
+  });
+  const [isExporting, setIsExporting] = useState(false);
 
-  const projectsList = useMemo(() => {
-    const list = invoices.map((inv) => inv.project || inv.category);
-    return Array.from(new Set(list));
-  }, [invoices]);
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setCurrentPage(1);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
-  const providerSuggestions = useMemo(() => {
-    return Array.from(new Set(invoices.map((inv) => inv.serviceProvider)));
-  }, [invoices]);
+  // 1. Shared Filters
+  const { data: filtersData } = useGetInvoiceManagementFiltersQuery();
 
-  const categorySuggestions = useMemo(() => {
-    return Array.from(new Set(invoices.map((inv) => inv.category)));
-  }, [invoices]);
+  // 2. Summary KPIs
+  const summaryQueryParams = useMemo(() => {
+    return {
+      projectId: selectedProject !== "All" ? selectedProject : undefined,
+      startDate: dateRange.startDate,
+      endDate: dateRange.endDate,
+    };
+  }, [selectedProject, dateRange]);
 
-  // Filter & sort
-  const filteredInvoices = useMemo(() => {
-    let result = invoices.filter((inv) => {
-      if (searchTerm.trim()) {
-        const q = searchTerm.toLowerCase().trim();
-        const matchNumber = inv.invoiceNumber.toLowerCase().includes(q);
-        const matchProvider = inv.serviceProvider.toLowerCase().includes(q);
-        const matchCategory = inv.category.toLowerCase().includes(q);
-        const matchAmount = inv.amountFormatted.toLowerCase().includes(q);
-        const matchProject = (inv.project || "").toLowerCase().includes(q);
-        if (
-          !matchNumber &&
-          !matchProvider &&
-          !matchCategory &&
-          !matchAmount &&
-          !matchProject
-        ) {
-          return false;
-        }
+  const {
+    data: summaryData,
+    isLoading: isSummaryLoading,
+  } = useGetMiscInvoicesSummaryQuery(summaryQueryParams);
+
+  // 3. Records Table
+  const recordsQueryParams = useMemo(() => {
+    return {
+      page: currentPage,
+      limit: rowsPerPage,
+      search: debouncedSearch || undefined,
+      projectId: selectedProject !== "All" ? selectedProject : undefined,
+      category: selectedCategory !== "All" ? selectedCategory : undefined,
+      paymentStatus: selectedPayment !== "All" ? selectedPayment : undefined,
+      sortBy: sortField,
+      sortOrder,
+      startDate: dateRange.startDate,
+      endDate: dateRange.endDate,
+    };
+  }, [
+    currentPage,
+    rowsPerPage,
+    debouncedSearch,
+    selectedProject,
+    selectedCategory,
+    selectedPayment,
+    sortField,
+    sortOrder,
+    dateRange,
+  ]);
+
+  const {
+    data: recordsData,
+    isLoading: isRecordsLoading,
+    isFetching: isRecordsFetching,
+  } = useGetMiscInvoicesRecordsQuery(recordsQueryParams);
+
+  // Mutations
+  const [createMiscInvoice] = useCreateMiscInvoiceMutation();
+  const [markPayablePaid, { isLoading: isMarkingPaid }] = useMarkPayablePaidMutation();
+
+  const handleUploadInvoice = async (data: NewMiscInvoiceData) => {
+    try {
+      setIsSubmittingUpload(true);
+      let documentUrl: string | undefined = undefined;
+      let documentFileName: string | undefined = undefined;
+
+      if (data.file) {
+        documentUrl = await uploadFileToS3(data.file, "invoices");
+        documentFileName = data.file.name;
       }
 
-      if (statusFilter !== "All") {
-        if (
-          inv.paymentStatus !== statusFilter &&
-          inv.approvalStatus !== statusFilter
-        ) {
-          return false;
-        }
-      }
+      await createMiscInvoice({
+        invoiceNumber: data.invoiceNumber,
+        serviceProvider: data.serviceProvider,
+        serviceCategory: data.serviceCategory,
+        amount: data.amount,
+        dueDate: data.dueDate,
+        paymentStatus: data.paymentStatus,
+        projectId: data.projectId,
+        documentUrl,
+        documentFileName,
+      }).unwrap();
 
-      if (projectFilter !== "All") {
-        if (inv.project !== projectFilter && inv.category !== projectFilter) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-
-    if (sortField) {
-      result = [...result].sort((a, b) => {
-        if (sortField === "amount") {
-          return sortOrder === "asc"
-            ? a.amount - b.amount
-            : b.amount - a.amount;
-        } else {
-          const dateA = new Date(a.invoiceDate).getTime() || 0;
-          const dateB = new Date(b.invoiceDate).getTime() || 0;
-          return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
-        }
+      setIsUploadOpen(false);
+      setSuccessModalContent({
+        title: "Invoice Created",
+        subTitle: `Miscellaneous invoice ${data.invoiceNumber} has been successfully added.`,
       });
+      setIsSuccessOpen(true);
+    } catch {
+      alert("Failed to upload miscellaneous invoice. Please check the details and try again.");
+    } finally {
+      setIsSubmittingUpload(false);
     }
+  };
 
-    return result;
-  }, [invoices, searchTerm, statusFilter, projectFilter, sortField, sortOrder]);
+  const handleMarkPaid = async (inv: MiscInvoiceRecordItem) => {
+    const id = inv.invoiceId || inv.id;
+    if (!id) return;
+    try {
+      await markPayablePaid({ invoiceId: id, paymentMethod: "ACH" }).unwrap();
+      setSuccessModalContent({
+        title: "Payment Recorded",
+        subTitle: `Invoice ${inv.invoiceNumber} has been successfully marked as Paid.`,
+      });
+      setIsSuccessOpen(true);
+    } catch {
+      alert("Failed to mark invoice as paid.");
+    }
+  };
 
-  const handleSort = (field: "amount" | "invoiceDate") => {
+  const handleSort = (field: "dueDate" | "amount" | "date") => {
     if (sortField === field) {
       setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
     } else {
       setSortField(field);
       setSortOrder("desc");
     }
+    setCurrentPage(1);
   };
 
-  const handleExport = () => {
-    const headers = [
-      "INVOICE ID",
-      "SERVICE PROVIDER",
-      "CATEGORY",
-      "AMOUNT",
-      "INVOICE DATE",
-      "APPROVAL",
-      "PAYMENT",
-    ];
-    const rows = filteredInvoices.map((inv) => [
-      inv.invoiceNumber,
-      `"${inv.serviceProvider}"`,
-      `"${inv.category}"`,
-      inv.amountFormatted,
-      inv.invoiceDate,
-      inv.approvalStatus,
-      inv.paymentStatus,
-    ]);
-
-    const csvContent =
-      "data:text/csv;charset=utf-8," +
-      [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `miscellaneous_invoices.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const handleUploadInvoice = (data: NewMiscInvoiceData) => {
-    let formattedDate = data.dueDate;
+  // Excel Export
+  const handleExport = async () => {
     try {
-      if (data.dueDate) {
-        const d = new Date(data.dueDate);
-        if (!isNaN(d.getTime())) {
-          formattedDate = d.toLocaleDateString("en-GB", {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-          });
-        }
-      }
-    } catch {
-      // keep as is
-    }
-
-    const nextId = invoices.length + 1;
-    const newInv: MiscInvoiceItem = {
-      id: `misc-${Date.now()}`,
-      invoiceNumber: data.invoiceNumber,
-      serviceProvider: data.serviceProvider,
-      category: data.category,
-      amount: data.amount,
-      amountFormatted: `$${data.amount.toLocaleString()}`,
-      invoiceDate: formattedDate,
-      dueDate: formattedDate,
-      approvalStatus: "Pending",
-      paymentStatus: data.paymentStatus === "Paid" ? "Paid" : "Pending",
-      project: "General Project Support",
-      linkedDelivery: `DEL-2024-00${50 + nextId}`,
-    };
-
-    const updated = [newInv, ...invoices];
-    setInvoices(updated);
-    localStorage.setItem("misc_invoices_table_data", JSON.stringify(updated));
-
-    setIsUploadOpen(false);
-    setSuccessModalContent({
-      title: "Invoice Uploaded Successfully",
-      subTitle:
-        "The miscellaneous invoice has been recorded and submitted for approval.",
-    });
-    setIsSuccessOpen(true);
-  };
-
-  const handleTogglePaymentStatus = (id: string) => {
-    let markedAsPaid = false;
-    let invNum = "";
-    const updated = invoices.map((inv) => {
-      if (inv.id === id) {
-        invNum = inv.invoiceNumber;
-        const nextStatus: "Paid" | "Pending" =
-          inv.paymentStatus === "Paid" ? "Pending" : "Paid";
-        if (nextStatus === "Paid") {
-          markedAsPaid = true;
-        }
-        return { ...inv, paymentStatus: nextStatus };
-      }
-      return inv;
-    });
-    setInvoices(updated);
-    localStorage.setItem("misc_invoices_table_data", JSON.stringify(updated));
-
-    // Update detailInvoice if currently open
-    if (detailInvoice && detailInvoice.id === id) {
-      setDetailInvoice((prev) =>
-        prev
-          ? {
-              ...prev,
-              paymentStatus: prev.paymentStatus === "Paid" ? "Pending" : "Paid",
-            }
-          : null,
+      setIsExporting(true);
+      await downloadInvoiceExport(
+        "miscellaneous",
+        {
+          projectId: selectedProject !== "All" ? selectedProject : undefined,
+          category: selectedCategory !== "All" ? selectedCategory : undefined,
+          paymentStatus: selectedPayment !== "All" ? selectedPayment : undefined,
+          startDate: dateRange.startDate,
+          endDate: dateRange.endDate,
+        },
+        `miscellaneous-invoices-${new Date().toISOString().split("T")[0]}.xlsx`
       );
-    }
-
-    if (markedAsPaid) {
-      setSuccessModalContent({
-        title: "Payment Recorded",
-        subTitle: `Invoice ${invNum || id} has been successfully marked as Paid.`,
-      });
-      setIsSuccessOpen(true);
+    } catch (err: unknown) {
+      console.warn("Direct export failed, falling back to client CSV:", err);
+      const records = recordsData?.records || [];
+      const headers = ["INVOICE NUMBER", "SERVICE PROVIDER", "CATEGORY", "AMOUNT", "DUE DATE", "APPROVAL", "PAYMENT"];
+      const rows = records.map((r) => [
+        r.invoiceNumber,
+        r.serviceProvider || r.payeeName || "",
+        r.serviceCategory || r.category || "",
+        r.amount.toString(),
+        r.dueDate ? new Date(r.dueDate).toLocaleDateString() : "",
+        r.approval || "",
+        r.payment || "",
+      ]);
+      const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `miscellaneous-invoices-${new Date().toISOString().split("T")[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } finally {
+      setIsExporting(false);
     }
   };
 
-  const handleOpenDetailModal = (inv: MiscInvoiceItem) => {
-    setDetailInvoice({
-      id: inv.id,
-      invoiceNumber: inv.invoiceNumber,
-      serviceProvider: inv.serviceProvider,
-      category: inv.category,
-      amount: inv.amount,
-      amountFormatted: inv.amountFormatted,
-      dueDate: inv.dueDate,
-      invoiceDate: inv.invoiceDate,
-      paymentStatus: inv.paymentStatus,
-      approvalStatus: inv.approvalStatus,
-      linkedDelivery: inv.linkedDelivery || "DEL-2024-0045",
-      uploadedBy: "John Smith",
-      uploadedAt: "2024-03-16",
-    });
-  };
+  // Stat cards
+  const metricCards: InvoiceStatCardItem[] = useMemo(() => {
+    const s = summaryData;
+    return [
+      {
+        title: "Total Invoices",
+        value: s ? s.totalInvoices ?? 0 : 0,
+        iconBorder: "border-[#DDD6FE]",
+        iconBg: "bg-[#F5F3FF]",
+        accentColor: "#8B5CF6",
+      },
+      {
+        title: "Total Invoice Amount",
+        value: s ? formatCurrency(s.totalInvoiceAmount) : "$0",
+        iconBorder: "border-[#A7F3D0]",
+        iconBg: "bg-[#ECFDF5]",
+        accentColor: "#10B981",
+      },
+      {
+        title: "Pending Payment",
+        value: s ? formatCurrency(s.pendingPaymentAmount) : "$0",
+        iconBorder: "border-[#FDE68A]",
+        iconBg: "bg-[#FFFBEB]",
+        accentColor: "#F59E0B",
+      },
+      {
+        title: "Overdue Amount",
+        value: s ? formatCurrency(s.overdueAmount) : "$0",
+        iconBorder: "border-[#FECACA]",
+        iconBg: "bg-[#FEF2F2]",
+        accentColor: "#EF4444",
+      },
+    ];
+  }, [summaryData]);
 
-  const paginatedInvoices = useMemo(() => {
-    const start = (currentPage - 1) * rowsPerPage;
-    return filteredInvoices.slice(start, start + rowsPerPage);
-  }, [filteredInvoices, currentPage, rowsPerPage]);
+  const records = recordsData?.records || [];
+  const totalRecords = recordsData?.total || 0;
+  const totalPages = Math.max(1, Math.ceil(totalRecords / rowsPerPage));
+  const availableProjects = filtersData?.projects || [];
+  const availableCategories = filtersData?.miscCategories || [
+    "Maintenance",
+    "Software",
+    "Security",
+    "Professional",
+    "Utilities",
+    "Other",
+  ];
+  const paymentOptions = filtersData?.paymentStatuses || ["Completed", "Pending", "Unpaid"];
 
   return (
     <div className="space-y-5">
@@ -423,11 +292,10 @@ export default function MiscellaneousInvoicesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-            Invoice Management
+            Miscellaneous Invoices
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5 font-normal">
-            Manage non-standard business invoices, operational expenses,
-            approvals, and payments.
+            Upload, approve, and track operational and overhead expense invoices.
           </p>
         </div>
 
@@ -435,10 +303,15 @@ export default function MiscellaneousInvoicesPage() {
           <button
             type="button"
             onClick={handleExport}
-            className="inline-flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+            disabled={isExporting}
+            className="inline-flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-50"
           >
-            <Upload className="w-3.5 h-3.5 text-slate-600 rotate-90" />
-            <span>Export</span>
+            {isExporting ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-600" />
+            ) : (
+              <Upload className="w-3.5 h-3.5 text-slate-600 rotate-90" />
+            )}
+            <span>Export Excel</span>
           </button>
 
           <button
@@ -453,38 +326,28 @@ export default function MiscellaneousInvoicesPage() {
       </div>
 
       {/* 2. Top 4 Stat Cards */}
-      <InvoiceStatsCards
-        cards={[
-          {
-            title: "Total Invoices",
-            value: "184",
-            accentColor: "#8B5CF6",
-          },
-          {
-            title: "Total Invoice Amount",
-            value: "$100,000",
-            accentColor: "#10B981",
-          },
-          {
-            title: "Pending Payment",
-            value: "$400,000",
-            accentColor: "#F59E0B",
-          },
-          {
-            title: "Overdue",
-            value: "$300,000",
-            accentColor: "#EF4444",
-          },
-        ]}
-      />
+      {isSummaryLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-white rounded-2xl p-5 shadow-xs border border-slate-100 animate-pulse h-28" />
+          ))}
+        </div>
+      ) : (
+        <InvoiceStatsCards cards={metricCards} />
+      )}
 
       {/* 3. Main Invoices Table Card */}
       <div className="bg-white rounded-2xl shadow-xs border border-slate-100 p-5 sm:p-6 space-y-5">
-        {/* Table Card Header Toolbar */}
+        {/* Table Toolbar */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <h2 className="text-base sm:text-lg font-bold text-slate-900">
-            Miscellaneous Invoice Records
-          </h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-slate-900">
+              Miscellaneous Expenses
+            </h2>
+            {isRecordsFetching && !isRecordsLoading && (
+              <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+            )}
+          </div>
 
           <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
             {/* Search */}
@@ -492,59 +355,130 @@ export default function MiscellaneousInvoicesPage() {
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
-                placeholder="Search"
+                placeholder="Search provider or invoice"
                 value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="h-8.5 pl-8 pr-3 w-36 sm:w-48 rounded-lg border border-slate-200 text-xs text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 bg-white"
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="h-8.5 pl-8 pr-3 w-40 sm:w-52 rounded-lg border border-slate-200 text-xs text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 bg-white"
               />
             </div>
 
-            {/* Date Range Filter */}
+            {/* Date Range */}
             <button
               onClick={() => setIsCalendarOpen(true)}
-              className="inline-flex items-center gap-1.5 h-8.5 px-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold cursor-pointer shadow-xs transition-colors"
+              className="inline-flex items-center gap-1.5 h-8.5 px-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-medium cursor-pointer shadow-xs transition-colors"
             >
               <Calendar className="w-3.5 h-3.5 text-slate-500" />
               <span>{dateRangeLabel}</span>
             </button>
 
-            {/* Status Filter */}
+            {/* Category Filter */}
             <div className="relative">
               <button
                 onClick={() => {
-                  setShowStatusMenu(!showStatusMenu);
+                  setShowCategoryMenu(!showCategoryMenu);
+                  setShowPaymentMenu(false);
                   setShowProjectMenu(false);
                 }}
-                className={`inline-flex items-center gap-1.5 h-8.5 px-3 bg-white border rounded-lg text-xs font-semibold cursor-pointer shadow-xs transition-colors ${
-                  statusFilter !== "All"
+                className={`inline-flex items-center gap-1.5 h-8.5 px-3 bg-white border rounded-lg text-xs font-medium cursor-pointer shadow-xs transition-colors ${
+                  selectedCategory !== "All"
                     ? "border-blue-500 text-blue-600 bg-blue-50/40"
                     : "border-slate-200 text-slate-700 hover:bg-slate-50"
                 }`}
               >
                 <Filter className="w-3.5 h-3.5 text-slate-500" />
-                <span>{statusFilter === "All" ? "Status" : statusFilter}</span>
+                <span>
+                  {selectedCategory === "All" ? "Category" : selectedCategory}
+                </span>
+                <ChevronDown className="w-3 h-3 text-slate-400 ml-0.5" />
               </button>
 
-              {showStatusMenu && (
-                <div className="absolute right-0 mt-1.5 w-36 bg-white border border-slate-200 rounded-xl shadow-lg p-1 z-30 space-y-0.5">
-                  {["All", "Pending", "Paid", "Approved"].map((st) => (
+              {showCategoryMenu && (
+                <div className="absolute right-0 mt-1.5 w-40 max-h-52 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-lg p-1 z-30 space-y-0.5">
+                  <button
+                    onClick={() => {
+                      setSelectedCategory("All");
+                      setShowCategoryMenu(false);
+                      setCurrentPage(1);
+                    }}
+                    className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors cursor-pointer ${
+                      selectedCategory === "All"
+                        ? "bg-blue-50 text-blue-600 font-semibold"
+                        : "text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    All Categories
+                  </button>
+                  {availableCategories.map((c) => (
                     <button
-                      key={st}
+                      key={c}
                       onClick={() => {
-                        setStatusFilter(st);
-                        setShowStatusMenu(false);
+                        setSelectedCategory(c);
+                        setShowCategoryMenu(false);
                         setCurrentPage(1);
                       }}
-                      className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors cursor-pointer ${
-                        statusFilter === st
+                      className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors cursor-pointer truncate ${
+                        selectedCategory === c
                           ? "bg-blue-50 text-blue-600 font-semibold"
                           : "text-slate-700 hover:bg-slate-50"
                       }`}
                     >
-                      {st === "All" ? "All Statuses" : st}
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Payment Filter */}
+            <div className="relative">
+              <button
+                onClick={() => {
+                  setShowPaymentMenu(!showPaymentMenu);
+                  setShowCategoryMenu(false);
+                  setShowProjectMenu(false);
+                }}
+                className={`inline-flex items-center gap-1.5 h-8.5 px-3 bg-white border rounded-lg text-xs font-medium cursor-pointer shadow-xs transition-colors ${
+                  selectedPayment !== "All"
+                    ? "border-blue-500 text-blue-600 bg-blue-50/40"
+                    : "border-slate-200 text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                <Filter className="w-3.5 h-3.5 text-slate-500" />
+                <span>{selectedPayment === "All" ? "Payment" : selectedPayment}</span>
+                <ChevronDown className="w-3 h-3 text-slate-400 ml-0.5" />
+              </button>
+
+              {showPaymentMenu && (
+                <div className="absolute right-0 mt-1.5 w-36 bg-white border border-slate-200 rounded-xl shadow-lg p-1 z-30 space-y-0.5">
+                  <button
+                    onClick={() => {
+                      setSelectedPayment("All");
+                      setShowPaymentMenu(false);
+                      setCurrentPage(1);
+                    }}
+                    className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors cursor-pointer ${
+                      selectedPayment === "All"
+                        ? "bg-blue-50 text-blue-600 font-semibold"
+                        : "text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    All Payments
+                  </button>
+                  {paymentOptions.map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => {
+                        setSelectedPayment(p);
+                        setShowPaymentMenu(false);
+                        setCurrentPage(1);
+                      }}
+                      className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors cursor-pointer ${
+                        selectedPayment === p
+                          ? "bg-blue-50 text-blue-600 font-semibold"
+                          : "text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      {p}
                     </button>
                   ))}
                 </div>
@@ -556,222 +490,229 @@ export default function MiscellaneousInvoicesPage() {
               <button
                 onClick={() => {
                   setShowProjectMenu(!showProjectMenu);
-                  setShowStatusMenu(false);
+                  setShowCategoryMenu(false);
+                  setShowPaymentMenu(false);
                 }}
-                className={`inline-flex items-center gap-1.5 h-8.5 px-3 bg-white border rounded-lg text-xs font-semibold cursor-pointer shadow-xs transition-colors ${
-                  projectFilter !== "All"
+                className={`inline-flex items-center gap-1.5 h-8.5 px-3 bg-white border rounded-lg text-xs font-medium cursor-pointer shadow-xs transition-colors ${
+                  selectedProject !== "All"
                     ? "border-blue-500 text-blue-600 bg-blue-50/40"
                     : "border-slate-200 text-slate-700 hover:bg-slate-50"
                 }`}
               >
                 <Filter className="w-3.5 h-3.5 text-slate-500" />
-                <span>
-                  {projectFilter === "All" ? "Project" : projectFilter}
+                <span className="max-w-28 truncate">
+                  {selectedProject === "All"
+                    ? "Project"
+                    : availableProjects.find((p) => (p.projectId || p.leadId) === selectedProject)?.projectName || "Project"}
                 </span>
+                <ChevronDown className="w-3 h-3 text-slate-400 ml-0.5" />
               </button>
 
               {showProjectMenu && (
-                <div className="absolute right-0 mt-1.5 w-48 bg-white border border-slate-200 rounded-xl shadow-lg p-1 z-30 space-y-0.5">
+                <div className="absolute right-0 mt-1.5 w-52 max-h-60 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-lg p-1 z-30 space-y-0.5">
                   <button
                     onClick={() => {
-                      setProjectFilter("All");
+                      setSelectedProject("All");
                       setShowProjectMenu(false);
                       setCurrentPage(1);
                     }}
                     className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors cursor-pointer ${
-                      projectFilter === "All"
+                      selectedProject === "All"
                         ? "bg-blue-50 text-blue-600 font-semibold"
                         : "text-slate-700 hover:bg-slate-50"
                     }`}
                   >
                     All Projects
                   </button>
-                  {projectsList.map((p) => (
-                    <button
-                      key={p}
-                      onClick={() => {
-                        setProjectFilter(p);
-                        setShowProjectMenu(false);
-                        setCurrentPage(1);
-                      }}
-                      className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors cursor-pointer truncate ${
-                        projectFilter === p
-                          ? "bg-blue-50 text-blue-600 font-semibold"
-                          : "text-slate-700 hover:bg-slate-50"
-                      }`}
-                    >
-                      {p}
-                    </button>
-                  ))}
+                  {availableProjects.map((p) => {
+                    const id = p.projectId || p.leadId;
+                    return (
+                      <button
+                        key={id}
+                        onClick={() => {
+                          setSelectedProject(id);
+                          setShowProjectMenu(false);
+                          setCurrentPage(1);
+                        }}
+                        className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors cursor-pointer truncate ${
+                          selectedProject === id
+                            ? "bg-blue-50 text-blue-600 font-semibold"
+                            : "text-slate-700 hover:bg-slate-50"
+                        }`}
+                      >
+                        {p.projectName} {p.jobId ? `(${p.jobId})` : ""}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
           </div>
         </div>
 
-        {/* Table Content */}
+        {/* Table */}
         <div className="overflow-x-auto -mx-5 sm:mx-0">
           <table className="w-full text-left border-collapse min-w-190">
             <thead>
-              <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-700 uppercase tracking-wider">
-                <th className="px-5 py-3.5">INVOICE ID</th>
-                <th className="px-5 py-3.5">SERVICE PROVIDER</th>
-                <th className="px-5 py-3.5">CATEGORY</th>
+              <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                <th className="px-5 py-3 font-bold text-slate-800">INVOICE NUMBER</th>
+                <th className="px-5 py-3 font-bold text-slate-800">SERVICE PROVIDER</th>
+                <th className="px-5 py-3 font-bold text-slate-800">CATEGORY</th>
                 <th
-                  className="px-5 py-3.5 cursor-pointer select-none"
+                  className="px-5 py-3 font-bold text-slate-800 cursor-pointer select-none"
                   onClick={() => handleSort("amount")}
                 >
                   <div className="inline-flex items-center gap-1">
-                    <span>AMOUNT</span>
+                    AMOUNT
                     <ArrowUpDown className="h-3 w-3 text-slate-400" />
                   </div>
                 </th>
                 <th
-                  className="px-5 py-3.5 cursor-pointer select-none"
-                  onClick={() => handleSort("invoiceDate")}
+                  className="px-5 py-3 font-bold text-slate-800 cursor-pointer select-none"
+                  onClick={() => handleSort("dueDate")}
                 >
                   <div className="inline-flex items-center gap-1">
-                    <span>INVOICE DATE</span>
+                    DUE DATE
                     <ArrowUpDown className="h-3 w-3 text-slate-400" />
                   </div>
                 </th>
-                <th className="px-5 py-3.5">APPROVAL</th>
-                <th className="px-5 py-3.5">PAYMENT</th>
-                <th className="px-5 py-3.5">ACTION</th>
+                <th className="px-5 py-3 font-bold text-slate-800">APPROVAL</th>
+                <th className="px-5 py-3 font-bold text-slate-800">PAYMENT STATUS</th>
+                <th className="px-5 py-3 font-bold text-slate-800 text-right">ACTIONS</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs">
-              {paginatedInvoices.length === 0 ? (
+              {isRecordsLoading ? (
                 <tr>
-                  <td
-                    colSpan={8}
-                    className="px-5 py-12 text-center text-slate-400"
-                  >
-                    No miscellaneous invoices found.
+                  <td colSpan={8} className="px-5 py-12 text-center text-slate-400">
+                    <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-500" />
+                    Loading miscellaneous invoices...
+                  </td>
+                </tr>
+              ) : records.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-5 py-12 text-center text-slate-400">
+                    No miscellaneous invoices found matching criteria.
                   </td>
                 </tr>
               ) : (
-                paginatedInvoices.map((inv) => (
-                  <tr
-                    key={inv.id}
-                    className="hover:bg-slate-50/70 transition-colors"
-                  >
-                    {/* INVOICE ID */}
-                    <td
-                      onClick={() => handleOpenDetailModal(inv)}
-                      className="px-5 py-4 text-slate-400 font-normal hover:text-blue-600 hover:underline cursor-pointer"
+                records.map((inv, idx) => {
+                  const isApproved =
+                    inv.approval === "Approved" ||
+                    inv.approval === "Verified";
+                  const isPaid =
+                    inv.payment === "Paid" ||
+                    inv.payment === "Completed";
+                  const canMarkPaid = !isPaid;
+
+                  return (
+                    <tr
+                      key={inv.invoiceId || inv.id || idx}
+                      className="hover:bg-slate-50/70 transition-colors"
                     >
-                      {inv.invoiceNumber}
-                    </td>
-
-                    {/* SERVICE PROVIDER */}
-                    <td className="px-5 py-4 font-bold text-slate-900">
-                      {inv.serviceProvider}
-                    </td>
-
-                    {/* CATEGORY */}
-                    <td className="px-5 py-4 text-slate-600 font-normal">
-                      {inv.category}
-                    </td>
-
-                    {/* AMOUNT */}
-                    <td className="px-5 py-4">
-                      <span
-                        onClick={() => handleOpenDetailModal(inv)}
-                        className="font-bold text-[#2563EB] underline underline-offset-2 hover:text-blue-700 cursor-pointer"
-                      >
-                        {inv.amountFormatted}
-                      </span>
-                    </td>
-
-                    {/* INVOICE DATE */}
-                    <td className="px-5 py-4 text-slate-600 font-normal whitespace-nowrap">
-                      {inv.invoiceDate}
-                    </td>
-
-                    {/* APPROVAL */}
-                    <td className="px-5 py-4 whitespace-nowrap">
-                      <span
-                        className={`font-semibold ${
-                          inv.approvalStatus === "Approved"
-                            ? "text-[#16A34A]"
-                            : "text-[#D97706]"
-                        }`}
-                      >
-                        {inv.approvalStatus}
-                      </span>
-                    </td>
-
-                    {/* PAYMENT */}
-                    <td className="px-5 py-4 whitespace-nowrap">
-                      <span
-                        className={`font-semibold ${
-                          inv.paymentStatus === "Paid"
-                            ? "text-[#16A34A]"
-                            : "text-[#D97706]"
-                        }`}
-                      >
-                        {inv.paymentStatus}
-                      </span>
-                    </td>
-
-                    {/* ACTION */}
-                    <td className="px-5 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-3">
-                        {/* View Eye Icon */}
-                        <button
-                          type="button"
-                          title="View Invoice Details"
-                          onClick={() => handleOpenDetailModal(inv)}
-                          className="text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+                      <td className="px-5 py-3.5 text-slate-600 font-mono font-medium">
+                        {inv.invoiceNumber}
+                      </td>
+                      <td className="px-5 py-3.5 font-bold text-slate-900">
+                        {inv.serviceProvider || inv.payeeName || "—"}
+                      </td>
+                      <td className="px-5 py-3.5 text-slate-600 font-normal">
+                        <span className="inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-700 capitalize">
+                          {inv.serviceCategory || inv.category || "General"}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5 font-bold text-slate-900">
+                        {formatCurrency(inv.amount)}
+                      </td>
+                      <td className="px-5 py-3.5 text-slate-600 font-normal whitespace-nowrap">
+                        {formatDisplayDate(inv.dueDate)}
+                      </td>
+                      <td className="px-5 py-3.5 whitespace-nowrap">
+                        <span
+                          className={`inline-flex items-center gap-1 font-semibold px-2 py-0.5 rounded-md text-[11px] ${
+                            isApproved
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                              : "bg-amber-50 text-amber-700 border border-amber-200"
+                          }`}
                         >
-                          <Eye className="w-4 h-4" />
-                        </button>
-
-                        {/* Download Icon */}
-                        <button
-                          type="button"
-                          title="Download Invoice"
-                          onClick={() => handleOpenDetailModal(inv)}
-                          className="text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+                          {isApproved ? (
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          ) : (
+                            <AlertCircle className="w-3 h-3 text-amber-600" />
+                          )}
+                          {inv.approval || (isApproved ? "Approved" : "Pending")}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5 whitespace-nowrap">
+                        <span
+                          className={`inline-flex items-center gap-1 font-semibold px-2 py-0.5 rounded-md text-[11px] ${
+                            isPaid
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                              : "bg-blue-50 text-blue-700 border border-blue-200"
+                          }`}
                         >
-                          <Download className="w-4 h-4" />
-                        </button>
+                          {inv.payment || (isPaid ? "Paid" : "Pending")}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5 text-right whitespace-nowrap">
+                        <div className="inline-flex items-center justify-end gap-1.5">
+                          {canMarkPaid && (
+                            <button
+                              onClick={() => handleMarkPaid(inv)}
+                              disabled={isMarkingPaid}
+                              className="px-2.5 py-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-md transition-colors cursor-pointer"
+                            >
+                              Mark Paid
+                            </button>
+                          )}
 
-                        {/* Payment Toggle Button */}
-                        {inv.paymentStatus === "Paid" ? (
+                          {inv.documentUrl && (
+                            <a
+                              href={inv.documentUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-1 rounded-md text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
+                              title="Download Invoice"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                            </a>
+                          )}
+
                           <button
-                            type="button"
-                            onClick={() => handleTogglePaymentStatus(inv.id)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#00A859] hover:bg-[#008f4c] text-white text-xs font-semibold rounded-lg shadow-2xs transition-colors cursor-pointer"
+                            onClick={() => {
+                              setSelectedInvoice({
+                                id: inv.invoiceId || inv.id || inv.invoiceNumber,
+                                invoiceNumber: inv.invoiceNumber,
+                                serviceProvider: inv.serviceProvider || inv.payeeName || "—",
+                                category: inv.serviceCategory || inv.category || "General",
+                                amount: inv.amount,
+                                amountFormatted: formatCurrency(inv.amount),
+                                invoiceDate: formatDisplayDate(inv.invoiceDate || inv.dueDate),
+                                dueDate: formatDisplayDate(inv.dueDate),
+                                approvalStatus: (inv.approval as "Approved" | "Pending") || "Pending",
+                                paymentStatus: (inv.payment as "Pending" | "Paid") || "Pending",
+                                project: inv.projectName || inv.project,
+                                documentUrl: inv.documentUrl || undefined,
+                              });
+                              setIsDetailsModalOpen(true);
+                            }}
+                            className="p-1 rounded-md text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
+                            title="View Details"
                           >
-                            <span className="text-xs font-bold">$</span>
-                            <span>Paid</span>
+                            <Eye className="w-3.5 h-3.5" />
                           </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleTogglePaymentStatus(inv.id)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-semibold rounded-lg shadow-2xs transition-colors cursor-pointer"
-                          >
-                            <span className="w-3.5 h-3.5 rounded-full border border-white flex items-center justify-center text-[9px] leading-none">
-                              ✓
-                            </span>
-                            <span>Mark Paid</span>
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
 
-        {/* 4. Pagination matching screenshot */}
+        {/* Pagination */}
         <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
-          {/* Showing 10 v Results */}
           <div className="flex items-center gap-2">
             <span>Showing</span>
             <div className="relative">
@@ -781,91 +722,74 @@ export default function MiscellaneousInvoicesPage() {
                   setRowsPerPage(Number(e.target.value));
                   setCurrentPage(1);
                 }}
-                className="appearance-none bg-white border border-slate-200 rounded-md pl-2 pr-6 py-1 text-xs text-slate-700 font-medium cursor-pointer focus:outline-none focus:border-blue-500"
+                className="h-7 pl-2 pr-6 border border-slate-200 rounded-md text-xs text-slate-700 bg-white focus:outline-none appearance-none cursor-pointer"
               >
-                <option value={10}>10</option>
-                <option value={20}>20</option>
-                <option value={50}>50</option>
+                {[10, 20, 50, 100].map((num) => (
+                  <option key={num} value={num}>
+                    {num}
+                  </option>
+                ))}
               </select>
               <ChevronDown className="w-3 h-3 text-slate-400 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
-            <span>Results</span>
+            <span>of {totalRecords} Records</span>
           </div>
 
-          {/* Pagination buttons: < 1 2 3 ... 15 > */}
           <div className="flex items-center gap-1.5">
             <button
-              type="button"
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              disabled={currentPage <= 1}
-              className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              disabled={currentPage === 1}
+              className="p-1 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
             >
-              <ChevronLeft className="w-3.5 h-3.5" />
+              <ChevronLeft className="w-4 h-4" />
             </button>
-
-            {[1, 2, 3].map((page) => (
-              <button
-                key={page}
-                type="button"
-                onClick={() => setCurrentPage(page)}
-                className={`w-7 h-7 flex items-center justify-center rounded-lg text-xs font-semibold transition-colors ${
-                  currentPage === page
-                    ? "border border-purple-500 text-purple-600 bg-purple-50/30"
-                    : "border border-slate-200 text-slate-600 hover:bg-slate-50"
-                }`}
-              >
-                {page}
-              </button>
-            ))}
-
-            <span className="px-1 text-slate-400">...</span>
-
+            <span className="text-xs font-medium text-slate-700 px-2">
+              Page {currentPage} of {totalPages}
+            </span>
             <button
-              type="button"
-              onClick={() => setCurrentPage(15)}
-              className={`w-7 h-7 flex items-center justify-center rounded-lg text-xs font-semibold transition-colors ${
-                currentPage === 15
-                  ? "border border-purple-500 text-purple-600 bg-purple-50/30"
-                  : "border border-slate-200 text-slate-600 hover:bg-slate-50"
-              }`}
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="p-1 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
             >
-              15
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setCurrentPage((p) => Math.min(15, p + 1))}
-              disabled={currentPage >= 15}
-              className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              <ChevronRight className="w-3.5 h-3.5" />
+              <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         </div>
       </div>
 
-      {/* Date Range Modal */}
-      <CalendarRangePickerModal
-        isOpen={isCalendarOpen}
-        onClose={() => setIsCalendarOpen(false)}
-        onSelectRange={(range) => setDateRangeLabel(range)}
-      />
-
-      {/* Upload Misc Invoice Dialog matching user reference modal */}
+      {/* Upload Dialog */}
       <UploadMiscInvoiceDialog
         isOpen={isUploadOpen}
         onClose={() => setIsUploadOpen(false)}
         onSubmit={handleUploadInvoice}
-        serviceProviderSuggestions={providerSuggestions}
-        categorySuggestions={categorySuggestions}
+        projects={availableProjects}
+        categorySuggestions={availableCategories}
+        isSubmitting={isSubmittingUpload}
       />
 
-      {/* Details Dialog matching user reference modal */}
+      {/* Details Modal */}
       <MiscInvoiceDetailsModal
-        isOpen={!!detailInvoice}
-        onClose={() => setDetailInvoice(null)}
-        invoice={detailInvoice}
-        onTogglePayment={handleTogglePaymentStatus}
+        isOpen={isDetailsModalOpen}
+        onClose={() => setIsDetailsModalOpen(false)}
+        invoice={selectedInvoice}
+      />
+
+      {/* Date Range Modal */}
+      <CalendarRangePickerModal
+        isOpen={isCalendarOpen}
+        onClose={() => setIsCalendarOpen(false)}
+        onApply={(range) => {
+          if (range?.from && range?.to) {
+            const startStr = formatDateToIso(range.from);
+            const endStr = formatDateToIso(range.to);
+            setDateRange({ startDate: startStr, endDate: endStr });
+            setDateRangeLabel(`${formatDisplayDate(startStr)} - ${formatDisplayDate(endStr)}`);
+          } else {
+            setDateRange({});
+            setDateRangeLabel("All Dates");
+          }
+          setCurrentPage(1);
+        }}
       />
 
       {/* Success Modal */}

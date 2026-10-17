@@ -12,13 +12,15 @@ import ProjectSelectorDropdownModal from "@/components/common_components/Project
 import { useGetProfitLossStatementQuery } from "@/redux/api/reportsApi";
 import { useGetBudgetVsActualProjectsQuery } from "@/redux/api/financialApi";
 import { formatDateToIso } from "@/lib/dashboardFormatters";
+import { getProjectDisplayName } from "@/lib/projectUtils";
 
 export const ProfitLossStatementPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedLeadId = searchParams.get("leadId") || undefined;
 
   // Query Filters State
-  const [selectedDateRange, setSelectedDateRange] = useState<string>("All Dates");
+  const [selectedDateRange, setSelectedDateRange] =
+    useState<string>("All Dates");
   const [startDate, setStartDate] = useState<string | undefined>(undefined);
   const [endDate, setEndDate] = useState<string | undefined>(undefined);
   const [page, setPage] = useState<number>(1);
@@ -26,15 +28,17 @@ export const ProfitLossStatementPage: React.FC = () => {
 
   // Modals state
   const [isDatePickerOpen, setIsDatePickerOpen] = useState<boolean>(false);
-  const [isProjectDropdownOpen, setIsProjectDropdownOpen] = useState<boolean>(false);
 
   // Fetch real projects for dropdown picker
   const { data: projectList = [] } = useGetBudgetVsActualProjectsQuery();
   const projectOptions = useMemo(() => {
     return projectList.map((p) => ({
       id: p._id,
-      name: p.projectName,
+      name: getProjectDisplayName(p),
       code: p.jobId,
+      clientName: p.clientName,
+      buildingType: p.buildingType,
+      location: p.location || p.address,
     }));
   }, [projectList]);
 
@@ -42,23 +46,22 @@ export const ProfitLossStatementPage: React.FC = () => {
   const selectedProjectLabel = useMemo(() => {
     if (!selectedLeadId) return "All Projects";
     const matched = projectList.find((p) => p._id === selectedLeadId);
-    return matched ? `${matched.projectName} (${matched.jobId})` : "Selected Project";
+    if (matched) {
+      const pName = getProjectDisplayName(matched);
+      return matched.jobId ? `${pName} (${matched.jobId})` : pName;
+    }
+    return "Selected Project";
   }, [selectedLeadId, projectList]);
 
   // Main Profit & Loss API Query
-  const {
-    data,
-    isLoading,
-    isFetching,
-    isError,
-    refetch,
-  } = useGetProfitLossStatementQuery({
-    leadId: selectedLeadId,
-    page,
-    limit,
-    startDate: startDate || undefined,
-    endDate: endDate || undefined,
-  });
+  const { data, isLoading, isFetching, isError, refetch } =
+    useGetProfitLossStatementQuery({
+      leadId: selectedLeadId,
+      page,
+      limit,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+    });
 
   // Handle Project Selection
   const handleSelectProject = (_projectLabel: string, leadId?: string) => {
@@ -83,7 +86,7 @@ export const ProfitLossStatementPage: React.FC = () => {
       setSelectedDateRange(
         range.startDate && range.endDate
           ? `${range.startDate} - ${range.endDate}`
-          : `${isoStart} - ${isoEnd}`
+          : `${isoStart} - ${isoEnd}`,
       );
       setPage(1);
     }
@@ -97,7 +100,6 @@ export const ProfitLossStatementPage: React.FC = () => {
     setPage(1);
   };
 
-
   return (
     <div className="p-3 sm:p-5 lg:p-6 space-y-6">
       {/* Header Row: Title & Subtitle on left, Filters & Export on right */}
@@ -107,7 +109,8 @@ export const ProfitLossStatementPage: React.FC = () => {
             Profit & Loss Statement
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 font-normal mt-0.5">
-            Overview of project revenue, combined expenses, and profitability margins.
+            Overview of project revenue, combined expenses, and profitability
+            margins.
           </p>
         </div>
 
@@ -119,7 +122,6 @@ export const ProfitLossStatementPage: React.FC = () => {
               type="button"
               onClick={() => {
                 setIsDatePickerOpen(!isDatePickerOpen);
-                setIsProjectDropdownOpen(false);
               }}
               className="flex items-center gap-2 px-3.5 py-2 rounded-lg border border-slate-200 bg-white text-xs sm:text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer shadow-2xs"
             >
@@ -145,27 +147,23 @@ export const ProfitLossStatementPage: React.FC = () => {
           </div>
 
           {/* Project Filter Dropdown & Project Selector Modal */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => {
-                setIsProjectDropdownOpen(!isProjectDropdownOpen);
-                setIsDatePickerOpen(false);
-              }}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-lg border border-slate-200 bg-white text-xs sm:text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer shadow-2xs min-w-32.5 max-w-[280px] justify-between"
-            >
-              <span className="truncate">{selectedProjectLabel}</span>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-            </button>
-
-            <ProjectSelectorDropdownModal
-              isOpen={isProjectDropdownOpen}
-              onClose={() => setIsProjectDropdownOpen(false)}
-              selectedProject={selectedProjectLabel}
-              projects={projectOptions}
-              onSelectProject={handleSelectProject}
-            />
-          </div>
+          <ProjectSelectorDropdownModal
+            trigger={
+              <button
+                type="button"
+                onClick={() => setIsDatePickerOpen(false)}
+                className="flex items-center gap-2 px-3.5 py-2 rounded-lg border border-slate-200 bg-white text-xs sm:text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer shadow-2xs min-w-32.5 max-w-70 justify-between"
+              >
+                <span className="truncate">{selectedProjectLabel}</span>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              </button>
+            }
+            selectedProject={selectedProjectLabel}
+            selectedProjectId={selectedLeadId}
+            projects={projectOptions}
+            onSelectProject={handleSelectProject}
+            align="right"
+          />
 
           {/* Export Report Button (Static / Unclickable) */}
           <button

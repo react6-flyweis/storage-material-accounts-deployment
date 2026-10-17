@@ -14,6 +14,8 @@ import { marginAnalysisApi } from "./api/marginAnalysisApi";
 import { financialApi } from "./api/financialApi";
 import { reportsApi } from "./api/reportsApi";
 import { costsApi } from "./api/costsApi";
+import { deliveriesApi } from "./api/deliveriesApi";
+import { invoiceManagementApi } from "./api/invoiceManagementApi";
 import authReducer from "./slices/authSlice";
 import inventoryReducer from "./slices/inventorySlice";
 import maintenanceReducer from "./slices/maintenanceSlice";
@@ -44,6 +46,8 @@ export const store = configureStore({
     [financialApi.reducerPath]: financialApi.reducer,
     [reportsApi.reducerPath]: reportsApi.reducer,
     [costsApi.reducerPath]: costsApi.reducer,
+    [deliveriesApi.reducerPath]: deliveriesApi.reducer,
+    [invoiceManagementApi.reducerPath]: invoiceManagementApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -70,7 +74,9 @@ export const store = configureStore({
       marginAnalysisApi.middleware,
       financialApi.middleware,
       reportsApi.middleware,
-      costsApi.middleware
+      costsApi.middleware,
+      deliveriesApi.middleware,
+      invoiceManagementApi.middleware
     ),
 });
 
