@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Download,
   Plus,
@@ -25,7 +26,6 @@ import {
 } from "@/components/ui/select";
 import SuccessModal from "@/components/common_components/SuccessModal";
 import OrderPaymentDetailsModal from "@/components/modals/OrderPaymentDetailsModal";
-import UpdatePaymentPage from "./UpdatePaymentPage";
 import { formatCurrency } from "@/lib/dashboardFormatters";
 import {
   useGetPaymentStatsQuery,
@@ -91,10 +91,19 @@ const PaymentOverview = () => {
   const [page, setPage] = useState<number>(1);
   const [limit, setLimit] = useState<number>(20);
 
-  // UI state
-  const [viewMode, setViewMode] = useState<"list" | "update" | "add">("list");
-  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
-  const [successModalTitle, setSuccessModalTitle] = useState("");
+  const navigate = useNavigate();
+  const location = useLocation();
+  const locationState = location.state as
+    | { successMessage?: string; updatedOrder?: OrderItem }
+    | null;
+
+// Success modal & selected order for detail view
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(
+    Boolean(locationState?.successMessage)
+  );
+  const [successModalTitle, setSuccessModalTitle] = useState(
+    locationState?.successMessage || ""
+  );
   const [selectedOrder, setSelectedOrder] = useState<OrderItem | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [exportErrorMessage, setExportErrorMessage] = useState<string | null>(
@@ -102,10 +111,32 @@ const PaymentOverview = () => {
   );
 
   // Local state for client-side modifications / newly added items during session
-  const [localAddedOrders, setLocalAddedOrders] = useState<OrderItem[]>([]);
+  const [localAddedOrders] = useState<OrderItem[]>(
+    locationState?.updatedOrder && !locationState.updatedOrder.wipId
+      ? [locationState.updatedOrder]
+      : []
+  );
   const [localUpdatedOrders, setLocalUpdatedOrders] = useState<
     Record<string, OrderItem>
-  >({});
+  >(
+    locationState?.updatedOrder
+      ? { [locationState.updatedOrder.id]: locationState.updatedOrder }
+      : {}
+  );
+
+  useEffect(() => {
+    if (locationState?.successMessage) {
+      setSuccessModalTitle(locationState.successMessage);
+      setIsSuccessModalOpen(true);
+    }
+    if (locationState?.updatedOrder) {
+      const ord = locationState.updatedOrder;
+      setLocalUpdatedOrders((prev) => ({
+        ...prev,
+        [ord.id]: ord,
+      }));
+    }
+  }, [locationState]);
 
   // Debounce search input (350ms)
   useEffect(() => {
@@ -146,6 +177,13 @@ const PaymentOverview = () => {
   // Export Orders Excel Mutation
   const [exportPaymentOrders, { isLoading: isExporting }] =
     useExportPaymentOrdersMutation();
+
+  // Clear navigation state from history so reload doesn't re-trigger modal
+  useEffect(() => {
+    if (locationState?.successMessage) {
+      window.history.replaceState({}, document.title);
+    }
+  }, [locationState?.successMessage]);
 
   // Combine server stats with orders response stats as fallback
   const currentStats = useMemo(() => {
@@ -228,48 +266,17 @@ const PaymentOverview = () => {
   };
 
   const handleEdit = (order: OrderItem) => {
-    setSelectedOrder(order);
-    setViewMode("update");
+    navigate(
+      `/payment_overview/edit/${order.wipId || order.projectId || order.id}`,
+      {
+        state: { order, isEdit: true },
+      }
+    );
   };
 
   const handleAddNew = () => {
-    setSelectedOrder(null);
-    setViewMode("add");
+    navigate("/payment_overview/add");
   };
-
-  // const handleRefreshAll = () => {
-  //   refetchStats();
-  //   refetchOrders();
-  // };
-
-  // If in Add or Update page mode, render UpdatePaymentPage
-  if (viewMode !== "list") {
-    return (
-      <UpdatePaymentPage
-        title={viewMode === "add" ? "Add Payment" : "Update Payment"}
-        order={selectedOrder}
-        onBack={() => {
-          setViewMode("list");
-          setSelectedOrder(null);
-        }}
-        onSave={(updated) => {
-          if (viewMode === "add") {
-            setLocalAddedOrders((prev) => [updated, ...prev]);
-            setSuccessModalTitle("Payment Entry Saved Successfully");
-          } else {
-            setLocalUpdatedOrders((prev) => ({
-              ...prev,
-              [updated.id]: updated,
-            }));
-            setSuccessModalTitle("Payment Updated Successfully");
-          }
-          setViewMode("list");
-          setSelectedOrder(null);
-          setIsSuccessModalOpen(true);
-        }}
-      />
-    );
-  }
 
   return (
     <div className="space-y-6 px-2 sm:px-4 xl:px-0 pb-10">
