@@ -4,8 +4,12 @@ import { baseQueryWithReauth } from "./baseQueryWithReauth";
 
 export interface BudgetVsActualProjectPickerItem {
   _id: string;
-  projectName: string;
-  jobId: string;
+  projectName?: string;
+  jobId?: string;
+  clientName?: string;
+  buildingType?: string;
+  location?: string;
+  address?: string;
 }
 
 export interface BudgetVsActualProjectInfo {
