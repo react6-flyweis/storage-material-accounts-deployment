@@ -94,25 +94,81 @@ export const FreightCostPage: React.FC = () => {
   };
 
   const trendData: MonthlyFreightTrendItem[] = useMemo(() => {
-    return (trendDataApi || []).map((t) => ({
-      month: t.month,
-      cost: t.cost,
-      deliveries: t.deliveries ?? 0,
+    const rawList: unknown[] = Array.isArray(trendDataApi)
+      ? trendDataApi
+      : Array.isArray((trendDataApi as unknown as { points?: unknown[] })?.points)
+      ? (trendDataApi as unknown as { points: unknown[] }).points
+      : Array.isArray((trendDataApi as unknown as { trend?: unknown[] })?.trend)
+      ? (trendDataApi as unknown as { trend: unknown[] }).trend
+      : Array.isArray((trendDataApi as unknown as { rows?: unknown[] })?.rows)
+      ? (trendDataApi as unknown as { rows: unknown[] }).rows
+      : [];
+
+    return rawList.map((t: any) => ({
+      month: t?.month || t?.label || "",
+      cost: Number(t?.cost) || 0,
+      deliveries: Number(t?.deliveries) || 0,
     }));
   }, [trendDataApi]);
-  const distributionData: CarrierDistributionItem[] = carrierDistApi || [];
+
+  const distributionData: CarrierDistributionItem[] = useMemo(() => {
+    let rawList: unknown[] = [];
+    if (Array.isArray(carrierDistApi)) {
+      rawList = carrierDistApi;
+    } else if (carrierDistApi && typeof carrierDistApi === "object") {
+      const obj = carrierDistApi as Record<string, unknown>;
+      if (Array.isArray(obj.carriers)) rawList = obj.carriers;
+      else if (Array.isArray(obj.distribution)) rawList = obj.distribution;
+      else if (Array.isArray(obj.rows)) rawList = obj.rows;
+      else if (Array.isArray(obj.data)) rawList = obj.data;
+    }
+
+    return rawList.map((item: any) => ({
+      carrier: item.carrier || item.carrierName || "Unknown Carrier",
+      amount: Number(item.amount ?? item.total ?? 0),
+    }));
+  }, [carrierDistApi]);
 
   const carrierAnalysisData = useMemo<CarrierCostItem[]>(() => {
-    if (carrierDistApi && carrierDistApi.length > 0) {
-      const totalAmount = carrierDistApi.reduce((sum, c) => sum + (c.amount || 0), 0) || 1;
-      return carrierDistApi.map((c, i) => ({
-        id: `carrier-${i}`,
-        name: c.carrier,
-        ytdTotal: "YTD Total",
-        totalCost: c.amount,
-        totalCostFormatted: `$${Number(c.amount).toLocaleString()}`,
-        percentageOfTotal: `${Math.round((c.amount / totalAmount) * 100)}%`,
-      }));
+    let rawList: unknown[] = [];
+    if (Array.isArray(carrierDistApi)) {
+      rawList = carrierDistApi;
+    } else if (carrierDistApi && typeof carrierDistApi === "object") {
+      const obj = carrierDistApi as Record<string, unknown>;
+      if (Array.isArray(obj.carriers)) rawList = obj.carriers;
+      else if (Array.isArray(obj.distribution)) rawList = obj.distribution;
+      else if (Array.isArray(obj.rows)) rawList = obj.rows;
+      else if (Array.isArray(obj.data)) rawList = obj.data;
+    }
+
+    if (rawList.length > 0) {
+      const totalAmount =
+        rawList.reduce(
+          (sum: number, c: any) => sum + (Number(c.amount ?? c.total) || 0),
+          0
+        ) || 1;
+
+      return rawList.map((c: any, i: number) => {
+        const cost = Number(c.amount ?? c.total) || 0;
+        const name = c.carrierName || c.carrier || "Unknown Carrier";
+        const pct =
+          c.pct !== undefined
+            ? `${c.pct}%`
+            : c.percentage !== undefined
+            ? typeof c.percentage === "number"
+              ? `${c.percentage}%`
+              : `${c.percentage}`
+            : `${Math.round((cost / totalAmount) * 100)}%`;
+
+        return {
+          id: c.carrierId || c.id || `carrier-${i}`,
+          name,
+          ytdTotal: "YTD Total",
+          totalCost: cost,
+          totalCostFormatted: `$${Number(cost).toLocaleString()}`,
+          percentageOfTotal: pct,
+        };
+      });
     }
     return [];
   }, [carrierDistApi]);
@@ -517,11 +573,16 @@ export const FreightCostPage: React.FC = () => {
                 />
                 <XAxis
                   type="number"
-                  domain={[0, 140000]}
-                  ticks={[0, 35000, 70000, 105000, 140000]}
                   axisLine={{ stroke: "#E2E8F0" }}
                   tickLine={false}
                   tick={{ fill: "#64748B", fontSize: 11 }}
+                  tickFormatter={(val) =>
+                    val >= 1000000
+                      ? `$${(val / 1000000).toFixed(1)}M`
+                      : val >= 1000
+                      ? `$${(val / 1000).toFixed(0)}k`
+                      : `$${val}`
+                  }
                   dy={6}
                 />
                 <YAxis

@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { InvoiceStatsCards, type InvoiceStatCardItem } from "@/components/invoices/InvoiceStatsCards";
 import { CalendarRangePickerModal } from "@/components/common_components/CalendarRangePickerModal";
+import ProjectSelectorDropdownModal from "@/components/common_components/ProjectSelectorDropdownModal";
 import {
   useGetInvoiceManagementFiltersQuery,
   useGetProjectInvoicesSummaryQuery,
@@ -52,7 +53,6 @@ export default function ProjectInvoicesPage({
   const [dateRangeLabel, setDateRangeLabel] = useState<string>("All Dates");
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
-  const [showProjectMenu, setShowProjectMenu] = useState(false);
 
   // Sorting
   const [sortField, setSortField] = useState<"dueDate" | "amount" | "date">("dueDate");
@@ -251,7 +251,25 @@ export default function ProjectInvoicesPage({
   const totalPages = Math.max(1, Math.ceil(totalRecords / rowsPerPage));
 
   // Projects list from shared filters or dynamic
-  const availableProjects = filtersData?.projects || [];
+  const availableProjects = useMemo(() => filtersData?.projects || [], [filtersData?.projects]);
+  const projectOptions = useMemo(() => {
+    return availableProjects.map((p) => ({
+      id: p.projectId || p.leadId,
+      name: p.projectName,
+      code: p.jobId,
+    }));
+  }, [availableProjects]);
+
+  const selectedProjectLabel = useMemo(() => {
+    if (!selectedProject || selectedProject === "All") return "All Projects";
+    const found = availableProjects.find(
+      (p) => (p.projectId || p.leadId) === selectedProject
+    );
+    if (found) {
+      return found.jobId ? `${found.projectName} (${found.jobId})` : found.projectName;
+    }
+    return "Project";
+  }, [selectedProject, availableProjects]);
 
   return (
     <div className="space-y-5">
@@ -331,7 +349,6 @@ export default function ProjectInvoicesPage({
               <button
                 onClick={() => {
                   setShowStatusMenu(!showStatusMenu);
-                  setShowProjectMenu(false);
                 }}
                 className={`inline-flex items-center gap-1.5 h-8.5 px-3 bg-white border rounded-lg text-xs font-medium cursor-pointer shadow-xs transition-colors ${
                   selectedStatus !== "All"
@@ -369,67 +386,36 @@ export default function ProjectInvoicesPage({
               )}
             </div>
 
-            {/* Project Filter */}
-            <div className="relative">
-              <button
-                onClick={() => {
-                  setShowProjectMenu(!showProjectMenu);
-                  setShowStatusMenu(false);
-                }}
-                className={`inline-flex items-center gap-1.5 h-8.5 px-3 bg-white border rounded-lg text-xs font-medium cursor-pointer shadow-xs transition-colors ${
-                  selectedProject !== "All"
-                    ? "border-blue-500 text-blue-600 bg-blue-50/40"
-                    : "border-slate-200 text-slate-700 hover:bg-slate-50"
-                }`}
-              >
-                <Filter className="w-3.5 h-3.5 text-slate-500" />
-                <span className="max-w-28 truncate">
-                  {selectedProject === "All"
-                    ? "Project"
-                    : availableProjects.find((p) => (p.projectId || p.leadId) === selectedProject)?.projectName || "Project"}
-                </span>
-                <ChevronDown className="w-3 h-3 text-slate-400 ml-0.5" />
-              </button>
-
-              {showProjectMenu && (
-                <div className="absolute right-0 mt-1.5 w-52 max-h-60 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-lg p-1 z-30 space-y-0.5">
-                  <button
-                    onClick={() => {
-                      setSelectedProject("All");
-                      setShowProjectMenu(false);
-                      setCurrentPage(1);
-                    }}
-                    className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors cursor-pointer ${
-                      selectedProject === "All"
-                        ? "bg-blue-50 text-blue-600 font-semibold"
-                        : "text-slate-700 hover:bg-slate-50"
-                    }`}
-                  >
-                    All Projects
-                  </button>
-                  {availableProjects.map((p) => {
-                    const id = p.projectId || p.leadId;
-                    return (
-                      <button
-                        key={id}
-                        onClick={() => {
-                          setSelectedProject(id);
-                          setShowProjectMenu(false);
-                          setCurrentPage(1);
-                        }}
-                        className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors cursor-pointer truncate ${
-                          selectedProject === id
-                            ? "bg-blue-50 text-blue-600 font-semibold"
-                            : "text-slate-700 hover:bg-slate-50"
-                        }`}
-                      >
-                        {p.projectName} {p.jobId ? `(${p.jobId})` : ""}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+            {/* Project Selector Dropdown Modal */}
+            <ProjectSelectorDropdownModal
+              trigger={
+                <button
+                  type="button"
+                  onClick={() => setShowStatusMenu(false)}
+                  className={`inline-flex items-center gap-1.5 h-8.5 px-3 bg-white border rounded-lg text-xs font-medium cursor-pointer shadow-xs transition-colors ${
+                    selectedProject !== "All"
+                      ? "border-blue-500 text-blue-600 bg-blue-50/40"
+                      : "border-slate-200 text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  <Filter className="w-3.5 h-3.5 text-slate-500" />
+                  <span className="max-w-28 truncate">{selectedProjectLabel}</span>
+                  <ChevronDown className="w-3 h-3 text-slate-400 ml-0.5" />
+                </button>
+              }
+              selectedProjectId={selectedProject !== "All" ? selectedProject : undefined}
+              selectedProject={selectedProjectLabel}
+              projects={projectOptions}
+              onSelectProject={(label, leadId) => {
+                if (!leadId || label === "All Projects") {
+                  setSelectedProject("All");
+                } else {
+                  setSelectedProject(leadId);
+                }
+                setCurrentPage(1);
+              }}
+              align="right"
+            />
           </div>
         </div>
 

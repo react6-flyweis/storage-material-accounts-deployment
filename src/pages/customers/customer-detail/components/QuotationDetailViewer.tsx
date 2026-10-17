@@ -307,7 +307,7 @@ export function QuotationDetailViewer({
           onRetry={loadHtmlPreview}
           title={`Quotation Document — ${displayProjectTitle}`}
           minHeight={850}
-          showToolbar={true}
+          showToolbar={false}
         />
       </div>
     </div>
