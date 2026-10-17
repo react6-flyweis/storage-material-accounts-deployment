@@ -13,7 +13,7 @@ import {
   useGetProfitLossSummaryQuery,
   type ProfitLossSummaryRow,
 } from "@/redux/api/marginAnalysisApi";
-import type { MarginFilters } from "./types";
+import { formatCompanyEnum, type MarginFilters } from "./types";
 
 export interface ProfitLossSummaryTableProps {
   filters?: MarginFilters;
@@ -228,8 +228,8 @@ export const ProfitLossSummaryTable: React.FC<ProfitLossSummaryTableProps> = ({
                       )}
                     </div>
                   </td>
-                  <td className="py-3.5 px-4 text-gray-600 capitalize">
-                    {row.category}
+                  <td className="py-3.5 px-4 text-gray-600">
+                    {formatCompanyEnum(row.category) || row.category || "-"}
                   </td>
                   <td className="py-3.5 px-4 text-gray-700 font-medium">
                     {formatCurrency(row.salesUSD)}
