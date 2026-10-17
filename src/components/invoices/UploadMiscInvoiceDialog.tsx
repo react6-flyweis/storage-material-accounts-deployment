@@ -1,23 +1,31 @@
 import React, { useState, useRef } from "react";
 import ReactDOM from "react-dom";
-import { X, Upload, ChevronDown } from "lucide-react";
+import { X, Upload, ChevronDown, Loader2 } from "lucide-react";
 
 export interface NewMiscInvoiceData {
   invoiceNumber: string;
   serviceProvider: string;
   amount: number;
   dueDate: string;
-  category: string;
+  serviceCategory: string;
   paymentStatus: "Unpaid" | "Paid" | "Pending";
+  projectId?: string;
   file?: File | null;
 }
 
 interface UploadMiscInvoiceDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: NewMiscInvoiceData) => void;
+  onSubmit: (data: NewMiscInvoiceData) => Promise<void> | void;
   serviceProviderSuggestions?: string[];
   categorySuggestions?: string[];
+  projects?: Array<{
+    leadId?: string;
+    projectId?: string;
+    projectName: string;
+    jobId?: string;
+  }>;
+  isSubmitting?: boolean;
 }
 
 const DEFAULT_PROVIDERS = [
@@ -44,12 +52,15 @@ export const UploadMiscInvoiceDialog: React.FC<UploadMiscInvoiceDialogProps> = (
   onSubmit,
   serviceProviderSuggestions = DEFAULT_PROVIDERS,
   categorySuggestions = DEFAULT_CATEGORIES,
+  projects = [],
+  isSubmitting = false,
 }) => {
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [serviceProvider, setServiceProvider] = useState("");
   const [amount, setAmount] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [category, setCategory] = useState("Maintenance");
+  const [selectedProjectId, setSelectedProjectId] = useState("");
   const [paymentStatus, setPaymentStatus] = useState<"Unpaid" | "Paid" | "Pending">("Unpaid");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -57,6 +68,7 @@ export const UploadMiscInvoiceDialog: React.FC<UploadMiscInvoiceDialogProps> = (
   // Dropdown states
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [showProjectDropdown, setShowProjectDropdown] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -68,11 +80,13 @@ export const UploadMiscInvoiceDialog: React.FC<UploadMiscInvoiceDialogProps> = (
     setAmount("");
     setDueDate("");
     setCategory("Maintenance");
+    setSelectedProjectId("");
     setPaymentStatus("Unpaid");
     setSelectedFile(null);
     setIsDragging(false);
     setShowCategoryDropdown(false);
     setShowStatusDropdown(false);
+    setShowProjectDropdown(false);
   };
 
   const handleClose = () => {
@@ -94,20 +108,25 @@ export const UploadMiscInvoiceDialog: React.FC<UploadMiscInvoiceDialogProps> = (
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const parsedAmount = parseFloat(amount.replace(/[^0-9.]/g, "")) || 0;
-    onSubmit({
+    await onSubmit({
       invoiceNumber: invoiceNumber.trim() || `MSC-${Date.now().toString().slice(-5)}`,
       serviceProvider: serviceProvider.trim() || "Service Provider",
       amount: parsedAmount,
       dueDate: dueDate || new Date().toISOString().split("T")[0],
-      category: category || "Maintenance",
+      serviceCategory: category || "Maintenance",
       paymentStatus,
+      projectId: selectedProjectId || undefined,
       file: selectedFile,
     });
     handleReset();
   };
+
+  const selectedProjectObj = projects.find(
+    (p) => (p.projectId || p.leadId) === selectedProjectId
+  );
 
   return ReactDOM.createPortal(
     <div
@@ -116,11 +135,11 @@ export const UploadMiscInvoiceDialog: React.FC<UploadMiscInvoiceDialogProps> = (
         if (e.target === e.currentTarget) handleClose();
       }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-120 p-6 relative animate-in zoom-in-95 duration-150">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-120 p-6 relative animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between pb-4">
           <h2 className="text-lg font-bold text-slate-900 tracking-tight">
-            Upload New Invoice
+            Upload Miscellaneous Invoice
           </h2>
           <button
             type="button"
@@ -141,7 +160,7 @@ export const UploadMiscInvoiceDialog: React.FC<UploadMiscInvoiceDialogProps> = (
               </label>
               <input
                 type="text"
-                placeholder="e.g., VND-2024-0126"
+                placeholder="e.g., MSC-2025-001"
                 value={invoiceNumber}
                 onChange={(e) => setInvoiceNumber(e.target.value)}
                 className="w-full h-10 px-3 rounded-lg bg-slate-100 border border-transparent focus:border-blue-500 focus:bg-white text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none transition-all"
@@ -150,12 +169,13 @@ export const UploadMiscInvoiceDialog: React.FC<UploadMiscInvoiceDialogProps> = (
 
             <div>
               <label className="block text-xs font-semibold text-slate-800 mb-1.5">
-                Service Provider
+                Service Provider <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
+                required
                 list="provider-options"
-                placeholder="Select or enter vendor"
+                placeholder="Vendor or Provider Name"
                 value={serviceProvider}
                 onChange={(e) => setServiceProvider(e.target.value)}
                 className="w-full h-10 px-3 rounded-lg bg-slate-100 border border-transparent focus:border-blue-500 focus:bg-white text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none transition-all"
@@ -172,11 +192,12 @@ export const UploadMiscInvoiceDialog: React.FC<UploadMiscInvoiceDialogProps> = (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-800 mb-1.5">
-                Amount
+                Amount ($) <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"
                 step="0.01"
+                required
                 placeholder="0.00"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
@@ -197,88 +218,148 @@ export const UploadMiscInvoiceDialog: React.FC<UploadMiscInvoiceDialogProps> = (
             </div>
           </div>
 
-          {/* Row 3: Payment Status */}
+          {/* Row 3: Project Selector (Optional/Required) */}
           <div className="relative">
             <label className="block text-xs font-semibold text-slate-800 mb-1.5">
-              Payment Status
+              Project
             </label>
             <div
               onClick={() => {
-                setShowStatusDropdown(!showStatusDropdown);
+                setShowProjectDropdown(!showProjectDropdown);
                 setShowCategoryDropdown(false);
-              }}
-              className="w-full h-10 px-3 rounded-lg bg-slate-100 flex items-center justify-between text-xs text-slate-700 cursor-pointer border border-transparent hover:border-slate-200 transition-colors"
-            >
-              <span className="text-slate-800 font-medium">{paymentStatus}</span>
-              <ChevronDown className="w-4 h-4 text-slate-400" />
-            </div>
-
-            {showStatusDropdown && (
-              <div className="absolute z-20 top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-lg shadow-lg py-1">
-                {(["Unpaid", "Paid", "Pending"] as const).map((status) => (
-                  <button
-                    key={status}
-                    type="button"
-                    onClick={() => {
-                      setPaymentStatus(status);
-                      setShowStatusDropdown(false);
-                    }}
-                    className={`w-full text-left px-3 py-2 text-xs cursor-pointer ${
-                      paymentStatus === status
-                        ? "bg-blue-50 text-blue-600 font-semibold"
-                        : "text-slate-700 hover:bg-slate-50"
-                    }`}
-                  >
-                    {status}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Row 4: Category */}
-          <div className="relative">
-            <label className="block text-xs font-semibold text-slate-800 mb-1.5">
-              Category
-            </label>
-            <div
-              onClick={() => {
-                setShowCategoryDropdown(!showCategoryDropdown);
                 setShowStatusDropdown(false);
               }}
               className="w-full h-10 px-3 rounded-lg bg-slate-100 flex items-center justify-between text-xs text-slate-700 cursor-pointer border border-transparent hover:border-slate-200 transition-colors"
             >
-              <span className="text-slate-800 font-medium">{category}</span>
-              <ChevronDown className="w-4 h-4 text-slate-400" />
+              <span className="text-slate-800 font-medium truncate">
+                {selectedProjectObj ? `${selectedProjectObj.projectName} ${selectedProjectObj.jobId ? `(${selectedProjectObj.jobId})` : ""}` : "Select a project (optional)"}
+              </span>
+              <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
             </div>
 
-            {showCategoryDropdown && (
-              <div className="absolute z-20 top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-lg shadow-lg py-1 max-h-48 overflow-y-auto">
-                {categorySuggestions.map((cat) => (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => {
-                      setCategory(cat);
-                      setShowCategoryDropdown(false);
-                    }}
-                    className={`w-full text-left px-3 py-2 text-xs cursor-pointer ${
-                      category === cat
-                        ? "bg-blue-50 text-blue-600 font-semibold"
-                        : "text-slate-700 hover:bg-slate-50"
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                ))}
+            {showProjectDropdown && (
+              <div className="absolute z-30 top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-lg shadow-lg py-1 max-h-48 overflow-y-auto">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedProjectId("");
+                    setShowProjectDropdown(false);
+                  }}
+                  className="w-full text-left px-3 py-2 text-xs text-slate-500 hover:bg-slate-50 cursor-pointer"
+                >
+                  None (General Expense)
+                </button>
+                {projects.map((proj) => {
+                  const id = proj.projectId || proj.leadId || "";
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedProjectId(id);
+                        setShowProjectDropdown(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-xs cursor-pointer truncate ${
+                        selectedProjectId === id
+                          ? "bg-blue-50 text-blue-600 font-semibold"
+                          : "text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      {proj.projectName} {proj.jobId ? `(${proj.jobId})` : ""}
+                    </button>
+                  );
+                })}
               </div>
             )}
+          </div>
+
+          {/* Row 4: Category & Status */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Category */}
+            <div className="relative">
+              <label className="block text-xs font-semibold text-slate-800 mb-1.5">
+                Category
+              </label>
+              <div
+                onClick={() => {
+                  setShowCategoryDropdown(!showCategoryDropdown);
+                  setShowStatusDropdown(false);
+                  setShowProjectDropdown(false);
+                }}
+                className="w-full h-10 px-3 rounded-lg bg-slate-100 flex items-center justify-between text-xs text-slate-700 cursor-pointer border border-transparent hover:border-slate-200 transition-colors"
+              >
+                <span className="text-slate-800 font-medium">{category}</span>
+                <ChevronDown className="w-4 h-4 text-slate-400" />
+              </div>
+
+              {showCategoryDropdown && (
+                <div className="absolute z-20 top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-lg shadow-lg py-1 max-h-48 overflow-y-auto">
+                  {categorySuggestions.map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => {
+                        setCategory(cat);
+                        setShowCategoryDropdown(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-xs cursor-pointer ${
+                        category === cat
+                          ? "bg-blue-50 text-blue-600 font-semibold"
+                          : "text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Payment Status */}
+            <div className="relative">
+              <label className="block text-xs font-semibold text-slate-800 mb-1.5">
+                Payment Status
+              </label>
+              <div
+                onClick={() => {
+                  setShowStatusDropdown(!showStatusDropdown);
+                  setShowCategoryDropdown(false);
+                  setShowProjectDropdown(false);
+                }}
+                className="w-full h-10 px-3 rounded-lg bg-slate-100 flex items-center justify-between text-xs text-slate-700 cursor-pointer border border-transparent hover:border-slate-200 transition-colors"
+              >
+                <span className="text-slate-800 font-medium">{paymentStatus}</span>
+                <ChevronDown className="w-4 h-4 text-slate-400" />
+              </div>
+
+              {showStatusDropdown && (
+                <div className="absolute z-20 top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-lg shadow-lg py-1">
+                  {(["Unpaid", "Paid", "Pending"] as const).map((status) => (
+                    <button
+                      key={status}
+                      type="button"
+                      onClick={() => {
+                        setPaymentStatus(status);
+                        setShowStatusDropdown(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-xs cursor-pointer ${
+                        paymentStatus === status
+                          ? "bg-blue-50 text-blue-600 font-semibold"
+                          : "text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      {status}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Row 5: Upload Invoice File */}
           <div>
             <label className="block text-xs font-semibold text-slate-800 mb-1.5">
-              Upload Invoice File
+              Upload Document / Receipt
             </label>
             <div
               onDragOver={(e) => {
@@ -325,16 +406,19 @@ export const UploadMiscInvoiceDialog: React.FC<UploadMiscInvoiceDialogProps> = (
           <div className="flex items-center justify-end gap-2.5 pt-2">
             <button
               type="button"
+              disabled={isSubmitting}
               onClick={handleClose}
-              className="px-5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+              className="px-5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-5 py-2.5 bg-[#3B66BD] hover:bg-[#2F54A0] text-white rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+              disabled={isSubmitting}
+              className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-[#3B66BD] hover:bg-[#2F54A0] text-white rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-50"
             >
-              Upload Invoice
+              {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              {isSubmitting ? "Uploading..." : "Save Invoice"}
             </button>
           </div>
         </form>
