@@ -11,6 +11,7 @@ import {
 import SuccessModal from "@/components/common_components/SuccessModal";
 import logo from "@/assets/logo.svg";
 import type { CarrierInvoiceItem } from "./CarrierInvoicesPage";
+import { useMarkPayablePaidMutation } from "@/redux/api/invoiceManagementApi";
 
 interface CarrierInvoiceData {
   id: string;
@@ -106,41 +107,51 @@ export default function CarrierInvoiceDetailPage() {
     subTitle: `Invoice ${invoice.invoiceNumber} has been successfully marked as Paid.`,
   });
 
-  const handleMarkPaid = () => {
+  const [markPayablePaid, { isLoading: isMarkingPaid }] = useMarkPayablePaidMutation();
+
+  const handleMarkPaid = async () => {
     const nextStatus: "Completed" | "Pending" =
       invoice.paymentStatus === "Completed" || invoice.paymentStatus === "Paid"
         ? "Pending"
         : "Completed";
 
-    setInvoice((prev) => ({
-      ...prev,
-      paymentStatus: nextStatus,
-    }));
-
     try {
-      const stored = localStorage.getItem("carrier_invoices_table_data");
-      if (stored) {
-        const parsed = JSON.parse(stored) as CarrierInvoiceItem[];
-        const updated = parsed.map((item) =>
-          item.id === invoice.id || item.invoiceNumber === invoice.invoiceNumber
-            ? { ...item, paymentStatus: nextStatus }
-            : item,
-        );
-        localStorage.setItem(
-          "carrier_invoices_table_data",
-          JSON.stringify(updated),
-        );
+      if (nextStatus === "Completed") {
+        await markPayablePaid({ invoiceId: invoice.id || invoice.invoiceNumber, paymentMethod: "ACH" }).unwrap();
+      }
+
+      setInvoice((prev) => ({
+        ...prev,
+        paymentStatus: nextStatus,
+      }));
+
+      try {
+        const stored = localStorage.getItem("carrier_invoices_table_data");
+        if (stored) {
+          const parsed = JSON.parse(stored) as CarrierInvoiceItem[];
+          const updated = parsed.map((item) =>
+            item.id === invoice.id || item.invoiceNumber === invoice.invoiceNumber
+              ? { ...item, paymentStatus: nextStatus }
+              : item,
+          );
+          localStorage.setItem(
+            "carrier_invoices_table_data",
+            JSON.stringify(updated),
+          );
+        }
+      } catch {
+        // ignore
+      }
+
+      if (nextStatus === "Completed") {
+        setSuccessMessage({
+          title: "Payment Recorded",
+          subTitle: `Invoice ${invoice.invoiceNumber} has been successfully marked as Paid.`,
+        });
+        setIsSuccessOpen(true);
       }
     } catch {
-      // ignore
-    }
-
-    if (nextStatus === "Completed") {
-      setSuccessMessage({
-        title: "Payment Recorded",
-        subTitle: `Invoice ${invoice.invoiceNumber} has been successfully marked as Paid.`,
-      });
-      setIsSuccessOpen(true);
+      alert("Failed to update payment status on backend. Please ensure the invoice is approved for payment.");
     }
   };
 
@@ -335,14 +346,15 @@ export default function CarrierInvoiceDetailPage() {
           <div>
             <button
               type="button"
+              disabled={isMarkingPaid}
               onClick={handleMarkPaid}
-              className={`px-4 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+              className={`px-4 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50 ${
                 isPaid
                   ? "bg-[#00A859] hover:bg-[#008f4c] text-white"
                   : "bg-[#2563EB] hover:bg-[#1D4ED8] text-white shadow-xs"
               }`}
             >
-              {isPaid ? "✓ Paid" : "Mark Paid"}
+              {isMarkingPaid ? "Updating..." : isPaid ? "✓ Paid" : "Mark Paid"}
             </button>
           </div>
         </div>
