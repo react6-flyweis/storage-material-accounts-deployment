@@ -300,6 +300,18 @@ export interface UploadQuotationProfitPayload {
 }
 
 export interface QuotationProfitDetailData {
+  quotationId?: string;
+  status?: string;
+  quotedRevenue?: number;
+  actualRevenue?: number;
+  actualCost?: number;
+  actualProfit?: number;
+  documentUrl?: string | null;
+  costBreakdown?: {
+    manualExpenses?: number;
+    emailVendorExpenses?: number;
+    freightExpenses?: number;
+  };
   record?: QuotationProfitRecordItem;
   quotation?: {
     _id: string;

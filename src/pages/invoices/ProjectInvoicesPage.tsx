@@ -27,7 +27,7 @@ import {
   downloadInvoicePdfBinary,
   type ProjectInvoiceRecordItem,
 } from "@/redux/api/invoiceManagementApi";
-import { formatCurrency, formatDisplayDate } from "@/lib/dashboardFormatters";
+import { formatCurrency, formatDisplayDate, formatDateToIso } from "@/lib/dashboardFormatters";
 import SuccessModal from "@/components/common_components/SuccessModal";
 
 interface ProjectInvoicesPageProps {
@@ -142,7 +142,6 @@ export default function ProjectInvoicesPage({
         title: "Invoice Marked as Paid",
         subTitle: `Invoice has been successfully updated to Paid.`,
       });
-      setIsDetailOpen(false);
     } catch {
       alert("Failed to mark invoice as paid. Please try again.");
     }
@@ -679,9 +678,9 @@ export default function ProjectInvoicesPage({
         isOpen={isCalendarOpen}
         onClose={() => setIsCalendarOpen(false)}
         onApply={(range) => {
-          if (range?.startDate && range?.endDate) {
-            const startStr = range.startDate.toISOString().split("T")[0];
-            const endStr = range.endDate.toISOString().split("T")[0];
+          if (range?.from && range?.to) {
+            const startStr = formatDateToIso(range.from);
+            const endStr = formatDateToIso(range.to);
             setDateRange({ startDate: startStr, endDate: endStr });
             setDateRangeLabel(`${formatDisplayDate(startStr)} - ${formatDisplayDate(endStr)}`);
           } else {

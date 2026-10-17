@@ -116,6 +116,7 @@ export interface UpdatePaymentOrderRequest {
   progressPaid: number;
   finalPaid?: number;
   status: PaymentStatusEnum;
+  notes?: string;
 }
 
 export interface PaymentOrderOptionItem {

@@ -11,7 +11,8 @@ import {
 } from "lucide-react";
 
 export interface MiscInvoiceDetailsModalData {
-  id: string;
+  id?: string;
+  invoiceId?: string;
   invoiceNumber: string;
   serviceProvider: string;
   category: string;
@@ -24,6 +25,8 @@ export interface MiscInvoiceDetailsModalData {
   linkedDelivery?: string;
   uploadedBy?: string;
   uploadedAt?: string;
+  project?: string;
+  documentUrl?: string;
 }
 
 interface MiscInvoiceDetailsModalProps {
@@ -218,7 +221,7 @@ export const MiscInvoiceDetailsModal: React.FC<
           <button
             type="button"
             onClick={() => {
-              if (onTogglePayment) onTogglePayment(invoice.id);
+              if (onTogglePayment) onTogglePayment(invoice.id || invoice.invoiceId || invoice.invoiceNumber);
             }}
             className={`inline-flex items-center gap-1.5 px-5 py-2 rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer ${
               isPaid

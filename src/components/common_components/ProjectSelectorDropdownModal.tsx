@@ -12,7 +12,7 @@ import { getProjectDisplayName } from "@/lib/projectUtils";
 export interface ProjectOptionItem {
   id: string;
   name: string;
-  code: string;
+  code?: string;
   clientName?: string;
   buildingType?: string;
   location?: string;

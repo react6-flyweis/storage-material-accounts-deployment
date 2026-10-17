@@ -37,19 +37,20 @@ export default function CarrierInvoiceDetailPage() {
   // Retrieve invoice either from route state or local storage or fallback defaults
   const [invoice, setInvoice] = useState<CarrierInvoiceData>(() => {
     if (location.state && location.state.invoice) {
-      const inv = location.state.invoice as CarrierInvoiceItem;
+      const inv = location.state.invoice as CarrierInvoiceItem & { id?: string; deliveryId?: string; amountFormatted?: string };
+      const rawAmt = Number(inv.amount || 0);
       return {
-        id: inv.id || "1",
+        id: inv.invoiceId || inv.id || "1",
         invoiceNumber: inv.invoiceNumber || "INC00025",
-        carrierName: inv.carrierName || "Fast Freight Logistics",
-        project: inv.project || "ABC Warehouse",
+        carrierName: inv.carrierName || inv.vendorName || "Fast Freight Logistics",
+        project: inv.projectName || inv.project || "ABC Warehouse",
         deliveryId: inv.deliveryId || "FR-2026-001",
-        amount: inv.amount || 10000,
-        amountFormatted: inv.amountFormatted || "$10,000",
+        amount: rawAmt || 10000,
+        amountFormatted: inv.amountFormatted || `$${rawAmt.toLocaleString()}`,
         dueDate: inv.dueDate || "22 Feb 2025",
         invoiceDate: "2025-01-22",
-        paymentStatus: inv.paymentStatus || "Pending",
-        verificationStatus: inv.verificationStatus || "Verified",
+        paymentStatus: (inv.paymentStatus || inv.payment || "Pending") as "Pending" | "Completed" | "Paid",
+        verificationStatus: (inv.verificationStatus || inv.verification || "Verified") as "Verified" | "Pending",
         uploadedBy: "John Smith",
         uploadedAt: "2025-01-23",
       };
@@ -58,23 +59,24 @@ export default function CarrierInvoiceDetailPage() {
     try {
       const stored = localStorage.getItem("carrier_invoices_table_data");
       if (stored) {
-        const parsed = JSON.parse(stored) as CarrierInvoiceItem[];
+        const parsed = JSON.parse(stored) as (CarrierInvoiceItem & { id?: string; deliveryId?: string; amountFormatted?: string })[];
         const found = parsed.find(
-          (item) => item.id === id || item.invoiceNumber === id,
+          (item) => (item.invoiceId || item.id) === id || item.invoiceNumber === id,
         );
         if (found) {
+          const rawAmt = Number(found.amount || 0);
           return {
-            id: found.id,
+            id: found.invoiceId || found.id || "1",
             invoiceNumber: found.invoiceNumber,
-            carrierName: found.carrierName,
-            project: found.project,
-            deliveryId: found.deliveryId,
-            amount: found.amount,
-            amountFormatted: found.amountFormatted,
+            carrierName: found.carrierName || found.vendorName || "Fast Freight Logistics",
+            project: found.projectName || found.project || "ABC Warehouse",
+            deliveryId: found.deliveryId || "FR-2026-001",
+            amount: rawAmt,
+            amountFormatted: found.amountFormatted || `$${rawAmt.toLocaleString()}`,
             dueDate: found.dueDate || "22 Feb 2025",
             invoiceDate: "2025-01-22",
-            paymentStatus: found.paymentStatus,
-            verificationStatus: found.verificationStatus,
+            paymentStatus: (found.paymentStatus || found.payment || "Pending") as "Pending" | "Completed" | "Paid",
+            verificationStatus: (found.verificationStatus || found.verification || "Verified") as "Verified" | "Pending",
             uploadedBy: "John Smith",
             uploadedAt: "2025-01-23",
           };
@@ -128,9 +130,9 @@ export default function CarrierInvoiceDetailPage() {
       try {
         const stored = localStorage.getItem("carrier_invoices_table_data");
         if (stored) {
-          const parsed = JSON.parse(stored) as CarrierInvoiceItem[];
+          const parsed = JSON.parse(stored) as (CarrierInvoiceItem & { id?: string })[];
           const updated = parsed.map((item) =>
-            item.id === invoice.id || item.invoiceNumber === invoice.invoiceNumber
+            (item.invoiceId || item.id) === invoice.id || item.invoiceNumber === invoice.invoiceNumber
               ? { ...item, paymentStatus: nextStatus }
               : item,
           );

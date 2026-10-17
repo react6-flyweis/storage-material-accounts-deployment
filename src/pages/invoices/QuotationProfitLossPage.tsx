@@ -32,7 +32,7 @@ import {
   type QuotationProfitRecordItem,
   type QuotationProfitDetailData,
 } from "@/redux/api/invoiceManagementApi";
-import { formatCurrency, formatDisplayDate } from "@/lib/dashboardFormatters";
+import { formatCurrency, formatDisplayDate, formatDateToIso } from "@/lib/dashboardFormatters";
 import { uploadFileToS3 } from "@/lib/upload";
 
 export default function QuotationProfitLossPage() {
@@ -1002,9 +1002,9 @@ export default function QuotationProfitLossPage() {
         isOpen={isCalendarOpen}
         onClose={() => setIsCalendarOpen(false)}
         onApply={(range) => {
-          if (range?.startDate && range?.endDate) {
-            const startStr = range.startDate.toISOString().split("T")[0];
-            const endStr = range.endDate.toISOString().split("T")[0];
+          if (range?.from && range?.to) {
+            const startStr = formatDateToIso(range.from);
+            const endStr = formatDateToIso(range.to);
             setDateRange({ startDate: startStr, endDate: endStr });
             setDateRangeLabel(`${formatDisplayDate(startStr)} - ${formatDisplayDate(endStr)}`);
           } else {

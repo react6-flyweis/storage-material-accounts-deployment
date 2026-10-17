@@ -787,7 +787,7 @@ const PaymentOverview = () => {
         onUpdate={(order) => {
           setIsViewModalOpen(false);
           setSelectedOrder(order);
-          setViewMode("update");
+          handleEdit(order);
         }}
       />
 

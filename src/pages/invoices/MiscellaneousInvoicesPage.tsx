@@ -34,7 +34,7 @@ import {
   downloadInvoiceExport,
   type MiscInvoiceRecordItem,
 } from "@/redux/api/invoiceManagementApi";
-import { formatCurrency, formatDisplayDate } from "@/lib/dashboardFormatters";
+import { formatCurrency, formatDisplayDate, formatDateToIso } from "@/lib/dashboardFormatters";
 import { uploadFileToS3 } from "@/lib/upload";
 
 export default function MiscellaneousInvoicesPage() {
@@ -681,7 +681,8 @@ export default function MiscellaneousInvoicesPage() {
                           <button
                             onClick={() => {
                               setSelectedInvoice({
-                                invoiceId: inv.invoiceNumber,
+                                id: inv.invoiceId || inv.id || inv.invoiceNumber,
+                                invoiceNumber: inv.invoiceNumber,
                                 serviceProvider: inv.serviceProvider || inv.payeeName || "—",
                                 category: inv.serviceCategory || inv.category || "General",
                                 amount: inv.amount,
@@ -778,9 +779,9 @@ export default function MiscellaneousInvoicesPage() {
         isOpen={isCalendarOpen}
         onClose={() => setIsCalendarOpen(false)}
         onApply={(range) => {
-          if (range?.startDate && range?.endDate) {
-            const startStr = range.startDate.toISOString().split("T")[0];
-            const endStr = range.endDate.toISOString().split("T")[0];
+          if (range?.from && range?.to) {
+            const startStr = formatDateToIso(range.from);
+            const endStr = formatDateToIso(range.to);
             setDateRange({ startDate: startStr, endDate: endStr });
             setDateRangeLabel(`${formatDisplayDate(startStr)} - ${formatDisplayDate(endStr)}`);
           } else {
