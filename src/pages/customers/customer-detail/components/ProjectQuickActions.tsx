@@ -14,7 +14,7 @@ interface ProjectQuickActionsProps {
   contact?: ProjectContact;
   agreement?: ProjectAgreement;
   actionLinks?: ProjectActionLinks;
-  onOpenMaterialDelivery: () => void;
+  onOpenMaterialDelivery?: () => void;
 }
 
 export function ProjectQuickActions({
@@ -70,7 +70,17 @@ export function ProjectQuickActions({
     },
     {
       label: "Material Delivery",
-      onClick: onOpenMaterialDelivery,
+      onClick: () => {
+        if (onOpenMaterialDelivery) {
+          onOpenMaterialDelivery();
+        } else {
+          navigate(`${basePath}/material-delivery`, {
+            state: {
+              ...commonState,
+            },
+          });
+        }
+      },
     },
     {
       label: "View Quotation",
