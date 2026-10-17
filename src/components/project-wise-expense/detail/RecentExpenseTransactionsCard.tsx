@@ -1,117 +1,103 @@
 import React, { useState, useMemo } from "react";
 import {
-  Calendar,
   ChevronsUpDown,
   Eye,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
-  Plus,
+  Search,
+  X,
+  RefreshCw,
 } from "lucide-react";
-import AddProjectExpenseModal, {
-  type AddProjectExpenseFormData,
-} from "./AddProjectExpenseModal";
+import type {
+  ProjectWiseExpenseTransactionItem,
+  PaginationInfo,
+} from "@/redux/api/reportsApi";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import ExpenseTransactionDetailModal from "./ExpenseTransactionDetailModal";
-import CalendarRangePickerModal from "@/components/common_components/CalendarRangePickerModal";
-import SuccessModal from "@/components/common_components/SuccessModal";
+import DateRangePickerPopover from "@/components/project-wise-income/detail/DateRangePickerPopover";
+import {
+  formatCurrency,
+  formatDisplayDate,
+} from "@/lib/dashboardFormatters";
 
-export interface ProjectExpenseTransaction {
-  id: string;
-  category: string;
-  description: string;
-  vendorRef: string;
-  invoiceRef: string;
-  amount: string;
-  amountNum: number;
-  date: string;
-  paymentStatus: string;
+export interface RecentExpenseTransactionsCardProps {
+  projectIdOrLeadId: string;
+  transactions?: ProjectWiseExpenseTransactionItem[];
+  pagination?: PaginationInfo;
+  activeTab: "all" | "approved" | "pending";
+  onTabChange: (tab: "all" | "approved" | "pending") => void;
+  searchTerm?: string;
+  onSearchChange?: (val: string) => void;
+  startDate?: string;
+  endDate?: string;
+  dateRangeText?: string;
+  onDateRangeChange?: (
+    startDate?: string,
+    endDate?: string,
+    displayText?: string
+  ) => void;
+  page: number;
+  onPageChange: (page: number) => void;
+  limit: number;
+  onLimitChange: (limit: number) => void;
+  isLoading?: boolean;
+  isFetching?: boolean;
 }
 
-const initialExpenseTransactions: ProjectExpenseTransaction[] = [
-  {
-    id: "tx-1",
-    category: "Material Cost",
-    description: "Steel Purchase - 12 MT",
-    vendorRef: "Jindal Steel Pvt. Ltd.",
-    invoiceRef: "INV-001",
-    amount: "$25,00,000",
-    amountNum: 2500000,
-    date: "31 April 2026",
-    paymentStatus: "Paid",
-  },
-  {
-    id: "tx-2",
-    category: "Manpower Cost",
-    description: "Labor Payment - April 2024",
-    vendorRef: "Shree Enterprises",
-    invoiceRef: "INV-001",
-    amount: "$25,00,000",
-    amountNum: 2500000,
-    date: "29 April 2026",
-    paymentStatus: "Paid",
-  },
-  {
-    id: "tx-3",
-    category: "Freight & Logistics",
-    description: "Transportation - 5 Trips",
-    vendorRef: "Shiv Cargo Movers",
-    invoiceRef: "INV-001",
-    amount: "$25,00,000",
-    amountNum: 2500000,
-    date: "25 April 2026",
-    paymentStatus: "Paid",
-  },
-  {
-    id: "tx-4",
-    category: "Site / Project Expense",
-    description: "Site Office Rent - April",
-    vendorRef: "Patel Infra Services",
-    invoiceRef: "INV-001",
-    amount: "$25,00,000",
-    amountNum: 2500000,
-    date: "25 April 2026",
-    paymentStatus: "Paid",
-  },
-  {
-    id: "tx-5",
-    category: "Equipment & Machinery",
-    description: "Excavator Rental",
-    vendorRef: "Shakti Equipment's",
-    invoiceRef: "INV-001",
-    amount: "$25,00,000",
-    amountNum: 2500000,
-    date: "25 April 2026",
-    paymentStatus: "Paid",
-  },
-];
-
 type SortField =
-  | "category"
+  | "expenseType"
+  | "date"
   | "description"
-  | "vendorRef"
-  | "invoiceRef"
-  | "amountNum"
-  | "date";
+  | "reference"
+  | "amount"
+  | "approvalStatus";
 
-export const RecentExpenseTransactionsCard: React.FC = () => {
-  const [transactions, setTransactions] = useState<
-    ProjectExpenseTransaction[]
-  >(initialExpenseTransactions);
+const formatSourceBadge = (src?: string): string => {
+  if (!src) return "Ledger";
+  const map: Record<string, string> = {
+    manual: "Manual Ledger",
+    manual_expense: "Manual Ledger",
+    shipper: "Vendor Bid",
+    vendor_material_bid: "Vendor Bid",
+    freight: "Freight Bid",
+    freight_bid: "Freight Bid",
+    approval: "Payment Approval",
+  };
+  return map[src.toLowerCase()] || src.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+};
+
+export const RecentExpenseTransactionsCard: React.FC<
+  RecentExpenseTransactionsCardProps
+> = ({
+  projectIdOrLeadId,
+  transactions = [],
+  pagination,
+  activeTab,
+  onTabChange,
+  searchTerm = "",
+  onSearchChange,
+  startDate,
+  endDate,
+  dateRangeText = "",
+  onDateRangeChange,
+  page,
+  onPageChange,
+  limit,
+  onLimitChange,
+  isLoading = false,
+  isFetching = false,
+}) => {
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [currentPage, setCurrentPage] = useState(4); // Default to 4 matching screenshot
-  const [dateRangeText, setDateRangeText] = useState(
-    "01 Jan 2024 - 07 Jan 2024"
-  );
-  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
-  const [viewTx, setViewTx] = useState<ProjectExpenseTransaction | null>(null);
+  const [selectedSource, setSelectedSource] = useState<string>("manual");
+  const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
+  const [selectedRef, setSelectedRef] = useState<string | undefined>(undefined);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
     } else {
       setSortField(field);
       setSortDirection("asc");
@@ -119,295 +105,412 @@ export const RecentExpenseTransactionsCard: React.FC = () => {
   };
 
   const sortedTransactions = useMemo(() => {
-    const result = [...transactions];
-    if (sortField) {
-      result.sort((a, b) => {
-        const valA = a[sortField];
-        const valB = b[sortField];
-        if (typeof valA === "string") {
-          return sortDirection === "asc"
-            ? (valA as string).localeCompare(valB as string)
-            : (valB as string).localeCompare(valA as string);
-        }
+    if (!sortField) return transactions;
+    const sorted = [...transactions];
+    sorted.sort((a, b) => {
+      let valA: any = a[sortField];
+      let valB: any = b[sortField];
+
+      if (sortField === "expenseType") {
+        valA = a.expenseType || a.category || "";
+        valB = b.expenseType || b.category || "";
+      }
+
+      if (typeof valA === "string" && typeof valB === "string") {
         return sortDirection === "asc"
-          ? (valA as number) - (valB as number)
-          : (valB as number) - (valA as number);
-      });
-    }
-    return result;
+          ? valA.localeCompare(valB)
+          : valB.localeCompare(valA);
+      }
+      const numA = Number(valA) || 0;
+      const numB = Number(valB) || 0;
+      return sortDirection === "asc" ? numA - numB : numB - numA;
+    });
+    return sorted;
   }, [transactions, sortField, sortDirection]);
 
-  const totalDisplayPages = 15;
+  const totalPages = pagination?.totalPages || 1;
+  const totalEntries = pagination?.total || transactions.length;
+  const startEntry = totalEntries === 0 ? 0 : (page - 1) * limit + 1;
+  const endEntry = Math.min(startEntry + transactions.length - 1, totalEntries);
 
-  const handleAddExpense = (formData: AddProjectExpenseFormData) => {
-    const newTx: ProjectExpenseTransaction = {
-      id: `tx-${Date.now()}`,
-      category: formData.expenseType || formData.category || "Material Cost",
-      description: formData.description,
-      vendorRef:
-        formData.vendorReference || formData.vendorRef || "Jindal Steel Pvt. Ltd.",
-      invoiceRef: formData.invoiceId || formData.invoiceRef || "INV-001",
-      amount: formData.amount,
-      amountNum: parseInt(formData.amount.replace(/[^0-9]/g, ""), 10) || 0,
-      date: formData.date,
-      paymentStatus: formData.status || formData.paymentStatus || "Paid",
-    };
-    setTransactions((prev) => [newTx, ...prev]);
-    setIsSuccessModalOpen(true);
+  const handleViewRecord = (tx: ProjectWiseExpenseTransactionItem) => {
+    let src = tx.source || "manual";
+    let id = tx.recordId;
+    if (tx.recordId && tx.recordId.includes(":")) {
+      const parts = tx.recordId.split(":");
+      src = parts[0];
+      id = parts.slice(1).join(":");
+    }
+    setSelectedSource(src);
+    setSelectedRecordId(id);
+    setSelectedRef(tx.reference);
+  };
+
+  const renderPaginationButtons = () => {
+    if (totalPages <= 1) return null;
+
+    const pageNumbers: (number | string)[] = [];
+    if (totalPages <= 5) {
+      for (let i = 1; i <= totalPages; i++) pageNumbers.push(i);
+    } else {
+      if (page <= 3) {
+        pageNumbers.push(1, 2, 3, 4, "...", totalPages);
+      } else if (page >= totalPages - 2) {
+        pageNumbers.push(1, "...", totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+      } else {
+        pageNumbers.push(1, "...", page - 1, page, page + 1, "...", totalPages);
+      }
+    }
+
+    return (
+      <div className="flex items-center gap-1.5 text-xs">
+        <button
+          type="button"
+          disabled={page <= 1 || isFetching}
+          onClick={() => onPageChange(Math.max(1, page - 1))}
+          className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+          aria-label="Previous page"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+
+        {pageNumbers.map((p, idx) => {
+          if (p === "...") {
+            return (
+              <span key={`ellipsis-${idx}`} className="text-slate-400 px-1 select-none">
+                ...
+              </span>
+            );
+          }
+          const isCurrent = p === page;
+          return (
+            <button
+              key={`page-${p}`}
+              type="button"
+              disabled={isFetching}
+              onClick={() => onPageChange(p as number)}
+              className={`w-6 h-6 rounded-full text-xs transition-colors flex items-center justify-center cursor-pointer ${
+                isCurrent
+                  ? "bg-[#2563EB] text-white font-bold shadow-xs"
+                  : "text-slate-600 hover:bg-slate-100 font-medium"
+              }`}
+            >
+              {p}
+            </button>
+          );
+        })}
+
+        <button
+          type="button"
+          disabled={page >= totalPages || isFetching}
+          onClick={() => onPageChange(Math.min(totalPages, page + 1))}
+          className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+          aria-label="Next page"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+    );
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-xs border border-slate-100 overflow-hidden">
-      {/* Header Row */}
-      <div className="p-4 sm:p-5 flex items-center justify-between flex-wrap gap-3 border-b border-slate-100">
-        <h3 className="font-bold text-slate-800 text-sm sm:text-base">
-          Recent Exense Transactions
-        </h3>
-
-        <div className="flex items-center gap-3">
-          {/* Date Range Button */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setIsDatePickerOpen(!isDatePickerOpen)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
-            >
-              <Calendar className="w-3.5 h-3.5 text-slate-500" />
-              <span>{dateRangeText}</span>
-            </button>
-
-            <CalendarRangePickerModal
-              isOpen={isDatePickerOpen}
-              onClose={() => setIsDatePickerOpen(false)}
-              onSelectRange={(range: string) => setDateRangeText(range)}
-            />
-          </div>
-
-          {/* + Add Expense Button */}
+    <div className="space-y-4">
+      {/* Top Filter Tabs Row (All in first position, Approved, Pending) */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-6 border-b border-transparent">
           <button
             type="button"
-            onClick={() => setIsAddModalOpen(true)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs sm:text-sm font-semibold transition-colors shadow-xs cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>+ Add Expense</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Table Body */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="border-b border-slate-100 bg-[#F8FAFC] text-[11px] sm:text-xs text-slate-700 font-semibold">
-              <th
-                onClick={() => handleSort("category")}
-                className="px-5 py-3.5 cursor-pointer select-none hover:bg-slate-100/60 transition-colors"
-              >
-                <div className="flex items-center gap-1.5">
-                  <span>Category</span>
-                  <ChevronsUpDown className="w-3 h-3 text-slate-400" />
-                </div>
-              </th>
-
-              <th
-                onClick={() => handleSort("description")}
-                className="px-5 py-3.5 cursor-pointer select-none hover:bg-slate-100/60 transition-colors"
-              >
-                <div className="flex items-center gap-1.5">
-                  <span>Description</span>
-                  <ChevronsUpDown className="w-3 h-3 text-slate-400" />
-                </div>
-              </th>
-
-              <th
-                onClick={() => handleSort("vendorRef")}
-                className="px-5 py-3.5 cursor-pointer select-none hover:bg-slate-100/60 transition-colors"
-              >
-                <div className="flex items-center gap-1.5">
-                  <span>Vendor / Reference</span>
-                  <ChevronsUpDown className="w-3 h-3 text-slate-400" />
-                </div>
-              </th>
-
-              <th
-                onClick={() => handleSort("invoiceRef")}
-                className="px-5 py-3.5 cursor-pointer select-none hover:bg-slate-100/60 transition-colors"
-              >
-                <div className="flex items-center gap-1.5">
-                  <span>Invoice / Ref No.</span>
-                  <ChevronsUpDown className="w-3 h-3 text-slate-400" />
-                </div>
-              </th>
-
-              <th
-                onClick={() => handleSort("amountNum")}
-                className="px-5 py-3.5 cursor-pointer select-none hover:bg-slate-100/60 transition-colors"
-              >
-                <div className="flex items-center gap-1.5">
-                  <span>Amount</span>
-                  <ChevronsUpDown className="w-3 h-3 text-slate-400" />
-                </div>
-              </th>
-
-              <th
-                onClick={() => handleSort("date")}
-                className="px-5 py-3.5 cursor-pointer select-none hover:bg-slate-100/60 transition-colors"
-              >
-                <div className="flex items-center gap-1.5">
-                  <span>Date</span>
-                  <ChevronsUpDown className="w-3 h-3 text-slate-400" />
-                </div>
-              </th>
-
-              <th className="px-5 py-3.5 select-none">
-                <span>Payment Status</span>
-              </th>
-
-              <th className="px-5 py-3.5 select-none">
-                <span>Action</span>
-              </th>
-            </tr>
-          </thead>
-
-          <tbody className="divide-y divide-slate-100 text-xs">
-            {sortedTransactions.map((tx) => (
-              <tr key={tx.id} className="hover:bg-slate-50/60 transition-colors">
-                <td className="px-5 py-4 font-semibold text-[#2563EB] cursor-pointer hover:underline">
-                  {tx.category}
-                </td>
-                <td className="px-5 py-4 text-slate-700">{tx.description}</td>
-                <td className="px-5 py-4 text-slate-700">{tx.vendorRef}</td>
-                <td className="px-5 py-4 font-semibold text-[#16A34A]">
-                  {tx.invoiceRef}
-                </td>
-                <td className="px-5 py-4 font-semibold text-[#2563EB]">
-                  {tx.amount}
-                </td>
-                <td className="px-5 py-4 text-slate-700">{tx.date}</td>
-                <td className="px-5 py-4">
-                  <span className="inline-block px-2.5 py-1 rounded-md text-[11px] font-semibold border border-slate-200 bg-slate-50 text-slate-700">
-                    {tx.paymentStatus}
-                  </span>
-                </td>
-                <td className="px-5 py-4">
-                  <button
-                    type="button"
-                    onClick={() => setViewTx(tx)}
-                    aria-label={`View transaction ${tx.invoiceRef}`}
-                    className="w-7 h-7 rounded border border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-                  >
-                    <Eye className="w-3.5 h-3.5" />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Pagination Footer */}
-      <div className="px-5 py-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-2 text-xs text-slate-500 font-normal">
-          <span>Row Per Page</span>
-          <div className="relative">
-            <select
-              value={rowsPerPage}
-              onChange={(e) => {
-                setRowsPerPage(Number(e.target.value));
-                setCurrentPage(1);
-              }}
-              className="appearance-none bg-white border border-slate-200 rounded-md pl-2.5 pr-6 py-1 text-xs text-slate-700 font-medium cursor-pointer focus:outline-none focus:border-blue-500"
-            >
-              <option value={10}>10</option>
-              <option value={20}>20</option>
-              <option value={50}>50</option>
-            </select>
-            <ChevronDown className="w-3 h-3 text-slate-400 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-          </div>
-          <span>Entries</span>
-        </div>
-
-        <div className="flex items-center gap-1.5 text-xs">
-          <button
-            type="button"
-            disabled={currentPage === 1}
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-            className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
-            aria-label="Previous page"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-
-          {[1, 2, 3, 4].map((page) => {
-            const isCurrent = page === currentPage;
-            return (
-              <button
-                key={`page-${page}`}
-                type="button"
-                onClick={() => setCurrentPage(page)}
-                className={`w-6 h-6 rounded-full text-xs transition-colors flex items-center justify-center cursor-pointer ${
-                  isCurrent
-                    ? "bg-[#2563EB] text-white font-bold shadow-xs"
-                    : "text-slate-600 hover:bg-slate-100 font-medium"
-                }`}
-              >
-                {page}
-              </button>
-            );
-          })}
-
-          <span className="text-slate-400 px-1 select-none">...</span>
-
-          <button
-            type="button"
-            onClick={() => setCurrentPage(15)}
-            className={`w-6 h-6 rounded-full text-xs transition-colors flex items-center justify-center cursor-pointer ${
-              currentPage === 15
-                ? "bg-[#2563EB] text-white font-bold shadow-xs"
-                : "text-slate-600 hover:bg-slate-100 font-medium"
+            onClick={() => {
+              onTabChange("all");
+              onPageChange(1);
+            }}
+            className={`pb-2 text-sm font-semibold transition-colors cursor-pointer border-b-2 ${
+              activeTab === "all"
+                ? "text-[#2563EB] border-[#2563EB]"
+                : "text-slate-500 border-transparent hover:text-slate-800"
             }`}
           >
-            15
+            All
           </button>
-
           <button
             type="button"
-            disabled={currentPage === totalDisplayPages}
-            onClick={() =>
-              setCurrentPage((p) => Math.min(totalDisplayPages, p + 1))
-            }
-            className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
-            aria-label="Next page"
+            onClick={() => {
+              onTabChange("approved");
+              onPageChange(1);
+            }}
+            className={`pb-2 text-sm font-semibold transition-colors cursor-pointer border-b-2 ${
+              activeTab === "approved"
+                ? "text-[#2563EB] border-[#2563EB]"
+                : "text-slate-500 border-transparent hover:text-slate-800"
+            }`}
           >
-            <ChevronRight className="w-4 h-4" />
+            Approved
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              onTabChange("pending");
+              onPageChange(1);
+            }}
+            className={`pb-2 text-sm font-semibold transition-colors cursor-pointer border-b-2 ${
+              activeTab === "pending"
+                ? "text-[#2563EB] border-[#2563EB]"
+                : "text-slate-500 border-transparent hover:text-slate-800"
+            }`}
+          >
+            Pending
           </button>
         </div>
       </div>
 
-      {/* Add Modal */}
-      <AddProjectExpenseModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onAdd={handleAddExpense}
-      />
+      {/* Table Card */}
+      <div className="bg-white rounded-xl shadow-xs border border-slate-100 overflow-hidden">
+        {/* Card Header with Search & Date Range Popover */}
+        <div className="p-4 sm:p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <h3 className="font-bold text-slate-800 text-sm sm:text-base">
+              Recent Expense Transactions
+            </h3>
+            {isFetching && !isLoading && (
+              <RefreshCw className="w-4 h-4 text-blue-500 animate-spin" />
+            )}
+          </div>
 
-      {/* Success Modal */}
-      <SuccessModal
-        isOpen={isSuccessModalOpen}
-        onClose={() => setIsSuccessModalOpen(false)}
-        title="Expense Added Successfully"
-      />
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Search Input */}
+            <div className="relative min-w-50 sm:min-w-60">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => {
+                  onSearchChange?.(e.target.value);
+                  onPageChange(1);
+                }}
+                placeholder="Search reference, description..."
+                className="h-8 pl-9 pr-8 text-xs bg-white border-slate-200"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onSearchChange?.("");
+                    onPageChange(1);
+                  }}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
 
-      {/* View Detail Modal */}
+            {/* Date Range Selector Popover */}
+            <DateRangePickerPopover
+              startDate={startDate}
+              endDate={endDate}
+              dateRangeText={dateRangeText}
+              onApply={(start, end, text) => {
+                onDateRangeChange?.(start, end, text);
+                onPageChange(1);
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Table Body */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-slate-100 bg-[#F8FAFC] text-[11px] sm:text-xs text-slate-700 font-semibold">
+                <th
+                  onClick={() => handleSort("expenseType")}
+                  className="px-5 py-3.5 cursor-pointer select-none hover:bg-slate-100/60 transition-colors"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span>Category / Type</span>
+                    <ChevronsUpDown className="w-3 h-3 text-slate-400" />
+                  </div>
+                </th>
+
+                <th
+                  onClick={() => handleSort("date")}
+                  className="px-5 py-3.5 cursor-pointer select-none hover:bg-slate-100/60 transition-colors"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span>Date</span>
+                    <ChevronsUpDown className="w-3 h-3 text-slate-400" />
+                  </div>
+                </th>
+
+                <th
+                  onClick={() => handleSort("description")}
+                  className="px-5 py-3.5 cursor-pointer select-none hover:bg-slate-100/60 transition-colors"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span>Description</span>
+                    <ChevronsUpDown className="w-3 h-3 text-slate-400" />
+                  </div>
+                </th>
+
+                <th
+                  onClick={() => handleSort("reference")}
+                  className="px-5 py-3.5 cursor-pointer select-none hover:bg-slate-100/60 transition-colors"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span>Reference No.</span>
+                    <ChevronsUpDown className="w-3 h-3 text-slate-400" />
+                  </div>
+                </th>
+
+                <th className="px-5 py-3.5 select-none">
+                  <span>Source</span>
+                </th>
+
+                <th
+                  onClick={() => handleSort("amount")}
+                  className="px-5 py-3.5 cursor-pointer select-none hover:bg-slate-100/60 transition-colors"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span>Amount</span>
+                    <ChevronsUpDown className="w-3 h-3 text-slate-400" />
+                  </div>
+                </th>
+
+                <th className="px-5 py-3.5 select-none">
+                  <span>Status</span>
+                </th>
+
+                <th className="px-5 py-3.5 select-none text-right">
+                  <span>Action</span>
+                </th>
+              </tr>
+            </thead>
+
+            <tbody className="divide-y divide-slate-100 text-xs">
+              {isLoading ? (
+                <tr>
+                  <td colSpan={8} className="text-center py-12 text-slate-400">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <RefreshCw className="w-6 h-6 animate-spin text-blue-600" />
+                      <span>Loading expense transactions...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : sortedTransactions.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="text-center py-10 text-slate-400">
+                    No transactions found for {activeTab}
+                  </td>
+                </tr>
+              ) : (
+                sortedTransactions.map((tx) => (
+                  <tr
+                    key={tx.recordId}
+                    className="hover:bg-slate-50/60 transition-colors"
+                  >
+                    <td className="px-5 py-4 font-semibold text-slate-900 capitalize">
+                      {tx.expenseType || tx.category || "-"}
+                    </td>
+
+                    <td className="px-5 py-4 text-slate-700">
+                      {formatDisplayDate(tx.date)}
+                    </td>
+
+                    <td className="px-5 py-4 text-slate-600 max-w-xs truncate">
+                      {tx.description || "-"}
+                    </td>
+
+                    <td className="px-5 py-4 font-semibold text-[#16A34A]">
+                      {tx.reference || "-"}
+                    </td>
+
+                    <td className="px-5 py-4">
+                      <span className="text-[11px] font-medium px-2 py-0.5 rounded-sm bg-slate-100 text-slate-600">
+                        {formatSourceBadge(tx.source)}
+                      </span>
+                    </td>
+
+                    <td className="px-5 py-4 font-semibold text-slate-900">
+                      {formatCurrency(tx.amount)}
+                    </td>
+
+                    <td className="px-5 py-4">
+                      <Badge
+                        variant="outline"
+                        className={`text-[11px] font-semibold border ${
+                          (tx.approvalStatus || tx.status || "").toLowerCase() ===
+                            "approved" ||
+                          (tx.approvalStatus || tx.status || "").toLowerCase() ===
+                            "paid"
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                            : "border-amber-200 bg-amber-50 text-amber-700"
+                        }`}
+                      >
+                        {tx.approvalStatus || tx.status || "-"}
+                      </Badge>
+                    </td>
+
+                    <td className="px-5 py-4 text-right">
+                      <button
+                        type="button"
+                        onClick={() => handleViewRecord(tx)}
+                        aria-label={`View record ${tx.reference || tx.recordId}`}
+                        className="w-7 h-7 rounded border border-slate-200 inline-flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 hover:border-slate-300 transition-colors cursor-pointer"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination Footer */}
+        <div className="px-5 py-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3 text-xs text-slate-500 font-normal">
+            <div className="flex items-center gap-2">
+              <span>Row Per Page</span>
+              <div className="relative">
+                <select
+                  value={limit}
+                  onChange={(e) => {
+                    onLimitChange(Number(e.target.value));
+                    onPageChange(1);
+                  }}
+                  className="appearance-none bg-white border border-slate-200 rounded-md pl-2.5 pr-6 py-1 text-xs text-slate-700 font-medium cursor-pointer focus:outline-none focus:border-blue-500"
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </select>
+                <ChevronDown className="w-3 h-3 text-slate-400 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+              <span>Entries</span>
+            </div>
+
+            <span className="hidden sm:inline text-slate-400">|</span>
+            <span className="hidden sm:inline">
+              Showing {startEntry} to {endEntry} of {totalEntries} entries
+            </span>
+          </div>
+
+          {renderPaginationButtons()}
+        </div>
+      </div>
+
+      {/* Expense Transaction Detail Modal */}
       <ExpenseTransactionDetailModal
-        isOpen={Boolean(viewTx)}
-        onClose={() => setViewTx(null)}
-        transaction={viewTx}
-        onEdit={() => {
-          setViewTx(null);
-          setIsAddModalOpen(true);
+        isOpen={Boolean(selectedRecordId)}
+        onClose={() => {
+          setSelectedRecordId(null);
+          setSelectedRef(undefined);
         }}
+        projectIdOrLeadId={projectIdOrLeadId}
+        source={selectedSource}
+        recordId={selectedRecordId}
+        fallbackReference={selectedRef}
       />
     </div>
   );
