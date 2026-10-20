@@ -20,8 +20,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
-  Loader2,
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { TaxFilingItem } from "@/modules/payments/payments.api";
 
 const AVATAR_COLORS = [
@@ -96,48 +96,51 @@ function getDueInText(dueDateStr?: string | null) {
   }
 }
 
-const getStatusBadge = (status?: string) => {
+const getStatusBadge = (status?: string | { code: string; label: string; tone?: string }) => {
   if (!status) return <span className="text-gray-400 text-sm">-</span>;
-  const s = status.toLowerCase().trim();
-  switch (s) {
-    case "due soon":
-      return (
-        <Badge className="bg-orange-400 hover:bg-orange-500 text-white font-normal rounded-sm">
-          Due Soon
-        </Badge>
-      );
-    case "pending":
-      return (
-        <Badge className="bg-cyan-500 hover:bg-cyan-600 text-white font-normal rounded-sm">
-          Pending
-        </Badge>
-      );
-    case "no tax due":
-      return (
-        <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white font-normal rounded-sm">
-          No tax due
-        </Badge>
-      );
-    case "filed":
-    case "paid":
-      return (
-        <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white font-normal rounded-sm capitalize">
-          {s === "paid" ? "Paid" : "Filed"}
-        </Badge>
-      );
-    case "overdue":
-      return (
-        <Badge className="bg-rose-500 hover:bg-rose-600 text-white font-normal rounded-sm">
-          Overdue
-        </Badge>
-      );
-    default:
-      return (
-        <Badge className="bg-gray-500 text-white font-normal rounded-sm capitalize">
-          {status}
-        </Badge>
-      );
+  const label = typeof status === "object" ? status.label : status;
+  const tone = typeof status === "object" ? status.tone : undefined;
+  const s = label.toLowerCase().trim();
+
+  if (
+    tone === "warning" ||
+    s === "due soon" ||
+    s === "due_soon" ||
+    s === "payment due" ||
+    s === "payment_due"
+  ) {
+    return (
+      <Badge className="bg-orange-400 hover:bg-orange-500 text-white font-normal rounded-sm">
+        {label}
+      </Badge>
+    );
   }
+  if (tone === "success" || s === "filed" || s === "paid" || s === "no tax due" || s === "no_tax_due") {
+    return (
+      <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white font-normal rounded-sm capitalize">
+        {label}
+      </Badge>
+    );
+  }
+  if (tone === "danger" || s === "overdue") {
+    return (
+      <Badge className="bg-rose-500 hover:bg-rose-600 text-white font-normal rounded-sm">
+        {label}
+      </Badge>
+    );
+  }
+  if (s === "pending") {
+    return (
+      <Badge className="bg-cyan-500 hover:bg-cyan-600 text-white font-normal rounded-sm">
+        {label}
+      </Badge>
+    );
+  }
+  return (
+    <Badge className="bg-gray-500 text-white font-normal rounded-sm capitalize">
+      {label}
+    </Badge>
+  );
 };
 
 type PaginationFooterProps = {
@@ -285,14 +288,37 @@ export function PendingFilingTab({
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={6} className="h-48 text-center">
-                  <div className="flex flex-col items-center justify-center gap-2 text-gray-500">
-                    <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-                    <span>Loading pending filings...</span>
-                  </div>
-                </TableCell>
-              </TableRow>
+              Array.from({ length: 5 }).map((_, idx) => (
+                <TableRow key={`pending-skel-${idx}`} className="border-b">
+                  <TableCell className="py-3">
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="w-8 h-8 rounded-full shrink-0" />
+                      <div className="space-y-1.5">
+                        <Skeleton className="h-4 w-24" />
+                        <Skeleton className="h-3 w-16" />
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="py-3">
+                    <Skeleton className="h-4 w-28" />
+                  </TableCell>
+                  <TableCell className="py-3">
+                    <div className="space-y-1.5">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-3 w-16" />
+                    </div>
+                  </TableCell>
+                  <TableCell className="py-3">
+                    <Skeleton className="h-4 w-20" />
+                  </TableCell>
+                  <TableCell className="py-3">
+                    <Skeleton className="h-6 w-20 rounded-md" />
+                  </TableCell>
+                  <TableCell className="py-3">
+                    <Skeleton className="h-8 w-24 rounded-md" />
+                  </TableCell>
+                </TableRow>
+              ))
             ) : rows.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="h-32 text-center text-gray-500">
@@ -300,89 +326,108 @@ export function PendingFilingTab({
                 </TableCell>
               </TableRow>
             ) : (
-              rows.map((row) => (
-                <TableRow
-                  key={row._id}
-                  className="border-b last:border-none hover:bg-gray-50/50 transition-colors"
-                >
-                  <TableCell className="py-4">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${getAvatarColor(
-                          row.state
-                        )}`}
-                      >
-                        <span className="text-xs font-bold">
-                          {row.state?.charAt(0) || "T"}
-                        </span>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="font-medium text-gray-900">{row.state || "-"}</span>
-                        <span className="text-xs text-gray-500">
-                          {row.leadId?.jobId
-                            ? `${row.leadId.jobId}${row.leadId.projectName ? ` • ${row.leadId.projectName}` : ""}`
-                            : row.threshold || "-"}
-                        </span>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-4">
-                    <div className="flex flex-col">
-                      <span className="font-medium text-gray-900">
-                        {formatPeriod(row.dueDate)}
-                      </span>
-                      <span className="text-xs text-gray-500 capitalize">
-                        {row.filingFrequency || "-"}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-4">
-                    <div className="flex flex-col">
-                      <span className="text-gray-900 font-medium">
-                        {formatDate(row.dueDate)}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {getDueInText(row.dueDate)}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-4 text-gray-900 font-semibold text-sm">
-                    {formatCurrency(row.amount)}
-                  </TableCell>
-                  <TableCell className="py-4">{getStatusBadge(row.status)}</TableCell>
-                  <TableCell className="py-4">
-                    <div className="flex items-center gap-3">
-                      {row.status?.toLowerCase() === "no tax due" ? (
-                        <button
-                          type="button"
-                          onClick={() => onReviewDetails?.(row)}
-                          className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
+              rows.map((row) => {
+                const stateDisplay = row.stateLabel || row.state || "-";
+                const leadProjectText = row.jobId
+                  ? `${row.jobId}${row.projectName ? ` • ${row.projectName}` : ""}`
+                  : typeof row.leadId === "object" && row.leadId?.jobId
+                  ? `${row.leadId.jobId}${row.leadId.projectName ? ` • ${row.leadId.projectName}` : ""}`
+                  : row.salesTaxRateLabel || row.threshold || "-";
+                const periodText = row.filingPeriod || formatPeriod(row.dueDate);
+                const dueInText =
+                  row.daysUntilDueLabel ||
+                  (row.daysUntilDue !== undefined
+                    ? `In ${row.daysUntilDue} Days`
+                    : getDueInText(row.dueDate));
+                const amountVal = row.taxDue ?? row.payable ?? row.amount;
+                const statusStr =
+                  typeof row.status === "object"
+                    ? (row.status?.label || row.status?.code || "").toLowerCase()
+                    : (row.status || "").toLowerCase();
+                const isNoTaxDue = statusStr === "no tax due" || statusStr === "no_tax_due";
+
+                return (
+                  <TableRow
+                    key={row._id}
+                    className="border-b last:border-none hover:bg-gray-50/50 transition-colors"
+                  >
+                    <TableCell className="py-4">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${getAvatarColor(
+                            stateDisplay
+                          )}`}
                         >
-                          View Details
-                        </button>
-                      ) : (
-                        <>
+                          <span className="text-xs font-bold">
+                            {stateDisplay.charAt(0) || "T"}
+                          </span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="font-medium text-gray-900">{stateDisplay}</span>
+                          <span className="text-xs text-gray-500">
+                            {leadProjectText}
+                          </span>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-4">
+                      <div className="flex flex-col">
+                        <span className="font-medium text-gray-900">
+                          {periodText}
+                        </span>
+                        <span className="text-xs text-gray-500 capitalize">
+                          {row.filingFrequency || "-"}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-4">
+                      <div className="flex flex-col">
+                        <span className="text-gray-900 font-medium">
+                          {formatDate(row.dueDate)}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {dueInText}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-4 text-gray-900 font-semibold text-sm">
+                      {formatCurrency(amountVal)}
+                    </TableCell>
+                    <TableCell className="py-4">{getStatusBadge(row.status)}</TableCell>
+                    <TableCell className="py-4">
+                      <div className="flex items-center gap-3">
+                        {isNoTaxDue ? (
                           <button
                             type="button"
                             onClick={() => onReviewDetails?.(row)}
                             className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
                           >
-                            Review Details
+                            View Details
                           </button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => onPrepareFiling?.(row)}
-                            className="bg-blue-600 hover:bg-blue-700 text-white h-8 text-xs px-3"
-                          >
-                            Prepare Filing
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => onReviewDetails?.(row)}
+                              className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
+                            >
+                              Review Details
+                            </button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={() => onPrepareFiling?.(row)}
+                              className="bg-blue-600 hover:bg-blue-700 text-white h-8 text-xs px-3"
+                            >
+                              Prepare Filing
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>
@@ -446,14 +491,46 @@ export function FilingHistoryTab({
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={8} className="h-48 text-center">
-                  <div className="flex flex-col items-center justify-center gap-2 text-gray-500">
-                    <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-                    <span>Loading filing history...</span>
-                  </div>
-                </TableCell>
-              </TableRow>
+              Array.from({ length: 5 }).map((_, idx) => (
+                <TableRow key={`history-skel-${idx}`} className="border-b">
+                  <TableCell className="py-3">
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="w-8 h-8 rounded-full shrink-0" />
+                      <div className="space-y-1.5">
+                        <Skeleton className="h-4 w-24" />
+                        <Skeleton className="h-3 w-16" />
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="py-3">
+                    <Skeleton className="h-4 w-24" />
+                  </TableCell>
+                  <TableCell className="py-3">
+                    <div className="space-y-1.5">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-3 w-16" />
+                    </div>
+                  </TableCell>
+                  <TableCell className="py-3">
+                    <Skeleton className="h-4 w-20" />
+                  </TableCell>
+                  <TableCell className="py-3">
+                    <Skeleton className="h-4 w-24" />
+                  </TableCell>
+                  <TableCell className="py-3">
+                    <Skeleton className="h-6 w-16 rounded-md" />
+                  </TableCell>
+                  <TableCell className="py-3">
+                    <div className="space-y-1.5">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-3 w-16" />
+                    </div>
+                  </TableCell>
+                  <TableCell className="py-3">
+                    <Skeleton className="h-8 w-24 rounded-md" />
+                  </TableCell>
+                </TableRow>
+              ))
             ) : rows.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="h-32 text-center text-gray-500">
@@ -462,8 +539,22 @@ export function FilingHistoryTab({
               </TableRow>
             ) : (
               rows.map((row) => {
-                const filedDateValue = row.paidAt || row.updatedAt || row.createdAt;
-                const receiptId = "-";
+                const filedDateValue = row.filedDate || row.paidAt || row.updatedAt || row.createdAt;
+                const receiptId = row.receipt?.confirmationNumber || "-";
+                const receiptDateValue = row.receipt?.receiptDate || filedDateValue;
+                const stateDisplay = row.stateLabel || row.state || "-";
+                const historySubtitle = row.projectName
+                  ? `${row.jobId ? `${row.jobId} • ` : ""}${row.projectName}`
+                  : typeof row.leadId === "object" && row.leadId?.jobId
+                  ? `${row.leadId.jobId}${row.leadId.projectName ? ` • ${row.leadId.projectName}` : ""}`
+                  : row.customerName
+                  ? row.customerName
+                  : typeof row.customerId === "object" && row.customerId?.firstName
+                  ? `${row.customerId.firstName}${row.customerId.lastName ? ` ${row.customerId.lastName}` : ""}`
+                  : row.salesTaxRateLabel || "-";
+                const amountPaidVal = row.taxPaid ?? row.amount;
+                const methodVal = row.method || row.filingFrequency || "Avalara API";
+                const periodText = row.filingPeriod || formatPeriod(row.dueDate || filedDateValue);
 
                 return (
                   <TableRow
@@ -474,21 +565,17 @@ export function FilingHistoryTab({
                       <div className="flex items-center gap-3">
                         <div
                           className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${getAvatarColor(
-                            row.state
+                            stateDisplay
                           )}`}
                         >
                           <span className="text-xs font-bold">
-                            {row.state?.charAt(0) || "-"}
+                            {stateDisplay.charAt(0) || "-"}
                           </span>
                         </div>
                         <div className="flex flex-col">
-                          <span className="font-medium text-gray-900">{row.state || "-"}</span>
+                          <span className="font-medium text-gray-900">{stateDisplay}</span>
                           <span className="text-xs text-gray-500">
-                            {row.leadId?.jobId
-                              ? `${row.leadId.jobId}${row.leadId.projectName ? ` • ${row.leadId.projectName}` : ""}`
-                              : (row.customerId?.firstName
-                                ? `${row.customerId.firstName}${row.customerId.lastName ? ` ${row.customerId.lastName}` : ""}`
-                                : "-")}
+                            {historySubtitle}
                           </span>
                         </div>
                       </div>
@@ -496,7 +583,7 @@ export function FilingHistoryTab({
                     <TableCell className="py-4">
                       <div className="flex flex-col">
                         <span className="font-medium text-gray-900">
-                          {formatPeriod(row.dueDate || filedDateValue)}
+                          {periodText}
                         </span>
                         <span className="text-xs text-gray-500 capitalize">
                           {row.filingFrequency || "-"}
@@ -514,18 +601,19 @@ export function FilingHistoryTab({
                       </div>
                     </TableCell>
                     <TableCell className="py-4 text-gray-900 font-semibold text-sm">
-                      {formatCurrency(row.amount)}
+                      {formatCurrency(amountPaidVal)}
                     </TableCell>
                     <TableCell className="py-4 text-gray-600 text-sm">
-                      {row.filingFrequency || "-"}
+                      {methodVal}
                     </TableCell>
-                    <TableCell className="py-4">{getStatusBadge(row.status || "-")}</TableCell>
+                    <TableCell className="py-4">{getStatusBadge(row.status)}</TableCell>
                     <TableCell className="py-4">
                       {receiptId !== "-" ? (
                         <button
                           type="button"
-                          onClick={() => onViewDetails?.(row)}
+                          onClick={() => onDownload?.(row)}
                           className="text-blue-600 font-medium hover:underline text-left block text-sm"
+                          title="Click to download receipt PDF"
                         >
                           {receiptId}
                         </button>
@@ -533,7 +621,7 @@ export function FilingHistoryTab({
                         <span className="text-gray-400 text-sm">-</span>
                       )}
                       <div className="text-xs text-gray-400">
-                        {formatDate(filedDateValue, "MMM dd, yyyy")}
+                        {formatDate(receiptDateValue, "MMM dd, yyyy")}
                       </div>
                     </TableCell>
                     <TableCell className="py-4">
@@ -553,6 +641,7 @@ export function FilingHistoryTab({
                           variant="outline"
                           className="h-8 w-8 flex items-center justify-center rounded text-gray-600 hover:bg-gray-100"
                           onClick={() => onDownload?.(row)}
+                          title="Download receipt PDF"
                         >
                           <Download className="h-4 w-4" />
                         </Button>
