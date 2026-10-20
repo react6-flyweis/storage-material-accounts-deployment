@@ -18,6 +18,8 @@ import {
   Hourglass,
   Search,
   RefreshCcw,
+  TrendingUp,
+  TrendingDown,
 } from "lucide-react";
 import StatCardV2 from "@/components/ui/stat-card-v2";
 import DateRangeFilter from "@/components/ui/date-range-filter";
@@ -28,11 +30,18 @@ import {
   PendingFilingTab,
 } from "./sales-tax-filing-tabs";
 import {
+  useTaxFilingStatsQuery,
   useTaxFilingFiltersQuery,
   useTaxFilingQuery,
   useExportTaxFilingMutation,
+  useDownloadTaxReceiptPdfMutation,
+  useSyncTaxFilingMutation,
 } from "@/modules/payments/payments.hooks";
-import type { TaxFilingItem } from "@/modules/payments/payments.api";
+import type {
+  TaxFilingItem,
+  TaxFilingFilterProject,
+  TaxFilingFilterClient,
+} from "@/modules/payments/payments.api";
 
 function formatCurrency(val?: number | null) {
   if (val === undefined || val === null || isNaN(val)) return "-";
@@ -58,6 +67,7 @@ export default function SalesTaxFiling() {
   const [downloadSuccessOpen, setDownloadSuccessOpen] = useState(false);
   const [downloadMessage, setDownloadMessage] = useState("Downloaded successfully");
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [isPrepareMode, setIsPrepareMode] = useState(false);
   const [selectedTaxItem, setSelectedTaxItem] = useState<TaxFilingItem | null>(null);
 
   // 1. Fetch Filters Data
@@ -76,13 +86,17 @@ export default function SalesTaxFiling() {
     ? format(dateRange.to, "yyyy-MM-dd")
     : undefined;
 
-  const effectiveSearch = searchQuery.trim()
-    ? searchQuery.trim()
-    : selectedState !== "all"
-    ? selectedState
-    : undefined;
+  const effectiveSearch = searchQuery.trim() ? searchQuery.trim() : undefined;
+
+  const statsParams = {
+    state: selectedState !== "all" ? selectedState : undefined,
+    projectId: selectedProjectId !== "all" ? selectedProjectId : undefined,
+    clientId: selectedClientId !== "all" ? selectedClientId : undefined,
+    search: effectiveSearch,
+  };
 
   const queryParams = {
+    state: selectedState !== "all" ? selectedState : undefined,
     projectId: selectedProjectId !== "all" ? selectedProjectId : undefined,
     clientId: selectedClientId !== "all" ? selectedClientId : undefined,
     search: effectiveSearch,
@@ -92,7 +106,14 @@ export default function SalesTaxFiling() {
     limit,
   };
 
-  // 3. Fetch Tax Filing Data & Stats
+  // 3. Fetch Dedicated KPI Stats (4.1)
+  const {
+    data: statsRes,
+    isLoading: isStatsLoading,
+    refetch: refetchStats,
+  } = useTaxFilingStatsQuery(statsParams);
+
+  // 4. Fetch Pending + Filing History (4.3)
   const {
     data: taxFilingRes,
     isLoading: isTaxFilingLoading,
@@ -101,13 +122,19 @@ export default function SalesTaxFiling() {
   } = useTaxFilingQuery(queryParams);
 
   const exportMutation = useExportTaxFilingMutation();
+  const downloadReceiptMutation = useDownloadTaxReceiptPdfMutation();
+  const syncMutation = useSyncTaxFilingMutation();
+  const [isSyncing, setIsSyncing] = useState(false);
 
-  const stats = taxFilingRes?.data?.stats;
+  const kpiStats = statsRes?.data;
+  const tableStats = taxFilingRes?.data?.stats;
   const pendingFiling = taxFilingRes?.data?.pendingFiling || [];
   const filingHistory = taxFilingRes?.data?.filingHistory || [];
+  const meta = taxFilingRes?.data?.meta;
   const totalCount =
-    taxFilingRes?.data?.total ||
-    (activeTab === "Pending Filing" ? pendingFiling.length : filingHistory.length);
+    activeTab === "Pending Filing"
+      ? (tableStats?.unfiled ?? pendingFiling.length)
+      : (tableStats?.filed ?? filingHistory.length);
 
   const handleStateChange = (val: string) => {
     setSelectedState(val);
@@ -136,21 +163,51 @@ export default function SalesTaxFiling() {
 
   const handleReviewDetails = (item: TaxFilingItem) => {
     setSelectedTaxItem(item);
+    setIsPrepareMode(false);
     setIsSheetOpen(true);
   };
 
   const handlePrepareFiling = (item: TaxFilingItem) => {
     setSelectedTaxItem(item);
+    setIsPrepareMode(true);
     setIsSheetOpen(true);
   };
 
-  const handleDownloadItem = (item?: TaxFilingItem) => {
+  const handleSheetOpenChange = (open: boolean) => {
+    setIsSheetOpen(open);
+    if (!open) {
+      setSelectedTaxItem(null);
+    }
+  };
+
+  const handleDownloadItem = async (item?: TaxFilingItem) => {
+    if (item?._id) {
+      try {
+        const blob = await downloadReceiptMutation.mutateAsync(item._id);
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        const receiptNum = item.receipt?.confirmationNumber || `tax-receipt-${item.state || item._id.slice(-6)}`;
+        link.setAttribute("download", `${receiptNum}.pdf`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+        setDownloadMessage("Receipt PDF downloaded successfully");
+        setDownloadSuccessOpen(true);
+        return;
+      } catch (err) {
+        console.warn("PDF receipt download failed, falling back to CSV receipt:", err);
+      }
+    }
+
+    // Fallback CSV receipt
     if (item) {
-      const csvContent = `data:text/csv;charset=utf-8,State,Due Date,Amount,Status,Project ID,Customer\n"${
+      const csvContent = `data:text/csv;charset=utf-8,State,Due Date,Amount,Status,Job ID,Project Name\n"${
         item.state
-      }","${item.dueDate}","${item.amount}","${item.status}","${
-        item.leadId?.jobId || ""
-      }","${item.customerId?.firstName || ""}"`;
+      }","${item.dueDate || item.filedDate || ""}","${item.taxDue ?? item.taxPaid ?? item.amount ?? 0}","${
+        typeof item.status === "object" ? item.status.label : item.status || ""
+      }","${item.jobId || ""}","${item.projectName || ""}"`;
       const encodedUri = encodeURI(csvContent);
       const link = document.createElement("a");
       link.setAttribute("href", encodedUri);
@@ -166,6 +223,7 @@ export default function SalesTaxFiling() {
   const handleExport = async () => {
     try {
       const blob = await exportMutation.mutateAsync({
+        state: selectedState !== "all" ? selectedState : undefined,
         projectId: selectedProjectId !== "all" ? selectedProjectId : undefined,
         clientId: selectedClientId !== "all" ? selectedClientId : undefined,
         search: effectiveSearch,
@@ -199,13 +257,13 @@ export default function SalesTaxFiling() {
         ];
         const csvRows = (rowsToExport as TaxFilingItem[]).map((row: TaxFilingItem) => [
           `"${row.state || ""}"`,
-          `"${row.dueDate || ""}"`,
-          `"${row.amount ?? 0}"`,
+          `"${row.dueDate || row.filedDate || ""}"`,
+          `"${row.taxDue ?? row.taxPaid ?? row.amount ?? 0}"`,
           `"${row.filingFrequency || ""}"`,
-          `"${row.status || ""}"`,
-          `"${row.leadId?.jobId || ""}"`,
-          `"${row.leadId?.projectName || ""}"`,
-          `"${row.customerId?.firstName || ""}"`,
+          `"${typeof row.status === "object" ? row.status.label : row.status || ""}"`,
+          `"${row.jobId || ""}"`,
+          `"${row.projectName || ""}"`,
+          `"${row.customerName || ""}"`,
         ]);
         const csvContent =
           "data:text/csv;charset=utf-8," +
@@ -223,6 +281,50 @@ export default function SalesTaxFiling() {
     }
   };
 
+  const handleSyncNow = async () => {
+    setIsSyncing(true);
+    try {
+      await syncMutation.mutateAsync();
+    } catch (err) {
+      console.warn("Sync endpoint call failed, refreshing queries:", err);
+    } finally {
+      await Promise.all([refetch(), refetchStats()]);
+      setIsSyncing(false);
+    }
+  };
+
+  // Metric trend subtitle helper
+  const renderTrendSubtitle = (
+    pctChange?: number,
+    defaultLabel = "Based on active invoices"
+  ) => {
+    if (pctChange !== undefined && pctChange !== null) {
+      const isPositive = pctChange >= 0;
+      return (
+        <div className="flex items-center gap-1.5 mt-0.5">
+          <span
+            className={`font-semibold text-xs flex items-center ${
+              isPositive ? "text-emerald-600" : "text-rose-500"
+            }`}
+          >
+            {isPositive ? (
+              <TrendingUp className="w-3 h-3 mr-0.5 inline" />
+            ) : (
+              <TrendingDown className="w-3 h-3 mr-0.5 inline" />
+            )}
+            {isPositive ? `+${pctChange}%` : `${pctChange}%`}
+          </span>
+          <span className="text-gray-400 font-normal text-xs">from last month</span>
+        </div>
+      );
+    }
+    return (
+      <span className="text-gray-400 font-normal text-xs">
+        {defaultLabel}
+      </span>
+    );
+  };
+
   return (
     <div className="p-5 space-y-6">
       {/* Header */}
@@ -234,19 +336,32 @@ export default function SalesTaxFiling() {
           <p className="text-gray-500 text-sm mt-1">
             Track sales tax collected on invoices and manage filing by state
           </p>
+          {meta?.lastSyncedAt && (
+            <div className="flex items-center gap-2 text-xs text-gray-500 mt-1.5">
+              <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
+              <span>
+                Last synced: {format(new Date(meta.lastSyncedAt), "MMM dd, yyyy, hh:mm a")}
+              </span>
+              {meta.complianceStatus && (
+                <span className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 font-medium text-[10px]">
+                  {meta.complianceStatus}
+                </span>
+              )}
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => refetch()}
-            disabled={isFetching}
-            className="bg-white text-gray-700"
+            onClick={handleSyncNow}
+            disabled={isSyncing || isFetching || isTaxFilingLoading}
+            className="bg-white text-gray-700 cursor-pointer"
           >
             <RefreshCcw
-              className={`w-4 h-4 mr-2 ${isFetching ? "animate-spin" : ""}`}
+              className={`w-4 h-4 mr-2 ${isSyncing || isFetching ? "animate-spin text-blue-600" : ""}`}
             />
-            Refresh
+            {isSyncing ? "Syncing..." : "Sync Now"}
           </Button>
           <Button
             variant="outline"
@@ -296,7 +411,7 @@ export default function SalesTaxFiling() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Projects</SelectItem>
-              {projects.map((proj: any) => (
+              {projects.map((proj: TaxFilingFilterProject) => (
                 <SelectItem key={proj.leadId} value={proj.leadId}>
                   {proj.jobId}
                   {proj.projectName ? ` - ${proj.projectName}` : ""}
@@ -330,7 +445,7 @@ export default function SalesTaxFiling() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Clients</SelectItem>
-              {clients.map((client: any) => (
+              {clients.map((client: TaxFilingFilterClient) => (
                 <SelectItem key={client.customerId} value={client.customerId}>
                   {client.name}
                 </SelectItem>
@@ -340,16 +455,18 @@ export default function SalesTaxFiling() {
         </div>
       </Card>
 
-      {/* Stats Row */}
+      {/* 4.1 Stats Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCardV2
           title="Total Sales (Taxable)"
-          value={formatCurrency(stats?.totalTaxable)}
-          subtitle={
-            <span className="text-gray-400 font-normal text-xs">
-              Based on active invoices
-            </span>
-          }
+          isLoading={isStatsLoading}
+          value={formatCurrency(
+            kpiStats?.totalSalesTaxable?.value ?? tableStats?.totalTaxable
+          )}
+          subtitle={renderTrendSubtitle(
+            kpiStats?.totalSalesTaxable?.pctChangeFromLastMonth,
+            "Based on active invoices"
+          )}
           icon={
             <div className="flex items-center justify-center p-1 rounded bg-purple-50 text-purple-600">
               <DollarSign className="w-4 h-4" />
@@ -359,12 +476,14 @@ export default function SalesTaxFiling() {
         />
         <StatCardV2
           title="Total Sales Tax Collected"
-          value={formatCurrency(stats?.totalCollected)}
-          subtitle={
-            <span className="text-gray-400 font-normal text-xs">
-              Collected to date
-            </span>
-          }
+          isLoading={isStatsLoading}
+          value={formatCurrency(
+            kpiStats?.totalSalesTaxCollected?.value ?? tableStats?.totalCollected
+          )}
+          subtitle={renderTrendSubtitle(
+            kpiStats?.totalSalesTaxCollected?.pctChangeFromLastMonth,
+            "Collected to date"
+          )}
           icon={
             <div className="flex items-center justify-center p-1 rounded bg-emerald-50 text-emerald-600">
               <ShoppingBag className="w-4 h-4" />
@@ -374,11 +493,14 @@ export default function SalesTaxFiling() {
         />
         <StatCardV2
           title="Tax Payable by States"
+          isLoading={isStatsLoading}
           value={
-            stats?.taxPayableByStates !== undefined && stats?.taxPayableByStates !== null
-              ? typeof stats.taxPayableByStates === "number" && stats.taxPayableByStates < 100
-                ? `${stats.taxPayableByStates} State${stats.taxPayableByStates === 1 ? "" : "s"}`
-                : formatCurrency(stats.taxPayableByStates)
+            kpiStats?.taxPayableByStates?.value !== undefined && kpiStats?.taxPayableByStates?.value !== null
+              ? formatCurrency(kpiStats.taxPayableByStates.value)
+              : tableStats?.taxPayableByStates !== undefined && tableStats?.taxPayableByStates !== null
+              ? typeof tableStats.taxPayableByStates === "number" && tableStats.taxPayableByStates < 100
+                ? `${tableStats.taxPayableByStates} State${tableStats.taxPayableByStates === 1 ? "" : "s"}`
+                : formatCurrency(tableStats.taxPayableByStates)
               : "-"
           }
           subtitle={
@@ -395,13 +517,18 @@ export default function SalesTaxFiling() {
         />
         <StatCardV2
           title="Filed VS Unfiled Tax"
+          isLoading={isStatsLoading}
           value={
             <div className="flex flex-col text-sm font-semibold space-y-1 mt-1">
               <span className="text-emerald-600">
-                Filed: {stats?.filed ?? "-"}
+                Filed: {kpiStats?.fileVsUnfiledTax?.filed !== undefined
+                  ? formatCurrency(kpiStats.fileVsUnfiledTax.filed)
+                  : tableStats?.filed ?? "-"}
               </span>
               <span className="text-rose-500">
-                Unfiled: {stats?.unfiled ?? "-"}
+                Unfiled: {kpiStats?.fileVsUnfiledTax?.unfiled !== undefined
+                  ? formatCurrency(kpiStats.fileVsUnfiledTax.unfiled)
+                  : tableStats?.unfiled ?? "-"}
               </span>
             </div>
           }
@@ -415,7 +542,7 @@ export default function SalesTaxFiling() {
         />
       </div>
 
-      {/* Tabs and Content */}
+      {/* 4.3 Tabs and Content */}
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b pb-0 gap-4">
           <div className="flex space-x-8">
@@ -491,16 +618,27 @@ export default function SalesTaxFiling() {
         )}
       </div>
 
+      {/* Review Details / Texas Tax Details / Prepare Filing Modal */}
       {selectedTaxItem && (
         <TaxDetailsSheet
+          key={selectedTaxItem.taxRecordId || selectedTaxItem._id || "sales-tax-sheet"}
           state={selectedTaxItem.state}
-          status={selectedTaxItem.status || "Pending"}
+          status={
+            typeof selectedTaxItem.status === "object"
+              ? selectedTaxItem.status.label
+              : selectedTaxItem.status || "Pending"
+          }
           isOpen={isSheetOpen}
-          onOpenChange={setIsSheetOpen}
+          onOpenChange={handleSheetOpenChange}
           item={selectedTaxItem}
+          isPrepareMode={isPrepareMode}
+          onSuccess={handleSyncNow}
         />
       )}
 
+
+
+      {/* Success Notification Dialog */}
       <SuccessDialog
         open={downloadSuccessOpen}
         onClose={() => setDownloadSuccessOpen(false)}
@@ -510,4 +648,3 @@ export default function SalesTaxFiling() {
     </div>
   );
 }
-

@@ -35,6 +35,138 @@ export interface InvoiceFiltersData {
   quotationProfitStatuses: string[];
 }
 
+// ---------------- Common Billing & Bank Details Types ----------------
+export interface InvoiceAddress {
+  companyName?: string;
+  line1?: string;
+  line2?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  country?: string;
+  lines?: string[];
+}
+
+export interface InvoiceBankDetails {
+  bankName?: string;
+  accountName?: string;
+  accountNumber?: string;
+  routingNumber?: string;
+  swiftCode?: string;
+  iban?: string;
+  branchAddress?: string;
+  paymentInstructions?: string;
+}
+
+export interface InvoiceBillingDefaults {
+  billingAddress?: InvoiceAddress;
+  recipientAddress?: InvoiceAddress;
+  bankDetails?: InvoiceBankDetails;
+}
+
+export function buildAddressLines(addr: Partial<InvoiceAddress>): string[] {
+  const lines: string[] = [];
+  if (addr.line1?.trim()) lines.push(addr.line1.trim());
+  if (addr.line2?.trim()) lines.push(addr.line2.trim());
+  const cityStateZip = [
+    addr.city?.trim(),
+    [addr.state?.trim(), addr.postalCode?.trim()].filter(Boolean).join(" "),
+  ]
+    .filter(Boolean)
+    .join(", ");
+  if (cityStateZip) lines.push(cityStateZip);
+  if (addr.country?.trim() && addr.country.trim().toLowerCase() !== "united states") {
+    lines.push(addr.country.trim());
+  }
+  return lines;
+}
+
+export interface CreateCustomerInvoicePayload {
+  leadId: string;
+  invoiceNumber?: string;
+  date?: string;
+  dueDate?: string;
+  daysToPay?: number | string;
+  poNumber?: string;
+  description?: string;
+  lineItems?: Array<{
+    id?: string;
+    description: string;
+    rate: number;
+    quantity: number;
+    markup?: number;
+    tax?: number | { id?: string; name?: string; rate: number } | null;
+    notes?: string;
+    photos?: string[];
+  }>;
+  subtotal?: number;
+  tax?: number;
+  taxAmount?: number;
+  discount?: number;
+  depositAmount?: number;
+  totalAmount?: number;
+  billingAddress?: InvoiceAddress;
+  recipientAddress?: InvoiceAddress;
+  bankDetails?: InvoiceBankDetails;
+  [key: string]: unknown;
+}
+
+export interface UpdateInvoiceBillingPayload {
+  invoiceId: string;
+  billingAddress?: InvoiceAddress;
+  recipientAddress?: InvoiceAddress;
+  bankDetails?: InvoiceBankDetails;
+}
+
+// ---------------- Quotation Tax & Payment Schedule Types ----------------
+export interface LatestApprovedTaxResponse {
+  leadId?: string;
+  quotationId?: string;
+  quoteNumber?: string;
+  amountWithoutMarkup?: number;
+  subtotalWithoutMarkup?: number;
+  markup?: number;
+  subtotal?: number;
+  subtotalWithMarkup?: number;
+  tax?: number;
+  total?: number;
+  taxRate?: number;
+  taxableBase?: number;
+  taxNote?: string;
+  currency?: string;
+  approvalStatus?: string;
+  versionNumber?: number;
+  reviewedAt?: string;
+}
+
+export interface PaymentScheduleStage {
+  _id?: string;
+  stageName: string;
+  amount: number;
+  amountType: "percentage" | "fixed";
+  dueDate?: string;
+  status?: string;
+}
+
+export interface PaymentScheduleDocument {
+  _id: string;
+  leadId?: string;
+  customerId?: string;
+  totalAmount?: number;
+  stages?: PaymentScheduleStage[];
+}
+
+export interface CreatePaymentSchedulePayload {
+  leadId?: string;
+  totalAmount?: number;
+  stages: PaymentScheduleStage[];
+}
+
+export interface UpdatePaymentSchedulePayload {
+  totalAmount?: number;
+  stages: PaymentScheduleStage[];
+}
+
 // ---------------- 2. Project Invoices ----------------
 export interface ProjectInvoicesSummary {
   totalInvoices: number;
@@ -65,6 +197,9 @@ export interface ProjectInvoiceRecordItem {
   documentUrl?: string | null;
   pdfUrl?: string | null;
   documentType?: "generated_pdf" | "payment_proof" | string;
+  billingAddress?: InvoiceAddress;
+  recipientAddress?: InvoiceAddress;
+  bankDetails?: InvoiceBankDetails;
 }
 
 // ---------------- Project Invoice Detail (Sales Panel contract) ----------------
@@ -88,23 +223,7 @@ export interface InvoiceLineItem {
   taxAmount?: number | null;
 }
 
-export interface PaymentScheduleStage {
-  _id?: string;
-  stageName?: string | null;
-  amount?: number | null;
-  amountType?: "percentage" | "fixed" | string | null;
-  dueDate?: string | null;
-  status?: string | null;
-  invoiceId?: string | null;
-}
 
-export interface PaymentScheduleDocument {
-  _id?: string;
-  leadId?: string | null;
-  customerId?: string | null;
-  totalAmount?: number | null;
-  stages?: PaymentScheduleStage[] | null;
-}
 
 export interface InvoiceCustomerReference {
   _id?: string;
@@ -155,6 +274,9 @@ export interface InvoiceDocument {
   lineItems?: InvoiceLineItem[] | null;
   projectName?: string | null;
   project?: string | null;
+  billingAddress?: InvoiceAddress;
+  recipientAddress?: InvoiceAddress;
+  bankDetails?: InvoiceBankDetails;
   createdAt?: string | null;
   updatedAt?: string | null;
 }
@@ -189,6 +311,9 @@ export interface VendorInvoiceRecordItem {
   paymentStatus?: string;
   payableStatus?: string;
   documentUrl?: string | null;
+  billingAddress?: InvoiceAddress;
+  recipientAddress?: InvoiceAddress;
+  bankDetails?: InvoiceBankDetails;
 }
 
 // ---------------- 4. Carrier Invoices ----------------
@@ -217,6 +342,9 @@ export interface CarrierInvoiceRecordItem {
   paymentStatus?: string;
   payableStatus?: string;
   documentUrl?: string | null;
+  billingAddress?: InvoiceAddress;
+  recipientAddress?: InvoiceAddress;
+  bankDetails?: InvoiceBankDetails;
 }
 
 // ---------------- 5. Miscellaneous Invoices ----------------
@@ -247,6 +375,9 @@ export interface MiscInvoiceRecordItem {
   documentUrl?: string | null;
   documentFileName?: string | null;
   description?: string;
+  billingAddress?: InvoiceAddress;
+  recipientAddress?: InvoiceAddress;
+  bankDetails?: InvoiceBankDetails;
 }
 
 export interface CreateMiscInvoicePayload {
@@ -263,6 +394,9 @@ export interface CreateMiscInvoicePayload {
   invoiceNumber?: string;
   description?: string;
   paymentStatus?: string;
+  billingAddress?: InvoiceAddress;
+  recipientAddress?: InvoiceAddress;
+  bankDetails?: InvoiceBankDetails;
 }
 
 // ---------------- 6. Quotation-wise P&L ----------------
@@ -417,6 +551,7 @@ export const invoiceManagementApi = createApi({
   baseQuery: baseQueryWithReauth,
   tagTypes: [
     "InvoiceFilters",
+    "BillingDefaults",
     "ProjectInvoicesSummary",
     "ProjectInvoicesRecords",
     "VendorInvoicesSummary",
@@ -431,7 +566,7 @@ export const invoiceManagementApi = createApi({
     "InvoiceDetail",
   ],
   endpoints: (builder) => ({
-    // ---------------- 1. Shared Filters ----------------
+    // ---------------- 1. Shared Filters & Billing Defaults ----------------
     getInvoiceManagementFilters: builder.query<InvoiceFiltersData, void>({
       query: () => ({
         url: "/api/account/invoice-management/filters",
@@ -456,6 +591,24 @@ export const invoiceManagementApi = createApi({
         };
       },
       providesTags: ["InvoiceFilters"],
+    }),
+
+    // Billing Defaults for forms: GET /api/common/invoices/billing-defaults
+    getInvoiceBillingDefaults: builder.query<InvoiceBillingDefaults, string | void>({
+      query: (leadId) => ({
+        url: "/api/common/invoices/billing-defaults",
+        method: "GET",
+        params: leadId ? { leadId } : undefined,
+      }),
+      transformResponse: (response: ApiResponse<InvoiceBillingDefaults> | InvoiceBillingDefaults) => {
+        const d = (response as ApiResponse<InvoiceBillingDefaults>)?.data || (response as InvoiceBillingDefaults) || {};
+        return {
+          billingAddress: d.billingAddress,
+          recipientAddress: d.recipientAddress,
+          bankDetails: d.bankDetails,
+        };
+      },
+      providesTags: ["BillingDefaults"],
     }),
 
     // ---------------- 2. Project Invoices ----------------
@@ -492,6 +645,53 @@ export const invoiceManagementApi = createApi({
       providesTags: ["ProjectInvoicesRecords"],
     }),
 
+    // Create Customer Invoice: POST /api/leads/:leadId/invoices
+    createCustomerInvoice: builder.mutation<ApiResponse<unknown>, CreateCustomerInvoicePayload>({
+      query: ({ leadId, ...body }) => ({
+        url: `/api/leads/${encodeURIComponent(leadId)}/invoices`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: [
+        "ProjectInvoicesSummary",
+        "ProjectInvoicesRecords",
+        "InvoiceFilters",
+      ],
+    }),
+
+    // Update Customer Invoice: PUT /api/invoices/:invoiceId
+    updateCustomerInvoice: builder.mutation<
+      ApiResponse<unknown>,
+      { invoiceId: string; body: Partial<CreateCustomerInvoicePayload> }
+    >({
+      query: ({ invoiceId, body }) => ({
+        url: `/api/invoices/${encodeURIComponent(invoiceId)}`,
+        method: "PUT",
+        body,
+      }),
+      invalidatesTags: (_res, _err, { invoiceId }) => [
+        "ProjectInvoicesSummary",
+        "ProjectInvoicesRecords",
+        { type: "InvoiceDetail", id: invoiceId },
+      ],
+    }),
+
+    // Update Customer Invoice Billing Only: PUT /api/invoices/:invoiceId
+    updateCustomerInvoiceBilling: builder.mutation<
+      ApiResponse<unknown>,
+      UpdateInvoiceBillingPayload
+    >({
+      query: ({ invoiceId, ...billingData }) => ({
+        url: `/api/invoices/${encodeURIComponent(invoiceId)}`,
+        method: "PUT",
+        body: billingData,
+      }),
+      invalidatesTags: (_res, _err, { invoiceId }) => [
+        "ProjectInvoicesRecords",
+        { type: "InvoiceDetail", id: invoiceId },
+      ],
+    }),
+
     // Customer AR Mark Paid: PUT /api/account/invoices/:id/mark-paid
     markProjectInvoicePaid: builder.mutation<ApiResponse<unknown>, string>({
       query: (invoiceId) => ({
@@ -517,26 +717,55 @@ export const invoiceManagementApi = createApi({
       ],
     }),
 
-    // Customer Invoice Details (shared with Sales Panel): GET /api/invoices/:id
+    // Customer Invoice Details (shared with Sales & Admin Panels): GET /api/invoices/:invoiceId
     getInvoiceDetail: builder.query<InvoiceDetailData, string>({
       query: (invoiceId) => ({
         url: `/api/invoices/${encodeURIComponent(invoiceId)}`,
         method: "GET",
       }),
-      transformResponse: (response: any) => {
-        const d = response?.data || response;
-        if (d?.invoice) {
+      transformResponse: (
+        response:
+          | ApiResponse<InvoiceDetailData>
+          | InvoiceDetailData
+          | { data?: InvoiceDetailData }
+      ) => {
+        const d =
+          (response as { data?: InvoiceDetailData })?.data ||
+          (response as InvoiceDetailData);
+        if (d && "invoice" in d && d.invoice) {
           return {
             invoice: d.invoice,
             paymentSchedule: d.paymentSchedule || null,
           };
         }
         return {
-          invoice: d || {},
-          paymentSchedule: d?.paymentSchedule || null,
+          invoice: (d as unknown as InvoiceDocument) || ({} as InvoiceDocument),
+          paymentSchedule:
+            (d as unknown as { paymentSchedule?: PaymentScheduleDocument | null })
+              ?.paymentSchedule || null,
         };
       },
       providesTags: (_res, _err, id) => [{ type: "InvoiceDetail", id }],
+    }),
+
+    // Send Invoice Email: POST /api/common/invoices/:invoiceId/send
+    sendInvoiceEmail: builder.mutation<
+      void,
+      {
+        invoiceId: string;
+        recipientEmail: string;
+        subject?: string;
+        message?: string;
+        cc?: string[];
+        bcc?: string[];
+      }
+    >({
+      query: ({ invoiceId, ...body }) => ({
+        url: `/api/common/invoices/${encodeURIComponent(invoiceId)}/send`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["ProjectInvoicesRecords", "ProjectInvoicesSummary"],
     }),
 
     // ---------------- 3. Vendor Invoices ----------------
@@ -722,12 +951,108 @@ export const invoiceManagementApi = createApi({
         { type: "QuotationProfitDetail" },
       ],
     }),
+
+    // Latest approved tax by lead: GET /api/leads/:leadId/quotations/latest-approved-tax
+    getLatestApprovedTaxByLead: builder.query<
+      LatestApprovedTaxResponse,
+      string
+    >({
+      query: (leadId) => ({
+        url: `/api/leads/${encodeURIComponent(leadId)}/quotations/latest-approved-tax`,
+        method: "GET",
+      }),
+      transformResponse: (response: ApiResponse<LatestApprovedTaxResponse> | LatestApprovedTaxResponse) => {
+        if (response && typeof response === "object" && "data" in response && response.data) {
+          return response.data;
+        }
+        return response as LatestApprovedTaxResponse;
+      },
+    }),
+
+    // Payment Schedule by lead: GET /api/payment-schedules/lead/:leadId
+    getPaymentScheduleByLead: builder.query<
+      { schedule: PaymentScheduleDocument | null },
+      string
+    >({
+      query: (leadId) => ({
+        url: `/api/payment-schedules/lead/${encodeURIComponent(leadId)}`,
+        method: "GET",
+      }),
+      transformResponse: (response: ApiResponse<{ schedule: PaymentScheduleDocument | null }> | { schedule: PaymentScheduleDocument | null }) => {
+        if (response && typeof response === "object" && "data" in response && response.data) {
+          return response.data;
+        }
+        return response as { schedule: PaymentScheduleDocument | null };
+      },
+    }),
+
+    // Create payment schedule: POST /api/payment-schedules
+    createPaymentSchedule: builder.mutation<
+      ApiResponse<{ schedule: PaymentScheduleDocument }>,
+      CreatePaymentSchedulePayload
+    >({
+      query: (payload) => ({
+        url: "/api/payment-schedules",
+        method: "POST",
+        body: payload,
+      }),
+    }),
+
+    // Update payment schedule: PUT /api/payment-schedules/lead/:leadId
+    updatePaymentSchedule: builder.mutation<
+      ApiResponse<{ schedule: PaymentScheduleDocument }>,
+      { leadId: string; payload: UpdatePaymentSchedulePayload }
+    >({
+      query: ({ leadId, payload }) => ({
+        url: `/api/payment-schedules/lead/${encodeURIComponent(leadId)}`,
+        method: "PUT",
+        body: payload,
+      }),
+    }),
+
+    // Update Payables Billing: PUT /api/account/payables/:invoiceId/billing
+    updatePayableBilling: builder.mutation<
+      ApiResponse<unknown>,
+      {
+        invoiceId: string;
+        billingAddress?: InvoiceAddress;
+        recipientAddress?: InvoiceAddress;
+        bankDetails?: InvoiceBankDetails;
+      }
+    >({
+      query: ({ invoiceId, ...billingData }) => ({
+        url: `/api/account/payables/${encodeURIComponent(invoiceId)}/billing`,
+        method: "PUT",
+        body: billingData,
+      }),
+      invalidatesTags: [
+        "VendorInvoicesRecords",
+        "CarrierInvoicesRecords",
+        "MiscInvoicesRecords",
+      ],
+    }),
   }),
 });
 
 export const {
   useGetInvoiceManagementFiltersQuery,
   useLazyGetInvoiceManagementFiltersQuery,
+
+  // Billing Defaults & Mutations
+  useGetInvoiceBillingDefaultsQuery,
+  useLazyGetInvoiceBillingDefaultsQuery,
+  useCreateCustomerInvoiceMutation,
+  useUpdateCustomerInvoiceMutation,
+  useUpdateCustomerInvoiceBillingMutation,
+  useUpdatePayableBillingMutation,
+
+  // Quotation Tax & Payment Schedules
+  useGetLatestApprovedTaxByLeadQuery,
+  useLazyGetLatestApprovedTaxByLeadQuery,
+  useGetPaymentScheduleByLeadQuery,
+  useLazyGetPaymentScheduleByLeadQuery,
+  useCreatePaymentScheduleMutation,
+  useUpdatePaymentScheduleMutation,
 
   // Project Invoices
   useGetProjectInvoicesSummaryQuery,
@@ -736,6 +1061,7 @@ export const {
   useLazyGetInvoiceDetailQuery,
   useMarkProjectInvoicePaidMutation,
   useFollowUpProjectInvoiceMutation,
+  useSendInvoiceEmailMutation,
 
   // Vendor Invoices
   useGetVendorInvoicesSummaryQuery,

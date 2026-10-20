@@ -1057,6 +1057,20 @@ export const costsApi = createApi({
       }),
       invalidatesTags: ["ItemListSummary", "ItemListStats", "ItemListRecords"],
     }),
+    exportItemList: builder.mutation<Blob, CostListQueryParams | void>({
+      query: (params) => ({
+        url: "/api/account/costs/item-list/export",
+        method: "GET",
+        params: cleanQueryParams(params || undefined),
+        responseHandler: async (response) => {
+          if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.message || "Failed to export item cost list");
+          }
+          return response.blob();
+        },
+      }),
+    }),
 
     // 9. Future Income / Expense
     getFutureSummary: builder.query<FutureCostSummary, CostListQueryParams | void>({
@@ -1138,6 +1152,7 @@ export const {
   useLazyGetItemDetailQuery,
   useCreateItemPartMutation,
   useUpdateItemPartMutation,
+  useExportItemListMutation,
   // Future Income/Expense
   useGetFutureSummaryQuery,
   useGetFutureRecordsQuery,

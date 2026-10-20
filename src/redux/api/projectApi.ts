@@ -148,6 +148,8 @@ export interface ProjectInvoicesSummary {
   overdueAmount: number;
 }
 
+import type { InvoiceAddress, InvoiceBankDetails } from "./invoiceManagementApi";
+
 export interface ProjectInvoiceRecordItem {
   invoiceId: string;
   invoiceNumber: string;
@@ -168,6 +170,9 @@ export interface ProjectInvoiceRecordItem {
   status: string;
   sentDate?: string;
   items?: number;
+  billingAddress?: InvoiceAddress;
+  recipientAddress?: InvoiceAddress;
+  bankDetails?: InvoiceBankDetails;
 }
 
 export interface ProjectInvoiceRecordsResponse {

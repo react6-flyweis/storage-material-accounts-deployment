@@ -10,6 +10,7 @@ import {
   DollarSign,
   ChevronLeft,
   ChevronRight,
+  Loader2,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -17,6 +18,7 @@ import {
   useGetItemListSummaryQuery,
   useGetItemListRecordsQuery,
   useGetItemListCategoriesQuery,
+  useExportItemListMutation,
   type ItemCostRecord,
 } from "@/redux/api/costsApi";
 
@@ -58,6 +60,7 @@ export const ItemCostListPage: React.FC = () => {
   } = useGetItemListRecordsQuery({
     search: debouncedSearch || undefined,
   });
+  const [exportItemList, { isLoading: isExporting }] = useExportItemListMutation();
 
   const apiRows: ItemCostRecord[] = useMemo(() => {
     return recordsData?.rows ?? [];
@@ -153,25 +156,57 @@ export const ItemCostListPage: React.FC = () => {
     return filteredData.slice(start, start + pageSize);
   }, [filteredData, currentPage, pageSize]);
 
-  // Export to Excel / CSV
-  const handleExport = () => {
-    const exportRows = filteredData.map((item) => ({
-      "Part Name": item.partName?.replace(/'/g, "") ?? "",
-      "Part Colour": item.partColour?.replace(/'/g, "") ?? "-",
-      "Cost Unit": item.costUnit?.replace(/'/g, "") ?? "-",
-      "MBS Cost": item.mbsCost,
-      "Current Market Cost": item.currentMarketCost ?? "-",
-      Description: item.description?.replace(/'/g, "") ?? "-",
-      Category: item.category ?? "-",
-    }));
+  // Export to Excel / CSV via API with client-side fallback
+  const handleExport = async () => {
+    try {
+      const blob = await exportItemList({
+        search: debouncedSearch || undefined,
+        category: selectedUnitFilter !== "All" ? selectedUnitFilter : undefined,
+      }).unwrap();
 
-    const worksheet = XLSX.utils.json_to_sheet(exportRows);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Item Cost List");
-    XLSX.writeFile(
-      workbook,
-      `Item_Cost_List_${new Date().toISOString().slice(0, 10)}.xlsx`,
-    );
+      // Check if response is JSON (e.g. redirect URL or wrapped payload)
+      if (blob.type.includes("application/json")) {
+        const text = await blob.text();
+        try {
+          const json = JSON.parse(text);
+          if (json.data?.url || json.url) {
+            window.open(json.data?.url || json.url, "_blank");
+            return;
+          }
+        } catch {
+          // not JSON with URL
+        }
+      }
+
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      const isCsv = blob.type.includes("csv") || blob.type.includes("text");
+      link.download = `Item_Cost_List_${new Date().toISOString().slice(0, 10)}.${isCsv ? "csv" : "xlsx"}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err: unknown) {
+      console.warn("API export failed, falling back to client-side Excel export:", err);
+      const exportRows = filteredData.map((item) => ({
+        "Part Name": item.partName?.replace(/'/g, "") ?? "",
+        "Part Colour": item.partColour?.replace(/'/g, "") ?? "-",
+        "Cost Unit": item.costUnit?.replace(/'/g, "") ?? "-",
+        "MBS Cost": item.mbsCost,
+        "Current Market Cost": item.currentMarketCost ?? "-",
+        Description: item.description?.replace(/'/g, "") ?? "-",
+        Category: item.category ?? "-",
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(exportRows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Item Cost List");
+      XLSX.writeFile(
+        workbook,
+        `Item_Cost_List_${new Date().toISOString().slice(0, 10)}.xlsx`,
+      );
+    }
   };
 
   return (
@@ -185,10 +220,15 @@ export const ItemCostListPage: React.FC = () => {
         <button
           type="button"
           onClick={handleExport}
-          className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-white border border-slate-200 text-xs sm:text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer"
+          disabled={isExporting}
+          className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-white border border-slate-200 text-xs sm:text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          <Download className="w-3.5 h-3.5 text-slate-500" />
-          <span>Export</span>
+          {isExporting ? (
+            <Loader2 className="w-3.5 h-3.5 text-slate-500 animate-spin" />
+          ) : (
+            <Download className="w-3.5 h-3.5 text-slate-500" />
+          )}
+          <span>{isExporting ? "Exporting..." : "Export"}</span>
         </button>
       </div>
 
