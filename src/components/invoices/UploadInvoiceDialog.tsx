@@ -10,6 +10,9 @@ export interface NewInvoiceData {
   linkedDelivery?: string;
   paymentStatus: "Unpaid" | "Paid" | "Pending";
   file?: File | null;
+  billingAddress?: import("@/redux/api/invoiceManagementApi").InvoiceAddress;
+  recipientAddress?: import("@/redux/api/invoiceManagementApi").InvoiceAddress;
+  bankDetails?: import("@/redux/api/invoiceManagementApi").InvoiceBankDetails;
 }
 
 interface UploadInvoiceDialogProps {
