@@ -33,8 +33,21 @@ async function apiFetch<T>(
 
   const res = await fetch(url, { ...options, headers });
   if (!res.ok) {
-    const errText = await res.text().catch(() => "");
-    throw new Error(errText || `API error ${res.status}: ${res.statusText}`);
+    let errMessage = `API error ${res.status}: ${res.statusText}`;
+    try {
+      const errText = await res.text();
+      if (errText) {
+        try {
+          const parsed = JSON.parse(errText);
+          errMessage = parsed.message || parsed.error || errText;
+        } catch {
+          errMessage = errText;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    throw new Error(errMessage);
   }
   return res.json();
 }
@@ -56,6 +69,36 @@ async function apiDownloadBlob(
 }
 
 // ---------------- Tax Filing Types & API ----------------
+
+export type TaxFilingKPIStatMetric = {
+  value: number;
+  pctChangeFromLastMonth?: number;
+};
+
+export type TaxFilingKPIStatsData = {
+  totalSalesTaxable?: TaxFilingKPIStatMetric;
+  totalSalesTaxCollected?: TaxFilingKPIStatMetric;
+  taxPayableByStates?: {
+    value: number;
+  };
+  fileVsUnfiledTax?: {
+    filed: number;
+    unfiled: number;
+  };
+};
+
+export type GetTaxFilingStatsParams = {
+  state?: string;
+  projectId?: string;
+  clientId?: string;
+  search?: string;
+};
+
+export type GetTaxFilingStatsResponse = {
+  success: boolean;
+  message: string;
+  data: TaxFilingKPIStatsData;
+};
 
 export type TaxFilingFilterProject = {
   leadId: string;
@@ -81,28 +124,56 @@ export type GetTaxFilingFiltersResponse = {
 };
 
 export type TaxFilingLeadInfo = {
-  _id: string;
-  jobId: string;
-  projectName: string;
+  _id?: string;
+  jobId?: string;
+  projectName?: string;
 };
 
 export type TaxFilingCustomerInfo = {
-  _id: string;
-  firstName: string;
-  lastName: string;
+  _id?: string;
+  firstName?: string;
+  lastName?: string;
+};
+
+export type TaxFilingStatusTone = "warning" | "success" | "danger" | "info" | string;
+
+export type TaxFilingStatusObject = {
+  code: string;
+  label: string;
+  tone?: TaxFilingStatusTone;
+};
+
+export type TaxFilingReceiptInfo = {
+  confirmationNumber: string;
+  receiptDate?: string;
 };
 
 export type TaxFilingItem = {
   _id: string;
+  taxRecordId?: string;
   state: string;
-  dueDate: string;
-  amount: number;
+  stateLabel?: string;
+  salesTaxRateLabel?: string;
+  filingPeriod?: string;
   filingFrequency?: string;
+  dueDate?: string;
+  daysUntilDue?: number;
+  daysUntilDueLabel?: string;
+  taxDue?: number;
+  payable?: number;
+  taxPaid?: number;
+  amount?: number;
+  filedDate?: string;
+  method?: string;
+  receipt?: TaxFilingReceiptInfo;
+  status: string | TaxFilingStatusObject;
+  leadId?: string | TaxFilingLeadInfo | null;
+  projectName?: string;
+  jobId?: string;
+  customerName?: string;
+  customerId?: string | TaxFilingCustomerInfo | null;
   threshold?: string;
   websiteLink?: string | null;
-  status: string;
-  leadId?: TaxFilingLeadInfo;
-  customerId?: TaxFilingCustomerInfo;
   createdBy?: string;
   paidBy?: string | null;
   paidAt?: string | null;
@@ -119,6 +190,15 @@ export type TaxFilingStats = {
   unfiled: number;
 };
 
+export type TaxFilingMeta = {
+  provider?: string;
+  complianceStatus?: string;
+  lastSyncedAt?: string;
+  syncState?: string;
+  canSync?: boolean;
+  message?: string;
+};
+
 export type TaxFilingData = {
   stats: TaxFilingStats;
   pendingFiling: TaxFilingItem[];
@@ -126,9 +206,11 @@ export type TaxFilingData = {
   page: number;
   limit: number;
   total?: number;
+  meta?: TaxFilingMeta;
 };
 
 export type GetTaxFilingParams = {
+  state?: string;
   projectId?: string;
   clientId?: string;
   search?: string;
@@ -144,29 +226,226 @@ export type GetTaxFilingResponse = {
   data: TaxFilingData;
 };
 
+// 5.1 & 5.2 Detail & Prepare Types
+export type TaxFilingDetailBreakdown = {
+  taxCollected: number;
+  taxPaid: number;
+  penalty: number;
+  interest: number;
+  totalPayable: number;
+};
+
+export type TaxFilingDetailPayNow = {
+  enabled: boolean;
+  amount: number;
+  currency: string;
+  provider: string;
+  providerLabel: string;
+};
+
+export type TaxFilingDetailRecentActivity = {
+  at: string;
+  type: string;
+  amount: number;
+  label: string;
+};
+
+export type TaxFilingDetailItem = {
+  _id: string;
+  state: string;
+  stateLabel?: string;
+  uiStatus?: TaxFilingStatusObject;
+  filingPeriod?: string;
+  filingPeriodRange?: {
+    start: string;
+    end: string;
+  };
+  filingFrequency?: string;
+  filingDueDate?: string;
+  daysUntilDue?: number;
+  breakdown?: TaxFilingDetailBreakdown;
+  payNow?: TaxFilingDetailPayNow;
+  recentActivity?: TaxFilingDetailRecentActivity[];
+};
+
+export type TaxFilingDetailData = {
+  detail: TaxFilingDetailItem;
+  avalara?: {
+    filingId?: string;
+    returnsConfigured?: boolean;
+    source?: string;
+  };
+};
+
+export type GetTaxFilingDetailResponse = {
+  success: boolean;
+  message: string;
+  data: TaxFilingDetailData;
+};
+
+export type TaxFilingPrepareData = {
+  tax: {
+    _id: string;
+    state: string;
+    status: string;
+    taxDue: number;
+    payable: number;
+    taxCollected: number;
+    taxableSales: number;
+    source: string;
+  };
+  detail: TaxFilingDetailItem;
+  message: string;
+};
+
+export type GetTaxFilingPrepareResponse = {
+  success: boolean;
+  message: string;
+  data: TaxFilingPrepareData;
+};
+
+// 5.3 & 5.4 Pay Tax / Approve Types
+export type PayTaxPayload = {
+  paymentMethod: string;
+  notificationEmail?: string;
+};
+
+export type PayTaxPaymentData = {
+  amountPaid: number;
+  filingPeriod?: {
+    start: string;
+    end: string;
+  } | string;
+  paymentMethod: string;
+  confirmationNumber: string;
+  status: string;
+  estimatedSettlement: string;
+  notificationEmail?: string;
+};
+
+export type PayTaxResponseData = {
+  payment: PayTaxPaymentData;
+  tax?: {
+    _id: string;
+    status: string;
+    paymentStatus?: string;
+    confirmationNumber?: string;
+    providerMethod?: string;
+  };
+  avalara?: {
+    ok?: boolean;
+    regionRow?: {
+      filingId?: number | string;
+      status?: string;
+      region?: string;
+      taxAmount?: number;
+    };
+  } | null;
+};
+
+export type PayTaxResponse = {
+  success: boolean;
+  message: string;
+  data: PayTaxResponseData;
+};
+
+// 5.5 Receipt Types
+export type TaxFilingReceiptData = {
+  confirmationNumber: string;
+  amountPaid: number;
+  paidAt: string;
+  state: string;
+  method: string;
+  paymentMethod: string;
+  receipt?: {
+    confirmationNumber: string;
+    receiptDate: string;
+  };
+  download?: {
+    format: string;
+    urlHint: string;
+  };
+};
+
+export type GetTaxFilingReceiptResponse = {
+  success: boolean;
+  message: string;
+  data: TaxFilingReceiptData;
+};
+
+// 5.5b Notification Settings Types
+export type TaxNotificationSettings = {
+  emailReminders?: boolean;
+  deadlineAlerts?: boolean;
+  daysBeforeDue?: number;
+  recipientEmail?: string;
+};
+
+export type GetTaxNotificationSettingsResponse = {
+  success: boolean;
+  message: string;
+  data: TaxNotificationSettings;
+};
+
+export type UpdateTaxNotificationSettingsResponse = {
+  success: boolean;
+  message: string;
+  data?: TaxNotificationSettings;
+};
+
+// 5.6 File Tax Response
+export type FileTaxResponse = {
+  success: boolean;
+  message: string;
+  data: {
+    tax: {
+      _id: string;
+      status: string;
+      paidAt?: string;
+    };
+  };
+};
+
 // ---------------- State-Wise Tax Types & API ----------------
 
 export type StateOverviewItem = {
-  _id: string;
+  _id?: string;
+  state: string;
+  stateLabel?: string;
+  salesTaxRateLabel?: string;
+  rate?: string;
   taxCollected: number;
   taxableSales: number;
   paidFiled: number;
   payable: number;
+  dueDate?: string;
   nextDue?: string;
-  status: string;
-  rate?: string;
+  status:
+    | string
+    | {
+        code: string;
+        label: string;
+        tone?: string;
+      };
+  taxRecordId?: string;
 };
 
 export type StateWiseTaxData = {
-  stats: {
-    totalTaxCollected: number;
-    totalPaid: number;
-    totalPayable: number;
-    pendingFilingStates: number;
+  stats?: {
+    totalTaxCollected?: number;
+    totalPaid?: number;
+    totalPayable?: number;
+    pendingFilingStates?: number;
     nextFilingDue?: string;
   };
   stateOverview: StateOverviewItem[];
   lastSynced?: string;
+  meta?: {
+    provider?: string;
+    syncState?: string;
+    canSync?: boolean;
+    complianceStatus?: string;
+  };
 };
 
 export type GetStateWiseTaxParams = {
@@ -206,6 +485,8 @@ export type StateWiseTaxStatsData = {
 
 export type GetStateWiseTaxStatsParams = {
   projectId?: string;
+  startDate?: string;
+  endDate?: string;
 };
 
 export type GetStateWiseTaxStatsResponse = {
@@ -216,14 +497,30 @@ export type GetStateWiseTaxStatsResponse = {
 
 export type StateWiseTaxDeadlineItem = {
   _id: string;
-  state: string;
-  filingType: string;
-  dueDate: string;
-  daysLeft: number;
+  taxRecordId?: string;
+  state?: string;
+  location?: string;
+  filingType?: string;
+  dueDate?: string;
+  daysLeft?: number;
+  projectName?: string;
+  leadId?: string;
+  jobId?: string;
+  payable?: number;
+  taxDue?: number;
+  status?:
+    | string
+    | {
+        code: string;
+        label: string;
+        tone?: string;
+      };
 };
 
 export type GetStateWiseTaxUpcomingDeadlinesParams = {
+  projectId?: string;
   limit?: number;
+  scope?: "state" | "project";
 };
 
 export type GetStateWiseTaxUpcomingDeadlinesResponse = {
@@ -231,13 +528,20 @@ export type GetStateWiseTaxUpcomingDeadlinesResponse = {
   message: string;
   data: {
     deadlines: StateWiseTaxDeadlineItem[];
-    total: number;
+    total?: number;
+    meta?: {
+      provider?: string;
+      syncState?: string;
+      canSync?: boolean;
+      complianceStatus?: string;
+    };
   };
 };
 
 // ---------------- Project-Wise Tax Types & API ----------------
 
 export type ProjectWiseTaxItem = {
+  _id?: string;
   leadId: string;
   projectName?: string;
   jobId?: string;
@@ -248,7 +552,17 @@ export type ProjectWiseTaxItem = {
   paidFiled: number;
   payable: number;
   dueDate: string;
-  status: string;
+  status:
+    | string
+    | {
+        code: string;
+        label: string;
+        tone?: string;
+      };
+  salesTaxRateLabel?: string;
+  taxRecordId?: string;
+  taxId?: string;
+  showPayTax?: boolean;
 };
 
 export type GetProjectWiseTaxParams = {
@@ -267,6 +581,13 @@ export type GetProjectWiseTaxResponse = {
     total: number;
     page: number;
     limit: number;
+    lastSynced?: string;
+    meta?: {
+      lastSyncedAt?: string;
+      provider?: string;
+      syncState?: string;
+      canSync?: boolean;
+    };
   };
 };
 
@@ -305,290 +626,162 @@ export type GetProjectWiseTaxStatsResponse = {
   data: ProjectWiseTaxStatsData;
 };
 
-// =================== MOCK DATA (MATCHING USER SCREENSHOT) ===================
-
-export const MOCK_TAX_FILING_FILTERS: TaxFilingFiltersData = {
-  states: ["Texas", "California", "New York", "Arizona", "Nevada", "Florida"],
-  projects: [
-    { leadId: "proj-1", projectName: "Commercial Complex A", jobId: "JOB-401" },
-    { leadId: "proj-2", projectName: "Storage Unit Expansion", jobId: "JOB-402" },
-    { leadId: "proj-3", projectName: "Steel Framework Hub", jobId: "JOB-403" },
-  ],
-  clients: [
-    { customerId: "client-1", name: "Acme Industrial" },
-    { customerId: "client-2", name: "Metro Build Corp" },
-    { customerId: "client-3", name: "Apex Builders" },
-  ],
-};
-
-export const MOCK_TAX_FILING_DATA: TaxFilingData = {
-  stats: {
-    totalTaxable: 1245600,
-    totalCollected: 1500000,
-    taxPayableByStates: 2200000,
-    filed: 300000,
-    unfiled: 300000,
-  },
-  pendingFiling: [
-    {
-      _id: "pf-1",
-      state: "Texas",
-      threshold: "6.25% Sales Tax",
-      dueDate: "2024-01-14T00:00:00.000Z",
-      amount: 450000,
-      filingFrequency: "Monthly",
-      status: "Due Soon",
-      websiteLink: "https://comptroller.texas.gov",
-    },
-    {
-      _id: "pf-2",
-      state: "California",
-      threshold: "8.25% Sales Tax",
-      dueDate: "2024-01-21T00:00:00.000Z",
-      amount: 315000,
-      filingFrequency: "Monthly",
-      status: "Due Soon",
-      websiteLink: "https://www.cdtfa.ca.gov",
-    },
-    {
-      _id: "pf-3",
-      state: "New York",
-      threshold: "8.25% Sales Tax",
-      dueDate: "2024-02-20T00:00:00.000Z",
-      amount: 840000,
-      filingFrequency: "Monthly",
-      status: "Pending",
-      websiteLink: "https://www.tax.ny.gov",
-    },
-    {
-      _id: "pf-4",
-      state: "Arizona",
-      threshold: "8.25% Sales Tax",
-      dueDate: "2024-03-15T00:00:00.000Z",
-      amount: 610000,
-      filingFrequency: "Monthly",
-      status: "Pending",
-      websiteLink: "https://azdor.gov",
-    },
-    {
-      _id: "pf-5",
-      state: "Nevada",
-      threshold: "8.25% Sales Tax",
-      dueDate: "2024-04-12T00:00:00.000Z",
-      amount: 0,
-      filingFrequency: "Monthly",
-      status: "No tax due",
-      websiteLink: "https://tax.nv.gov",
-    },
-  ],
-  filingHistory: [
-    {
-      _id: "fh-1",
-      state: "Texas",
-      dueDate: "2024-01-14T00:00:00.000Z",
-      paidAt: "2024-01-10T14:32:00.000Z",
-      amount: 450000,
-      filingFrequency: "Monthly",
-      status: "Paid",
-      threshold: "Texas State Tax",
-    },
-    {
-      _id: "fh-2",
-      state: "California",
-      dueDate: "2024-01-21T00:00:00.000Z",
-      paidAt: "2024-01-18T10:15:00.000Z",
-      amount: 315000,
-      filingFrequency: "Monthly",
-      status: "Paid",
-      threshold: "CDTFA Sales Tax",
-    },
-    {
-      _id: "fh-3",
-      state: "Florida",
-      dueDate: "2024-02-01T00:00:00.000Z",
-      paidAt: "2024-01-28T09:45:00.000Z",
-      amount: 185000,
-      filingFrequency: "Monthly",
-      status: "Paid",
-      threshold: "Florida DOR",
-    },
-  ],
-  page: 1,
-  limit: 10,
-  total: 5,
-};
-
-export const MOCK_STATE_WISE_TAX_DATA: StateWiseTaxData = {
-  stats: {
-    totalTaxCollected: 1500000,
-    totalPaid: 950000,
-    totalPayable: 2200000,
-    pendingFilingStates: 4,
-    nextFilingDue: "2025-06-20T00:00:00.000Z",
-  },
-  stateOverview: [
-    {
-      _id: "Texas",
-      taxCollected: 450000,
-      taxableSales: 7200000,
-      paidFiled: 0,
-      payable: 450000,
-      nextDue: "2025-06-20T00:00:00.000Z",
-      status: "Payment Due",
-      rate: "6.25%",
-    },
-    {
-      _id: "California",
-      taxCollected: 315000,
-      taxableSales: 3818000,
-      paidFiled: 0,
-      payable: 315000,
-      nextDue: "2025-06-21T00:00:00.000Z",
-      status: "Payment Due",
-      rate: "8.25%",
-    },
-    {
-      _id: "New York",
-      taxCollected: 840000,
-      taxableSales: 10180000,
-      paidFiled: 0,
-      payable: 840000,
-      nextDue: "2025-07-20T00:00:00.000Z",
-      status: "Pending",
-      rate: "8.25%",
-    },
-    {
-      _id: "Arizona",
-      taxCollected: 610000,
-      taxableSales: 7393000,
-      paidFiled: 0,
-      payable: 610000,
-      nextDue: "2025-07-15T00:00:00.000Z",
-      status: "Pending",
-      rate: "8.25%",
-    },
-    {
-      _id: "Nevada",
-      taxCollected: 0,
-      taxableSales: 0,
-      paidFiled: 0,
-      payable: 0,
-      nextDue: "2025-08-12T00:00:00.000Z",
-      status: "No Due",
-      rate: "8.25%",
-    },
-  ],
-};
-
-export const MOCK_PROJECT_WISE_TAX_DATA = {
-  projects: [
-    {
-      leadId: "lead-1",
-      projectName: "Downtown Commercial Tower",
-      jobId: "JOB-2025-001",
-      location: "Austin, Texas",
-      customerName: "Acme Industrial",
-      taxCollected: 145000,
-      taxableSales: 2320000,
-      paidFiled: 0,
-      payable: 145000,
-      dueDate: "2025-06-20T00:00:00.000Z",
-      status: "Payment Due",
-    },
-    {
-      leadId: "lead-2",
-      projectName: "Pacific Coast Warehouse",
-      jobId: "JOB-2025-002",
-      location: "San Jose, California",
-      customerName: "Pacific Logistics",
-      taxCollected: 110000,
-      taxableSales: 1333000,
-      paidFiled: 0,
-      payable: 110000,
-      dueDate: "2025-06-21T00:00:00.000Z",
-      status: "Payment Due",
-    },
-    {
-      leadId: "lead-3",
-      projectName: "Midtown Steel Storage",
-      jobId: "JOB-2025-003",
-      location: "Queens, New York",
-      customerName: "Empire State Storage",
-      taxCollected: 290000,
-      taxableSales: 3515000,
-      paidFiled: 0,
-      payable: 290000,
-      dueDate: "2025-07-20T00:00:00.000Z",
-      status: "Pending",
-    },
-  ],
-  total: 3,
-  page: 1,
-  limit: 10,
-};
-
 // =================== PROVIDER IMPLEMENTATIONS ===================
 
+export async function getTaxFilingStatsProvider(
+  params?: GetTaxFilingStatsParams
+): Promise<GetTaxFilingStatsResponse> {
+  const queryParams = new URLSearchParams();
+  if (params?.state && params.state !== "all") queryParams.append("state", params.state);
+  if (params?.projectId && params.projectId !== "all") queryParams.append("projectId", params.projectId);
+  if (params?.clientId && params.clientId !== "all") queryParams.append("clientId", params.clientId);
+  if (params?.search) queryParams.append("search", params.search);
+
+  const queryString = queryParams.toString();
+  return apiFetch<GetTaxFilingStatsResponse>(
+    `/api/account/financial-extra/tax-filing/stats${queryString ? `?${queryString}` : ""}`
+  );
+}
+
 export async function getTaxFilingFiltersProvider(): Promise<GetTaxFilingFiltersResponse> {
-  try {
-    const res = await apiFetch<GetTaxFilingFiltersResponse>(
-      "/api/admin/financials/tax-filing/filters"
-    );
-    if (res?.data?.states?.length) return res;
-  } catch {
-    // fallback
-  }
-  return {
-    success: true,
-    message: "Fetched successfully",
-    data: MOCK_TAX_FILING_FILTERS,
-  };
+  return apiFetch<GetTaxFilingFiltersResponse>(
+    "/api/account/financial-extra/tax-filing/filters"
+  );
 }
 
 export async function getTaxFilingProvider(
   params?: GetTaxFilingParams
 ): Promise<GetTaxFilingResponse> {
   const queryParams = new URLSearchParams();
-  if (params?.projectId && params.projectId !== "all") queryParams.append("projectId", params.projectId);
-  if (params?.clientId && params.clientId !== "all") queryParams.append("clientId", params.clientId);
-  if (params?.search) queryParams.append("search", params.search);
-  if (params?.startDate) queryParams.append("startDate", params.startDate);
-  if (params?.endDate) queryParams.append("endDate", params.endDate);
   if (params?.page) queryParams.append("page", params.page.toString());
   if (params?.limit) queryParams.append("limit", params.limit.toString());
+  if (params?.state && params.state !== "all") queryParams.append("state", params.state);
+  if (params?.projectId && params.projectId !== "all") queryParams.append("projectId", params.projectId);
+  if (params?.clientId && params.clientId !== "all") queryParams.append("clientId", params.clientId);
+  if (params?.startDate) queryParams.append("startDate", params.startDate);
+  if (params?.endDate) queryParams.append("endDate", params.endDate);
+  if (params?.search) queryParams.append("search", params.search);
 
   const queryString = queryParams.toString();
-  try {
-    const res = await apiFetch<GetTaxFilingResponse>(
-      `/api/admin/financials/tax-filing${queryString ? `?${queryString}` : ""}`
-    );
-    if (res?.data && (res.data.pendingFiling?.length || res.data.filingHistory?.length)) {
-      return res;
-    }
-  } catch {
-    // fallback
-  }
-
-  return {
-    success: true,
-    message: "Fetched successfully",
-    data: MOCK_TAX_FILING_DATA,
-  };
+  return apiFetch<GetTaxFilingResponse>(
+    `/api/account/financial-extra/tax-filing${queryString ? `?${queryString}` : ""}`
+  );
 }
 
 export async function exportTaxFilingProvider(
   params?: GetTaxFilingParams
 ): Promise<Blob> {
   const queryParams = new URLSearchParams();
+  if (params?.state && params.state !== "all") queryParams.append("state", params.state);
   if (params?.projectId && params.projectId !== "all") queryParams.append("projectId", params.projectId);
   if (params?.clientId && params.clientId !== "all") queryParams.append("clientId", params.clientId);
-  if (params?.search) queryParams.append("search", params.search);
   if (params?.startDate) queryParams.append("startDate", params.startDate);
   if (params?.endDate) queryParams.append("endDate", params.endDate);
+  if (params?.search) queryParams.append("search", params.search);
 
   const queryString = queryParams.toString();
   return apiDownloadBlob(
-    `/api/admin/financials/tax-filing/export${queryString ? `?${queryString}` : ""}`
+    `/api/account/financial-extra/tax-filing/export${queryString ? `?${queryString}` : ""}`
+  );
+}
+
+export async function getTaxFilingDetailProvider(
+  id: string
+): Promise<GetTaxFilingDetailResponse> {
+  return apiFetch<GetTaxFilingDetailResponse>(
+    `/api/account/financial-extra/tax-filing/${id}/detail`
+  );
+}
+
+export async function getTaxFilingPrepareProvider(
+  id: string
+): Promise<GetTaxFilingPrepareResponse> {
+  return apiFetch<GetTaxFilingPrepareResponse>(
+    `/api/account/financial-extra/tax-filing/${id}/prepare`
+  );
+}
+
+export async function approveTaxFilingProvider(
+  id: string,
+  payload: PayTaxPayload
+): Promise<PayTaxResponse> {
+  return apiFetch<PayTaxResponse>(
+    `/api/account/financial-extra/tax-filing/${id}/approve`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+export async function payTaxFilingProvider(
+  id: string,
+  payload: PayTaxPayload
+): Promise<PayTaxResponse> {
+  return apiFetch<PayTaxResponse>(
+    `/api/account/financial-extra/tax-filing/${id}/pay`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+export async function submitTaxPaymentProvider(
+  id: string,
+  payload: PayTaxPayload
+): Promise<PayTaxResponse> {
+  try {
+    return await approveTaxFilingProvider(id, payload);
+  } catch (err: unknown) {
+    // If Returns env is missing or approve returns 400 with Avalara error, fall back to /pay
+    console.warn("Approve endpoint failed, attempting /pay fallback:", err instanceof Error ? err.message : err);
+    return await payTaxFilingProvider(id, payload);
+  }
+}
+
+export async function getTaxFilingReceiptProvider(
+  id: string
+): Promise<GetTaxFilingReceiptResponse> {
+  return apiFetch<GetTaxFilingReceiptResponse>(
+    `/api/account/financial-extra/tax-filing/${id}/receipt`
+  );
+}
+
+export async function downloadTaxFilingReceiptPdfProvider(
+  id: string
+): Promise<Blob> {
+  return apiDownloadBlob(
+    `/api/account/financial-extra/tax-filing/${id}/receipt?format=pdf`
+  );
+}
+
+export async function getTaxNotificationSettingsProvider(): Promise<GetTaxNotificationSettingsResponse> {
+  return apiFetch<GetTaxNotificationSettingsResponse>(
+    "/api/account/financial-extra/tax-filing/notification-settings"
+  );
+}
+
+export async function updateTaxNotificationSettingsProvider(
+  payload: TaxNotificationSettings
+): Promise<UpdateTaxNotificationSettingsResponse> {
+  return apiFetch<UpdateTaxNotificationSettingsResponse>(
+    "/api/account/financial-extra/tax-filing/notification-settings",
+    {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+export async function fileTaxProvider(
+  id: string
+): Promise<FileTaxResponse> {
+  return apiFetch<FileTaxResponse>(
+    `/api/account/financial-extra/tax-filing/${id}/file`,
+    {
+      method: "PUT",
+    }
   );
 }
 
@@ -601,20 +794,9 @@ export async function getStateWiseTaxProvider(
   if (params?.endDate) queryParams.append("endDate", params.endDate);
 
   const queryString = queryParams.toString();
-  try {
-    const res = await apiFetch<GetStateWiseTaxResponse>(
-      `/api/admin/financials/state-wise-tax${queryString ? `?${queryString}` : ""}`
-    );
-    if (res?.data?.stateOverview?.length) return res;
-  } catch {
-    // fallback
-  }
-
-  return {
-    success: true,
-    message: "Fetched successfully",
-    data: MOCK_STATE_WISE_TAX_DATA,
-  };
+  return apiFetch<GetStateWiseTaxResponse>(
+    `/api/account/financial-extra/state-wise-tax${queryString ? `?${queryString}` : ""}`
+  );
 }
 
 export async function getStateWiseTaxStatsProvider(
@@ -622,28 +804,13 @@ export async function getStateWiseTaxStatsProvider(
 ): Promise<GetStateWiseTaxStatsResponse> {
   const queryParams = new URLSearchParams();
   if (params?.projectId && params.projectId !== "all") queryParams.append("projectId", params.projectId);
+  if (params?.startDate) queryParams.append("startDate", params.startDate);
+  if (params?.endDate) queryParams.append("endDate", params.endDate);
 
   const queryString = queryParams.toString();
-  try {
-    const res = await apiFetch<GetStateWiseTaxStatsResponse>(
-      `/api/admin/financials/state-wise-tax/stats${queryString ? `?${queryString}` : ""}`
-    );
-    if (res?.data) return res;
-  } catch {
-    // fallback
-  }
-
-  return {
-    success: true,
-    message: "Fetched successfully",
-    data: {
-      totalTaxCollected: { value: 1500000, pctChangeFromLastMonth: 11.4 },
-      totalPaid: { value: 950000, pctChangeFromLastMonth: 5.2 },
-      totalPayable: { value: 2200000, pctChangeFromLastMonth: 8.52 },
-      pendingFilingStates: { count: 4, label: "Requires filing action" },
-      nextFilingDue: { date: "2025-06-20", state: "Texas" },
-    },
-  };
+  return apiFetch<GetStateWiseTaxStatsResponse>(
+    `/api/account/financial-extra/state-wise-tax/stats${queryString ? `?${queryString}` : ""}`
+  );
 }
 
 export async function exportStateWiseTaxProvider(
@@ -656,7 +823,7 @@ export async function exportStateWiseTaxProvider(
 
   const queryString = queryParams.toString();
   return apiDownloadBlob(
-    `/api/admin/financials/state-wise-tax/export${queryString ? `?${queryString}` : ""}`
+    `/api/account/financial-extra/state-wise-tax/export${queryString ? `?${queryString}` : ""}`
   );
 }
 
@@ -664,48 +831,14 @@ export async function getStateWiseTaxUpcomingDeadlinesProvider(
   params?: GetStateWiseTaxUpcomingDeadlinesParams
 ): Promise<GetStateWiseTaxUpcomingDeadlinesResponse> {
   const queryParams = new URLSearchParams();
+  if (params?.projectId && params.projectId !== "all") queryParams.append("projectId", params.projectId);
   if (params?.limit) queryParams.append("limit", params.limit.toString());
+  if (params?.scope) queryParams.append("scope", params.scope);
 
   const queryString = queryParams.toString();
-  try {
-    const res = await apiFetch<GetStateWiseTaxUpcomingDeadlinesResponse>(
-      `/api/admin/financials/state-wise-tax/upcoming-deadlines${queryString ? `?${queryString}` : ""}`
-    );
-    if (res?.data?.deadlines?.length) return res;
-  } catch {
-    // fallback
-  }
-
-  return {
-    success: true,
-    message: "Fetched successfully",
-    data: {
-      deadlines: [
-        {
-          _id: "dl-1",
-          state: "Texas",
-          filingType: "Monthly Return",
-          dueDate: "2025-06-20T00:00:00.000Z",
-          daysLeft: 31,
-        },
-        {
-          _id: "dl-2",
-          state: "California",
-          filingType: "Monthly Return",
-          dueDate: "2025-06-21T00:00:00.000Z",
-          daysLeft: 32,
-        },
-        {
-          _id: "dl-3",
-          state: "New York",
-          filingType: "Monthly Return",
-          dueDate: "2025-07-20T00:00:00.000Z",
-          daysLeft: 61,
-        },
-      ],
-      total: 3,
-    },
-  };
+  return apiFetch<GetStateWiseTaxUpcomingDeadlinesResponse>(
+    `/api/account/financial-extra/state-wise-tax/upcoming-deadlines${queryString ? `?${queryString}` : ""}`
+  );
 }
 
 export async function getProjectWiseTaxProvider(
@@ -719,20 +852,9 @@ export async function getProjectWiseTaxProvider(
   if (params?.endDate) queryParams.append("endDate", params.endDate);
 
   const queryString = queryParams.toString();
-  try {
-    const res = await apiFetch<GetProjectWiseTaxResponse>(
-      `/api/admin/financials/project-wise-tax${queryString ? `?${queryString}` : ""}`
-    );
-    if (res?.data?.projects?.length) return res;
-  } catch {
-    // fallback
-  }
-
-  return {
-    success: true,
-    message: "Fetched successfully",
-    data: MOCK_PROJECT_WISE_TAX_DATA,
-  };
+  return apiFetch<GetProjectWiseTaxResponse>(
+    `/api/account/financial-extra/project-wise-tax${queryString ? `?${queryString}` : ""}`
+  );
 }
 
 export async function getProjectWiseTaxStatsProvider(
@@ -744,26 +866,9 @@ export async function getProjectWiseTaxStatsProvider(
   if (params?.endDate) queryParams.append("endDate", params.endDate);
 
   const queryString = queryParams.toString();
-  try {
-    const res = await apiFetch<GetProjectWiseTaxStatsResponse>(
-      `/api/admin/financials/project-wise-tax/stats${queryString ? `?${queryString}` : ""}`
-    );
-    if (res?.data) return res;
-  } catch {
-    // fallback
-  }
-
-  return {
-    success: true,
-    message: "Fetched successfully",
-    data: {
-      totalTaxCollected: { value: 1500000, pctChangeFromLastMonth: 11.4 },
-      totalPaid: { value: 950000, pctChangeFromLastMonth: 5.2 },
-      totalPayable: { value: 2200000, pctChangeFromLastMonth: 8.52 },
-      pendingFiling: { count: 3, label: "Requires filing action" },
-      nextFilingDue: { date: "2025-06-20", location: "Downtown Commercial Tower" },
-    },
-  };
+  return apiFetch<GetProjectWiseTaxStatsResponse>(
+    `/api/account/financial-extra/project-wise-tax/stats${queryString ? `?${queryString}` : ""}`
+  );
 }
 
 export async function exportProjectWiseTaxProvider(
@@ -776,6 +881,33 @@ export async function exportProjectWiseTaxProvider(
 
   const queryString = queryParams.toString();
   return apiDownloadBlob(
-    `/api/admin/financials/project-wise-tax/export${queryString ? `?${queryString}` : ""}`
+    `/api/account/financial-extra/project-wise-tax/export${queryString ? `?${queryString}` : ""}`
+  );
+}
+
+export async function syncTaxFilingProvider(): Promise<{ success: boolean; message: string }> {
+  return apiFetch<{ success: boolean; message: string }>(
+    "/api/account/financial-extra/tax-filing/sync",
+    {
+      method: "POST",
+    }
+  );
+}
+
+export async function syncStateWiseTaxProvider(): Promise<{ success: boolean; message: string }> {
+  return apiFetch<{ success: boolean; message: string }>(
+    "/api/account/financial-extra/state-wise-tax/sync",
+    {
+      method: "POST",
+    }
+  );
+}
+
+export async function syncProjectWiseTaxProvider(): Promise<{ success: boolean; message: string }> {
+  return apiFetch<{ success: boolean; message: string }>(
+    "/api/account/financial-extra/project-wise-tax/sync",
+    {
+      method: "POST",
+    }
   );
 }
