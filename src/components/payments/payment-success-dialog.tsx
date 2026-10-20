@@ -21,17 +21,23 @@ type PaymentSuccessDialogProps = {
   paymentMethod?: string;
   confirmationNumber?: string;
   receiptEmail?: string;
+  status?: string;
+  estimatedSettlement?: string;
+  isDownloading?: boolean;
   onDownload?: () => void;
 };
 
 export default function PaymentSuccessDialog({
   open,
   onOpenChange,
-  amountPaid = "$14,550.00",
+  amountPaid = "$14,650.00",
   filingPeriod = "May 1 - May 31, 2025",
   paymentMethod = "ACH ending in 4851",
-  confirmationNumber = "Tx-2025-0619-8421",
+  confirmationNumber = "Tx-TX-1416389",
   receiptEmail = "accounts@acmeindustries.com",
+  status = "Processing",
+  estimatedSettlement = "1-3 business days",
+  isDownloading = false,
   onDownload,
 }: PaymentSuccessDialogProps) {
   return (
@@ -90,8 +96,8 @@ export default function PaymentSuccessDialog({
                 <p className="">Status</p>
               </div>
               <div className="sm:text-right">
-                <Badge className="rounded-md bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700 hover:bg-emerald-100">
-                  Processing
+                <Badge className="rounded-md bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 capitalize">
+                  {status}
                 </Badge>
               </div>
 
@@ -100,7 +106,7 @@ export default function PaymentSuccessDialog({
                 <p className="">Estimated Settlement</p>
               </div>
               <div className="text-base text-slate-900 sm:text-right">
-                1-3 business days
+                {estimatedSettlement}
               </div>
             </div>
           </div>
@@ -121,9 +127,9 @@ export default function PaymentSuccessDialog({
           </div>
 
           <div className="mt-6 flex flex-col gap-4">
-            <Button type="button" onClick={onDownload} size="lg">
+            <Button type="button" onClick={onDownload} size="lg" disabled={isDownloading}>
               <ArrowDownToLine className="mr-3 h-5 w-5" />
-              Download Receipt
+              {isDownloading ? "Downloading Receipt..." : "Download Receipt"}
             </Button>
 
             <DialogClose asChild>
