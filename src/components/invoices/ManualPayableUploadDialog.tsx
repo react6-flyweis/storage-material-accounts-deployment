@@ -24,6 +24,9 @@ export interface PayableInvoiceEntry {
   documentUrl?: string;
   notes?: string;
   route?: string;
+  billingAddress?: import("@/redux/api/invoiceManagementApi").InvoiceAddress;
+  recipientAddress?: import("@/redux/api/invoiceManagementApi").InvoiceAddress;
+  bankDetails?: import("@/redux/api/invoiceManagementApi").InvoiceBankDetails;
   paymentDetails?: {
     paidAt?: string;
     method?: string;
