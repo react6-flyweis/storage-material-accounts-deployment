@@ -651,13 +651,6 @@ export default function QuotationProfitLossPage() {
                             </a>
                           )}
 
-                          {/* Override / Upload */}
-                          <button
-                            onClick={() => handleOpenUploadModal(rec)}
-                            className="px-2 py-1 text-[11px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md transition-colors cursor-pointer"
-                          >
-                            Override
-                          </button>
 
                           {/* View Detail */}
                           <button
@@ -748,7 +741,7 @@ export default function QuotationProfitLossPage() {
                 <input
                   type="text"
                   required
-                  placeholder="Enter quotation ID or mongo ID"
+                  placeholder="Enter quotation ID"
                   value={overrideQuotationId}
                   onChange={(e) => setOverrideQuotationId(e.target.value)}
                   className="w-full h-10 px-3 rounded-lg bg-slate-100 border border-transparent focus:border-blue-500 focus:bg-white text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none transition-all"
