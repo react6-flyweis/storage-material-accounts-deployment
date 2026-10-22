@@ -16,6 +16,7 @@ interface DateRangeFilterProps {
   onDateRangeChange?: (range: DateRange | undefined) => void;
   className?: string;
   placeholder?: string;
+  align?: "left" | "right";
 }
 
 export default function DateRangeFilter({
@@ -25,6 +26,7 @@ export default function DateRangeFilter({
   onDateRangeChange,
   className,
   placeholder = "Select Date Range",
+  align = "right",
 }: DateRangeFilterProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -71,15 +73,12 @@ export default function DateRangeFilter({
   const hasValue = Boolean(effectiveValue?.from);
 
   return (
-    <>
+    <div className={cn("relative", className)}>
       <div
         role="button"
         tabIndex={0}
-        onClick={() => setIsModalOpen(true)}
-        className={cn(
-          "flex items-center justify-between h-9 px-3 rounded-md border border-gray-200 bg-white text-sm text-gray-700 hover:bg-gray-50/70 transition-colors cursor-pointer select-none",
-          className
-        )}
+        onClick={() => setIsModalOpen((prev) => !prev)}
+        className="flex items-center justify-between h-9 px-3 rounded-md border border-gray-200 bg-white text-sm text-gray-700 hover:bg-gray-50/70 transition-colors cursor-pointer select-none w-full"
       >
         <span
           className={cn(
@@ -107,13 +106,18 @@ export default function DateRangeFilter({
       <CalendarRangePickerModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
+        initialStartDate={effectiveValue?.from}
+        initialEndDate={effectiveValue?.to}
+        align={align}
         onApply={(range) => {
           if (range.from && range.to) {
             handleChange({ from: range.from, to: range.to });
+          } else if (range.from) {
+            handleChange({ from: range.from, to: range.from });
           }
         }}
         onSelectRange={handleSelectFromCalendar}
       />
-    </>
+    </div>
   );
 }
