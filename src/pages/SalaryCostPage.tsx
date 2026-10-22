@@ -15,6 +15,7 @@ import {
   FileText,
   Eye,
   Trash2,
+  Loader2,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import CalendarRangePickerModal from "@/components/common_components/CalendarRangePickerModal";
@@ -29,6 +30,8 @@ import {
   useGetSalaryRecordsQuery,
   useMarkSalaryPaidMutation,
   useDeleteSalaryRecordMutation,
+  useGenerateSalaryPayslipMutation,
+  useGetPayslipPdfMutation,
   useGetCostFiltersQuery,
 } from "@/redux/api/costsApi";
 import { formatDisplayDate } from "@/lib/dashboardFormatters";
@@ -61,6 +64,15 @@ export const SalaryCostPage: React.FC = () => {
   });
   const [markPaidApi] = useMarkSalaryPaidMutation();
   const [deleteSalaryApi] = useDeleteSalaryRecordMutation();
+  const [generatePayslipApi] = useGenerateSalaryPayslipMutation();
+  const [getPayslipPdfApi] = useGetPayslipPdfMutation();
+
+  const [generatingPayslipId, setGeneratingPayslipId] = useState<string | null>(
+    null,
+  );
+  const [downloadingPayslipId, setDownloadingPayslipId] = useState<
+    string | null
+  >(null);
 
   // Dialog states
   const [entryToDelete, setEntryToDelete] = useState<SalaryEntry | null>(null);
@@ -86,6 +98,46 @@ export const SalaryCostPage: React.FC = () => {
     }
   };
 
+  // Download Payslip (PDF)
+  const handleDownloadPayslip = async (entry: SalaryEntry) => {
+    try {
+      setDownloadingPayslipId(entry.id);
+      const target = entry.downloadPath || entry.id;
+      const blob = await getPayslipPdfApi(target).unwrap();
+      const pdfBlob = new Blob([blob], { type: "application/pdf" });
+      const blobUrl = window.URL.createObjectURL(pdfBlob);
+
+      const fileName =
+        entry.payslipFileName ||
+        (entry.expenseId
+          ? `payslip-${entry.expenseId}.pdf`
+          : `payslip-${entry.empId || entry.id}.pdf`);
+
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      setTimeout(() => window.URL.revokeObjectURL(blobUrl), 15000);
+    } catch (err: unknown) {
+      console.error("Failed to download payslip:", err);
+      const errorMsg =
+        (err as { data?: { message?: string }; message?: string })?.data
+          ?.message ||
+        (err as { message?: string })?.message ||
+        "Failed to download payslip PDF. Please try again.";
+      setSuccessDialogConfig({
+        isOpen: true,
+        title: "Download Failed",
+        message: errorMsg,
+      });
+    } finally {
+      setDownloadingPayslipId(null);
+    }
+  };
+
   // Mark Paid Handler
   const handleMarkPaid = async (entry: SalaryEntry) => {
     try {
@@ -100,13 +152,49 @@ export const SalaryCostPage: React.FC = () => {
     }
   };
 
-  // Generate Slip Handler
-  const handleGenerateSlip = (entry: SalaryEntry) => {
-    setSuccessDialogConfig({
-      isOpen: true,
-      title: "Payslip Generated Successfully!",
-      message: `Payslip for ${entry.name} (${entry.empId}) has been compiled and is ready for download.`,
-    });
+  // Generate Slip Handler (generates and downloads)
+  const handleGenerateSlip = async (entry: SalaryEntry) => {
+    try {
+      setGeneratingPayslipId(entry.id);
+      const res = await generatePayslipApi(entry.id).unwrap();
+      const generated = res?.data;
+      const updatedEntry: SalaryEntry = {
+        ...entry,
+        hasPayslip: true,
+        downloadPath: generated?.downloadPath || entry.downloadPath,
+        payslipFileName: generated?.payslipFileName || entry.payslipFileName,
+        expenseId: generated?.expenseId || entry.expenseId,
+      };
+
+      // Automatically download upon generation
+      try {
+        await handleDownloadPayslip(updatedEntry);
+      } catch (dlErr) {
+        console.error("Auto download payslip error:", dlErr);
+      }
+
+      setSuccessDialogConfig({
+        isOpen: true,
+        title: "Payslip Generated Successfully!",
+        message:
+          res?.message ||
+          `Payslip for ${entry.name} (${entry.empId}) has been compiled and downloaded.`,
+      });
+    } catch (err: unknown) {
+      console.error("API generate payslip error:", err);
+      const errorMsg =
+        (err as { data?: { message?: string }; message?: string })?.data
+          ?.message ||
+        (err as { message?: string })?.message ||
+        "Failed to generate payslip. Please try again.";
+      setSuccessDialogConfig({
+        isOpen: true,
+        title: "Generation Failed",
+        message: errorMsg,
+      });
+    } finally {
+      setGeneratingPayslipId(null);
+    }
   };
 
   // Delete Handlers
@@ -144,6 +232,11 @@ export const SalaryCostPage: React.FC = () => {
           (typeof (row as { status?: string }).status === "string" &&
             (row as { status?: string }).status?.toLowerCase() === "paid");
 
+        const hasPayslip =
+          Boolean(row.hasPayslip) ||
+          Boolean(row.payslipGeneratedAt) ||
+          Boolean(row.downloadPath);
+
         return {
           id: row._id || row.id || String(idx),
           empId:
@@ -163,6 +256,11 @@ export const SalaryCostPage: React.FC = () => {
             (row.adminApproval as "Approved" | "Pending" | "Rejected") ||
             "Approved",
           date: formatDisplayDate(row.date),
+          hasPayslip,
+          payslipGeneratedAt: row.payslipGeneratedAt,
+          payslipFileName: row.payslipFileName,
+          downloadPath: row.downloadPath,
+          expenseId: row.expenseId,
         };
       });
     }
@@ -549,7 +647,7 @@ export const SalaryCostPage: React.FC = () => {
                 <th className="py-3 px-5 whitespace-nowrap">Admin Approval</th>
                 <th className="py-3 px-5 whitespace-nowrap">Date</th>
                 <th className="py-3 px-5 whitespace-nowrap">Payslip</th>
-                <th className="py-3 px-5 whitespace-nowrap">Payslip</th>
+                <th className="py-3 px-5 whitespace-nowrap">Payment</th>
                 <th className="py-3 px-5 whitespace-nowrap text-right"></th>
               </tr>
             </thead>
@@ -609,7 +707,11 @@ export const SalaryCostPage: React.FC = () => {
                           className="w-8 h-8 rounded-full object-cover shrink-0 ring-1 ring-slate-100"
                         />
                         <div>
-                          <div className="font-bold text-slate-900 text-xs sm:text-[13px]">
+                          <div
+                            onClick={() => setSelectedDetailEntry(row)}
+                            className="font-bold text-slate-900 text-xs sm:text-[13px] hover:text-[#0066FF] cursor-pointer transition-colors"
+                            title="Click to view details"
+                          >
                             {row.name}
                           </div>
                           <div className="text-[11px] text-slate-400 font-normal">
@@ -667,20 +769,41 @@ export const SalaryCostPage: React.FC = () => {
                       </span>
                     </td>
 
-                    {/* Payslip Column 1: Generate Slip (when Paid) */}
+                    {/* Payslip Column 1: Generate Slip / Download Slip (when Paid) */}
                     <td className="py-3.5 px-5 whitespace-nowrap">
                       {row.status === "Paid" ? (
-                        <button
-                          type="button"
-                          onClick={() => handleGenerateSlip(row)}
-                          className="px-3.5 py-1.5 rounded-lg bg-[#1E293B] hover:bg-[#0F172A] text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
-                        >
-                          Generate Slip
-                        </button>
+                        row.hasPayslip ? (
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadPayslip(row)}
+                            disabled={downloadingPayslipId === row.id}
+                            className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                            title="Download Payslip PDF"
+                          >
+                            {downloadingPayslipId === row.id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Download className="w-3.5 h-3.5" />
+                            )}
+                            <span>Download Slip</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleGenerateSlip(row)}
+                            disabled={generatingPayslipId === row.id}
+                            className="px-3.5 py-1.5 rounded-lg bg-[#1E293B] hover:bg-[#0F172A] text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                          >
+                            {generatingPayslipId === row.id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : null}
+                            <span>Generate Slip</span>
+                          </button>
+                        )
                       ) : null}
                     </td>
 
-                    {/* Payslip Column 2: Mark Paid (when not Paid) */}
+                    {/* Payment Column 2: Mark Paid (when not Paid) */}
                     <td className="py-3.5 px-5 whitespace-nowrap">
                       {row.status !== "Paid" ? (
                         <button

@@ -31,6 +31,8 @@ export interface FreightDeliveryRecord {
   cost: number;
   costFormatted: string;
   approvalStatus: "Approved" | "Pending" | "Rejected";
+  bidId?: string;
+  paymentStatus?: "Paid" | "Unpaid" | "Pending" | string;
   // Detail modal fields
   totalLoads?: string;
   statusText?: string;

@@ -3,6 +3,7 @@ import { format, isValid } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import type { DateRange } from "react-day-picker";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export interface CalendarRangePickerRange {
   from?: Date;
@@ -11,7 +12,7 @@ export interface CalendarRangePickerRange {
   endDate?: string;
 }
 
-interface CalendarRangePickerModalProps {
+export interface CalendarRangePickerModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectRange?: (range: string) => void;
@@ -19,6 +20,7 @@ interface CalendarRangePickerModalProps {
   initialStartDate?: number | string | Date;
   initialEndDate?: number | string | Date;
   singleDate?: boolean;
+  align?: "left" | "right";
 }
 
 function parseToDate(val?: number | string | Date): Date | undefined {
@@ -33,25 +35,31 @@ function parseToDate(val?: number | string | Date): Date | undefined {
   return isValid(d) ? d : undefined;
 }
 
-export const CalendarRangePickerModal: React.FC<CalendarRangePickerModalProps> = ({
-  isOpen,
+interface CalendarRangePickerContentProps {
+  onClose: () => void;
+  onSelectRange?: (range: string) => void;
+  onApply?: (range: CalendarRangePickerRange) => void;
+  initFrom?: Date;
+  initTo?: Date;
+  singleDate?: boolean;
+  align?: "left" | "right";
+}
+
+const CalendarRangePickerContent: React.FC<CalendarRangePickerContentProps> = ({
   onClose,
   onSelectRange,
   onApply,
-  initialStartDate,
-  initialEndDate,
+  initFrom,
+  initTo,
   singleDate = false,
+  align = "right",
 }) => {
-  const initFrom = parseToDate(initialStartDate);
-  const initTo = parseToDate(initialEndDate);
-
   const [selectedSingle, setSelectedSingle] = useState<Date | undefined>(initFrom);
   const [selectedRange, setSelectedRange] = useState<DateRange | undefined>(() => ({
     from: initFrom,
     to: initTo,
   }));
-
-  if (!isOpen) return null;
+  const [currentMonth, setCurrentMonth] = useState<Date | undefined>(initFrom || new Date());
 
   const handleSelectSingle = (day: Date | undefined) => {
     if (day && isValid(day)) {
@@ -112,21 +120,28 @@ export const CalendarRangePickerModal: React.FC<CalendarRangePickerModalProps> =
         className="fixed inset-0 z-40 bg-transparent"
         onClick={onClose}
       />
-      <div className="absolute right-0 top-full mt-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+      <div
+        className={cn(
+          "absolute top-full mt-2 z-50 animate-in fade-in zoom-in-95 duration-150",
+          align === "left" ? "left-0" : "right-0"
+        )}
+      >
         <div className="bg-white rounded-2xl p-3 shadow-2xl border border-slate-100 w-75 sm:w-80">
           {singleDate ? (
             <Calendar
               mode="single"
               selected={selectedSingle}
               onSelect={handleSelectSingle}
-              defaultMonth={selectedSingle || new Date()}
+              month={currentMonth}
+              onMonthChange={setCurrentMonth}
             />
           ) : (
             <Calendar
               mode="range"
               selected={selectedRange}
               onSelect={handleSelectRange}
-              defaultMonth={selectedRange?.from || new Date()}
+              month={currentMonth}
+              onMonthChange={setCurrentMonth}
             />
           )}
 
@@ -145,6 +160,36 @@ export const CalendarRangePickerModal: React.FC<CalendarRangePickerModalProps> =
         </div>
       </div>
     </>
+  );
+};
+
+export const CalendarRangePickerModal: React.FC<CalendarRangePickerModalProps> = ({
+  isOpen,
+  onClose,
+  onSelectRange,
+  onApply,
+  initialStartDate,
+  initialEndDate,
+  singleDate = false,
+  align = "right",
+}) => {
+  if (!isOpen) return null;
+
+  const initFrom = parseToDate(initialStartDate);
+  const initTo = parseToDate(initialEndDate);
+  const key = `${initFrom?.getTime() || ""}-${initTo?.getTime() || ""}`;
+
+  return (
+    <CalendarRangePickerContent
+      key={key}
+      onClose={onClose}
+      onSelectRange={onSelectRange}
+      onApply={onApply}
+      initFrom={initFrom}
+      initTo={initTo}
+      singleDate={singleDate}
+      align={align}
+    />
   );
 };
 

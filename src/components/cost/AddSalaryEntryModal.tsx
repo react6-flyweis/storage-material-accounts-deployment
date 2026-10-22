@@ -13,6 +13,11 @@ export interface SalaryEntry {
   status: "Paid" | "Pending" | "Unpaid";
   adminApproval: "Approved" | "Pending" | "Rejected";
   date: string;
+  hasPayslip?: boolean;
+  payslipGeneratedAt?: string;
+  payslipFileName?: string;
+  downloadPath?: string;
+  expenseId?: string;
 }
 
 interface AddSalaryEntryModalProps {

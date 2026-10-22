@@ -16,6 +16,7 @@ import {
   FileText,
   Pencil,
   Trash2,
+  Loader2,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import CalendarRangePickerModal from "@/components/common_components/CalendarRangePickerModal";
@@ -28,7 +29,7 @@ import {
   useGetManpowerSummaryQuery,
   useGetManpowerRecordsQuery,
   useDeleteManpowerRecordMutation,
-  useUpdateManpowerRecordMutation,
+  useMarkManpowerPaidMutation,
   useGetCostFiltersQuery,
 } from "@/redux/api/costsApi";
 import { formatDisplayDate } from "@/lib/dashboardFormatters";
@@ -61,7 +62,8 @@ export const ManpowerCostPage: React.FC = () => {
     designation: selectedDesignation !== "All" ? selectedDesignation : undefined,
   });
   const [deleteRecordApi] = useDeleteManpowerRecordMutation();
-  const [updateRecordApi] = useUpdateManpowerRecordMutation();
+  const [markManpowerPaidApi] = useMarkManpowerPaidMutation();
+  const [markingPaidId, setMarkingPaidId] = useState<string | null>(null);
 
   // Modal states
   const [entryToDelete, setEntryToDelete] = useState<ManpowerCostEntry | null>(
@@ -90,34 +92,23 @@ export const ManpowerCostPage: React.FC = () => {
   // Mark Paid Handler
   const handleMarkPaid = async (entry: ManpowerCostEntry) => {
     try {
-      const entryObj = entry as unknown as { rawDate?: string; projectId?: string; employeeUserId?: string };
-      await updateRecordApi({
-        id: entry.id,
-        date: entryObj.rawDate || entry.date,
-        leadId: entryObj.projectId,
-        employeeName: entry.name,
-        employeeUserId: entryObj.employeeUserId,
-        employee: {
-          userId: entryObj.employeeUserId,
-          name: entry.name,
-          designation: entry.designation,
-        },
-        designation: entry.designation,
-        workingHours: entry.hours,
-        hours: entry.hours,
-        otHours: entry.otHours,
-        ratePerHour: entry.ratePerHour,
-        totalCost: entry.totalCost,
-        paymentStatus: "Paid",
-        status: "Paid",
-      }).unwrap();
+      setMarkingPaidId(entry.id);
+      await markManpowerPaidApi(entry.id).unwrap();
       setSuccessDialogConfig({
         isOpen: true,
         title: "Marked as Paid!",
         message: `Manpower expense of $${entry.totalCost} for ${entry.name} has been successfully marked as Paid.`,
       });
-    } catch (e) {
-      console.error("API update error:", e);
+    } catch (e: unknown) {
+      console.error("API mark paid error:", e);
+      const errObj = e as { data?: { message?: string }; message?: string };
+      setSuccessDialogConfig({
+        isOpen: true,
+        title: "Action Failed",
+        message: errObj?.data?.message || errObj?.message || "Failed to mark manpower expense as paid.",
+      });
+    } finally {
+      setMarkingPaidId(null);
     }
   };
 
@@ -730,10 +721,18 @@ export const ManpowerCostPage: React.FC = () => {
                         {row.status === "Unpaid" ? (
                           <button
                             type="button"
+                            disabled={markingPaidId === row.id}
                             onClick={() => handleMarkPaid(row)}
-                            className="px-3.5 py-1.5 rounded-md bg-[#0066FF] hover:bg-[#0052cc] text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                            className="inline-flex items-center px-3.5 py-1.5 rounded-md bg-[#0066FF] hover:bg-[#0052cc] text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                           >
-                            Mark Paid
+                            {markingPaidId === row.id ? (
+                              <>
+                                <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                                <span>Processing...</span>
+                              </>
+                            ) : (
+                              <span>Mark Paid</span>
+                            )}
                           </button>
                         ) : (
                           <button

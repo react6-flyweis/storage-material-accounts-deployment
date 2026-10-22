@@ -25,7 +25,7 @@ const SectionHeaderWithAction: React.FC<SectionHeaderWithActionProps> = ({
           {title}
         </p>
 
-        {actionLabel && (
+        {Boolean(onActionClick && actionLabel) && (
           <Button
             variant="link"
             onClick={onActionClick}

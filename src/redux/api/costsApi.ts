@@ -75,6 +75,34 @@ export interface SalaryRecord {
   paymentStatus: "Paid" | "Unpaid" | "Pending" | string;
   adminApproval?: "Approved" | "Pending" | "Rejected" | string;
   avatar?: string;
+  expenseId?: string;
+  hasPayslip?: boolean;
+  payslipGeneratedAt?: string;
+  payslipFileName?: string;
+  downloadPath?: string;
+}
+
+export interface GeneratePayslipData {
+  id: string;
+  expenseId?: string;
+  employeeName: string;
+  employeeId?: string;
+  designation?: string;
+  netSalary: number;
+  status?: string;
+  adminApproval?: string;
+  date?: string;
+  paymentStatus?: string;
+  payslipGeneratedAt?: string;
+  hasPayslip?: boolean;
+  payslipFileName?: string;
+  downloadPath?: string;
+}
+
+export interface GeneratePayslipResponse {
+  success: boolean;
+  message: string;
+  data: GeneratePayslipData;
 }
 
 export interface SalaryRecordsResponse {
@@ -170,6 +198,12 @@ export interface UpdateManpowerRequest extends CreateManpowerPayload {
   id: string;
 }
 
+export interface MarkPaidResponse {
+  success: boolean;
+  message: string;
+  data?: unknown;
+}
+
 // --- 3. Miscellaneous Types ---
 export interface MiscellaneousSummary {
   totalMiscellaneousCost?: number;
@@ -261,9 +295,101 @@ export interface FreightCarrierDistributionItem {
   pct?: number;
 }
 
+export interface FreightBidSummary {
+  awardedCarrier: string;
+  awardedBid: number;
+  averageBid: number;
+  highestBid: number;
+  savings: number;
+  savingsPct: number;
+}
+
+export interface FreightCostComparisonItem {
+  bidId: string;
+  carrierName: string;
+  amount: number;
+  selected: boolean;
+}
+
+export interface FreightProjectInformation {
+  projectName: string;
+  leadId?: string;
+  deliveryDate?: string;
+  deliveryId?: string;
+  deliveryMongoId?: string;
+}
+
+export interface FreightCarrierInformation {
+  carrier: string;
+  carrierId?: string;
+  freightCost: number;
+  paymentStatus?: string;
+}
+
+export interface DeliveryDocument {
+  label: string;
+  url: string;
+  type?: string;
+}
+
+export interface FreightDeliveryLink {
+  deliveryStatus: string;
+  documents: DeliveryDocument[];
+}
+
+export interface FreightInvoiceDetails {
+  invoiceNumber: string;
+  invoiceDate: string;
+  paymentDueDate: string;
+  invoiceStatus: string;
+  amount: number;
+  downloadUrl?: string;
+}
+
+export interface FreightCostComparisonSummary {
+  awardedBid: number;
+  invoicedAmount: number;
+  variance: number;
+}
+
+export interface FreightDetailActions {
+  canApprove?: boolean;
+  canReject?: boolean;
+  canMarkPaid?: boolean;
+  canDownloadInvoice?: boolean;
+}
+
+export interface FreightDetailData {
+  bidId: string;
+  freightRequestId: string;
+  totalLoads: number;
+  totalFreightCost: number;
+  totalFreightCostFormatted?: number | string;
+  paymentStatus: string;
+  invoiceStatus: string;
+  status: string;
+  bidSummary?: FreightBidSummary;
+  costComparison?: FreightCostComparisonItem[];
+  projectInformation?: FreightProjectInformation;
+  carrierInformation?: FreightCarrierInformation;
+  deliveryLink?: FreightDeliveryLink;
+  invoiceDetails?: FreightInvoiceDetails;
+  costComparisonSummary?: FreightCostComparisonSummary;
+  approvalId?: string;
+  actions?: FreightDetailActions;
+}
+
+export interface FreightDetailResponse {
+  success: boolean;
+  message: string;
+  data: FreightDetailData;
+}
+
 export interface FreightDeliveryRecordItem {
   _id: string;
   id?: string;
+  bidId?: string;
+  selectedBidId?: string;
   deliveryId: string;
   freightId?: string;
   carrierName: string;
@@ -279,8 +405,8 @@ export interface FreightDeliveryRecordItem {
   costFormatted?: string;
   status: string;
   approvalStatus?: string;
+  paymentStatus?: "Paid" | "Unpaid" | "Pending" | string;
   date: string;
-  selectedBidId?: string;
 }
 
 export interface FreightRecordsResponse {
@@ -295,6 +421,51 @@ export interface FreightRecordsResponse {
 }
 
 // --- 5. Logistics Types ---
+export interface LogisticsCarrierInformation {
+  carrier: string;
+  logisticCost: number;
+  paymentStatus?: string;
+}
+
+export interface LogisticsDetailData {
+  id: string;
+  loadId: string;
+  deliveryId: string;
+  deliveryMongoId?: string;
+  totalLogisticsCost: number;
+  totalLogisticsCostFormatted?: number | string;
+  invoiceStatus: string;
+  paymentStatus: string;
+  projectInformation?: FreightProjectInformation;
+  carrierInformation?: LogisticsCarrierInformation;
+  deliveryLink?: FreightDeliveryLink;
+  invoiceDetails?: FreightInvoiceDetails;
+  actions?: FreightDetailActions;
+  approvalStatus?: string;
+}
+
+export interface LogisticsDetailResponse {
+  success: boolean;
+  message: string;
+  data: LogisticsDetailData;
+}
+
+export interface InvoiceReviewPayload {
+  reviewNotes?: string;
+}
+
+export interface InvoiceDownloadData {
+  downloadUrl?: string;
+  invoiceNumber?: string;
+  blob?: Blob;
+}
+
+export interface InvoiceDownloadResponse {
+  success: boolean;
+  message?: string;
+  data?: InvoiceDownloadData;
+}
+
 export interface LogisticsSummary {
   totalLogisticsCost?: number | string;
   totalSavings?: number | string;
@@ -306,6 +477,7 @@ export interface LogisticsSummary {
 export interface LogisticsRecordItem {
   _id: string;
   id?: string;
+  approvalId?: string;
   deliveryId: string;
   deliveryRef?: string;
   deliveryCompany: string;
@@ -637,8 +809,10 @@ export const costsApi = createApi({
     "FreightTrend",
     "FreightCarriers",
     "FreightRecords",
+    "FreightDetail",
     "LogisticsSummary",
     "LogisticsRecords",
+    "LogisticsDetail",
     "VarianceSummary",
     "VarianceAlerts",
     "VarianceTrend",
@@ -704,6 +878,29 @@ export const costsApi = createApi({
       }),
       invalidatesTags: ["SalarySummary", "SalaryRecords"],
     }),
+    generateSalaryPayslip: builder.mutation<GeneratePayslipResponse, string>({
+      query: (id) => ({
+        url: `/api/account/costs/salary/${encodeURIComponent(id)}/generate-payslip`,
+        method: "POST",
+        body: {},
+      }),
+      invalidatesTags: ["SalarySummary", "SalaryRecords"],
+    }),
+    getPayslipPdf: builder.mutation<Blob, string>({
+      query: (idOrPath) => ({
+        url: idOrPath.startsWith("/api/")
+          ? idOrPath
+          : `/api/account/costs/salary/${encodeURIComponent(idOrPath)}/payslip`,
+        method: "GET",
+        responseHandler: async (response) => {
+          if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.message || "Failed to download payslip");
+          }
+          return response.blob();
+        },
+      }),
+    }),
 
     // 2. Manpower
     getManpowerSummary: builder.query<ManpowerSummary, CostListQueryParams | void>({
@@ -744,6 +941,14 @@ export const costsApi = createApi({
       query: (id) => ({
         url: `/api/account/costs/manpower/${encodeURIComponent(id)}`,
         method: "DELETE",
+      }),
+      invalidatesTags: ["ManpowerSummary", "ManpowerRecords"],
+    }),
+    markManpowerPaid: builder.mutation<MarkPaidResponse, string>({
+      query: (id) => ({
+        url: `/api/account/costs/manpower/${encodeURIComponent(id)}/mark-paid`,
+        method: "PATCH",
+        body: {},
       }),
       invalidatesTags: ["ManpowerSummary", "ManpowerRecords"],
     }),
@@ -842,19 +1047,20 @@ export const costsApi = createApi({
           else if (Array.isArray(obj.rows)) list = obj.rows;
           else if (Array.isArray(obj.data)) list = obj.data;
         }
-        return list.map((item: any) => {
-          const carrier = item.carrier || item.carrierName || "Unknown Carrier";
+        return list.map((rawItem: unknown) => {
+          const item = (rawItem && typeof rawItem === "object" ? rawItem : {}) as Record<string, unknown>;
+          const carrier = String(item.carrier || item.carrierName || "Unknown Carrier");
           const amount = Number(item.amount ?? item.total ?? 0);
-          const percentage = item.pct !== undefined ? item.pct : item.percentage;
+          const percentage = (item.pct !== undefined ? item.pct : item.percentage) as string | number | undefined;
           return {
             carrier,
             carrierName: carrier,
-            carrierId: item.carrierId || item._id,
+            carrierId: (item.carrierId || item._id) as string | undefined,
             amount,
             total: amount,
             percentage,
             pct: Number(item.pct ?? percentage) || undefined,
-            deliveriesCount: item.deliveriesCount,
+            deliveriesCount: item.deliveriesCount as number | undefined,
           };
         });
       },
@@ -868,6 +1074,78 @@ export const costsApi = createApi({
       }),
       transformResponse: unwrapData<FreightRecordsResponse>,
       providesTags: ["FreightRecords"],
+    }),
+    getFreightDetail: builder.query<FreightDetailData, string>({
+      query: (bidId) => ({
+        url: `/api/account/costs/freight/${encodeURIComponent(bidId)}/detail`,
+        method: "GET",
+      }),
+      transformResponse: unwrapData<FreightDetailData>,
+      providesTags: (_result, _error, bidId) => [{ type: "FreightDetail", id: bidId }],
+    }),
+    approveFreightInvoice: builder.mutation<FreightDetailData, { bidId: string; reviewNotes?: string }>({
+      query: ({ bidId, reviewNotes }) => ({
+        url: `/api/account/costs/freight/${encodeURIComponent(bidId)}/approve`,
+        method: "PATCH",
+        body: reviewNotes !== undefined ? { reviewNotes } : {},
+      }),
+      transformResponse: unwrapData<FreightDetailData>,
+      invalidatesTags: (_result, _error, { bidId }) => [
+        "FreightSummary",
+        "FreightRecords",
+        "FreightTrend",
+        "FreightCarriers",
+        { type: "FreightDetail", id: bidId },
+      ],
+    }),
+    rejectFreightInvoice: builder.mutation<FreightDetailData, { bidId: string; reviewNotes?: string }>({
+      query: ({ bidId, reviewNotes }) => ({
+        url: `/api/account/costs/freight/${encodeURIComponent(bidId)}/reject`,
+        method: "PATCH",
+        body: reviewNotes !== undefined ? { reviewNotes } : {},
+      }),
+      transformResponse: unwrapData<FreightDetailData>,
+      invalidatesTags: (_result, _error, { bidId }) => [
+        "FreightSummary",
+        "FreightRecords",
+        "FreightTrend",
+        "FreightCarriers",
+        { type: "FreightDetail", id: bidId },
+      ],
+    }),
+    markFreightPaid: builder.mutation<FreightDetailData, string>({
+      query: (bidId) => ({
+        url: `/api/account/costs/freight/${encodeURIComponent(bidId)}/mark-paid`,
+        method: "PATCH",
+        body: {},
+      }),
+      transformResponse: unwrapData<FreightDetailData>,
+      invalidatesTags: (_result, _error, bidId) => [
+        "FreightSummary",
+        "FreightRecords",
+        "FreightTrend",
+        "FreightCarriers",
+        { type: "FreightDetail", id: bidId },
+      ],
+    }),
+    downloadFreightInvoice: builder.mutation<InvoiceDownloadData, string>({
+      query: (bidId) => ({
+        url: `/api/account/costs/freight/${encodeURIComponent(bidId)}/invoice-download`,
+        method: "GET",
+        responseHandler: async (response) => {
+          if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.message || "Failed to download invoice");
+          }
+          const contentType = response.headers.get("content-type") || "";
+          if (contentType.includes("application/json")) {
+            const json = await response.json();
+            return json.data || json;
+          }
+          const blob = await response.blob();
+          return { blob };
+        },
+      }),
     }),
 
     // 5. Logistics
@@ -888,6 +1166,72 @@ export const costsApi = createApi({
       }),
       transformResponse: unwrapData<LogisticsRecordsResponse>,
       providesTags: ["LogisticsRecords"],
+    }),
+    getLogisticsDetail: builder.query<LogisticsDetailData, string>({
+      query: (id) => ({
+        url: `/api/account/costs/logistics/${encodeURIComponent(id)}/detail`,
+        method: "GET",
+      }),
+      transformResponse: unwrapData<LogisticsDetailData>,
+      providesTags: (_result, _error, id) => [{ type: "LogisticsDetail", id }],
+    }),
+    approveLogisticsInvoice: builder.mutation<LogisticsDetailData, { id: string; reviewNotes?: string }>({
+      query: ({ id, reviewNotes }) => ({
+        url: `/api/account/costs/logistics/${encodeURIComponent(id)}/approve`,
+        method: "PATCH",
+        body: reviewNotes !== undefined ? { reviewNotes } : {},
+      }),
+      transformResponse: unwrapData<LogisticsDetailData>,
+      invalidatesTags: (_result, _error, { id }) => [
+        "LogisticsSummary",
+        "LogisticsRecords",
+        { type: "LogisticsDetail", id },
+      ],
+    }),
+    rejectLogisticsInvoice: builder.mutation<LogisticsDetailData, { id: string; reviewNotes?: string }>({
+      query: ({ id, reviewNotes }) => ({
+        url: `/api/account/costs/logistics/${encodeURIComponent(id)}/reject`,
+        method: "PATCH",
+        body: reviewNotes !== undefined ? { reviewNotes } : {},
+      }),
+      transformResponse: unwrapData<LogisticsDetailData>,
+      invalidatesTags: (_result, _error, { id }) => [
+        "LogisticsSummary",
+        "LogisticsRecords",
+        { type: "LogisticsDetail", id },
+      ],
+    }),
+    markLogisticsPaid: builder.mutation<LogisticsDetailData, string>({
+      query: (id) => ({
+        url: `/api/account/costs/logistics/${encodeURIComponent(id)}/mark-paid`,
+        method: "PATCH",
+        body: {},
+      }),
+      transformResponse: unwrapData<LogisticsDetailData>,
+      invalidatesTags: (_result, _error, id) => [
+        "LogisticsSummary",
+        "LogisticsRecords",
+        { type: "LogisticsDetail", id },
+      ],
+    }),
+    downloadLogisticsInvoice: builder.mutation<InvoiceDownloadData, string>({
+      query: (id) => ({
+        url: `/api/account/costs/logistics/${encodeURIComponent(id)}/invoice-download`,
+        method: "GET",
+        responseHandler: async (response) => {
+          if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.message || "Failed to download invoice");
+          }
+          const contentType = response.headers.get("content-type") || "";
+          if (contentType.includes("application/json")) {
+            const json = await response.json();
+            return json.data || json;
+          }
+          const blob = await response.blob();
+          return { blob };
+        },
+      }),
     }),
     lookupLogisticsDelivery: builder.query<DeliveryLookupResponse, string>({
       query: (deliveryRef) => ({
@@ -996,6 +1340,14 @@ export const costsApi = createApi({
         url: "/api/account/costs/rent/records",
         method: "POST",
         body,
+      }),
+      invalidatesTags: ["RentSummary", "RentRecords"],
+    }),
+    markRentPaid: builder.mutation<MarkPaidResponse, string>({
+      query: (id) => ({
+        url: `/api/account/costs/rent/${encodeURIComponent(id)}/mark-paid`,
+        method: "PATCH",
+        body: {},
       }),
       invalidatesTags: ["RentSummary", "RentRecords"],
     }),
@@ -1110,12 +1462,15 @@ export const {
   useCreateSalaryRecordMutation,
   useMarkSalaryPaidMutation,
   useDeleteSalaryRecordMutation,
+  useGenerateSalaryPayslipMutation,
+  useGetPayslipPdfMutation,
   // Manpower
   useGetManpowerSummaryQuery,
   useGetManpowerRecordsQuery,
   useCreateManpowerRecordMutation,
   useUpdateManpowerRecordMutation,
   useDeleteManpowerRecordMutation,
+  useMarkManpowerPaidMutation,
   // Miscellaneous
   useGetMiscSummaryQuery,
   useGetMiscOverviewChartQuery,
@@ -1128,9 +1483,21 @@ export const {
   useGetFreightTrendQuery,
   useGetFreightCarrierDistributionQuery,
   useGetFreightRecordsQuery,
+  useGetFreightDetailQuery,
+  useLazyGetFreightDetailQuery,
+  useApproveFreightInvoiceMutation,
+  useRejectFreightInvoiceMutation,
+  useMarkFreightPaidMutation,
+  useDownloadFreightInvoiceMutation,
   // Logistics
   useGetLogisticsSummaryQuery,
   useGetLogisticsRecordsQuery,
+  useGetLogisticsDetailQuery,
+  useLazyGetLogisticsDetailQuery,
+  useApproveLogisticsInvoiceMutation,
+  useRejectLogisticsInvoiceMutation,
+  useMarkLogisticsPaidMutation,
+  useDownloadLogisticsInvoiceMutation,
   useLookupLogisticsDeliveryQuery,
   useLazyLookupLogisticsDeliveryQuery,
   useCreateLogisticsRecordMutation,
@@ -1143,6 +1510,7 @@ export const {
   useGetRentSummaryQuery,
   useGetRentRecordsQuery,
   useCreateRentRecordMutation,
+  useMarkRentPaidMutation,
   // Item Cost List (SMDT)
   useGetItemListCategoriesQuery,
   useGetItemListSummaryQuery,

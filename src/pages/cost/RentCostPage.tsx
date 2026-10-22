@@ -9,12 +9,15 @@ import {
   Plus,
   Coins,
   CheckCircle2,
+  Loader2,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import CalendarRangePickerModal from "@/components/common_components/CalendarRangePickerModal";
+import SuccessModal from "@/components/common_components/SuccessModal";
 import {
   useGetRentSummaryQuery,
   useGetRentRecordsQuery,
+  useMarkRentPaidMutation,
 } from "@/redux/api/costsApi";
 import { formatDisplayDate } from "@/lib/dashboardFormatters";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -48,19 +51,30 @@ export const RentCostPage: React.FC = () => {
   // RTK Query endpoints
   const { data: summaryData, isLoading: isSummaryLoading } = useGetRentSummaryQuery();
   const { data: recordsData, isLoading: isRecordsLoading } = useGetRentRecordsQuery();
+  const [markRentPaidApi] = useMarkRentPaidMutation();
 
-  // Local paid tracking
+  // Local paid tracking & action state
   const [localPaidIds, setLocalPaidIds] = useState<string[]>([]);
+  const [markingPaidId, setMarkingPaidId] = useState<string | null>(null);
+  const [successDialogConfig, setSuccessDialogConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    message?: string;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+  });
 
   // Normalized upcoming payments from API
   const upcomingPayments: UpcomingRentPayment[] = useMemo(() => {
     const list = recordsData?.upcomingPayments || [];
     return list.map((item, idx) => {
-      const id = item.id || `up-${idx}`;
-      const isPaid = localPaidIds.includes(id) || item.paymentStatus === "Paid";
+      const id = item.id || (item as { _id?: string })._id || `up-${idx}`;
+      const isPaid = localPaidIds.includes(id) || String(item.paymentStatus).toLowerCase() === "paid";
       return {
         id,
-        property: item.property || item.propertyName || `Property ${idx + 1}`,
+        property: item.property || item.propertyName || "-",
         dueDate: formatDisplayDate(item.dueDate || item.date),
         rentPeriod: item.rentPeriod || "-",
         amount:
@@ -79,20 +93,24 @@ export const RentCostPage: React.FC = () => {
   // Normalized active rental properties from API
   const activeProperties: ActiveRentalProperty[] = useMemo(() => {
     const list = recordsData?.activeProperties || recordsData?.rows || [];
-    return list.map((item, idx) => ({
-      id: item.id || `prop-${idx}`,
-      property: item.property || item.propertyName || `Property ${idx + 1}`,
-      type: item.type || item.propertyType || "Warehouse",
-      location: item.location || "-",
-      landlord: item.landlord || "-",
-      monthlyRent:
-        typeof item.monthlyRent === "number"
-          ? `$${item.monthlyRent.toLocaleString()}`
-          : String(item.monthlyRent || "$0"),
-      leaseEnd: formatDisplayDate(item.leaseEnd || item.leaseEndDate),
-      paymentStatus: (item.paymentStatus as "Pending" | "Paid") || "Pending",
-    }));
-  }, [recordsData]);
+    return list.map((item, idx) => {
+      const id = item.id || (item as { _id?: string })._id || `prop-${idx}`;
+      const isPaid = localPaidIds.includes(id) || String(item.paymentStatus).toLowerCase() === "paid";
+      return {
+        id,
+        property: item.property || item.propertyName || "-",
+        type: item.type || item.propertyType || "Warehouse",
+        location: item.location || "-",
+        landlord: item.landlord || "-",
+        monthlyRent:
+          typeof item.monthlyRent === "number"
+            ? `$${item.monthlyRent.toLocaleString()}`
+            : String(item.monthlyRent || "$0"),
+        leaseEnd: formatDisplayDate(item.leaseEnd || item.leaseEndDate),
+        paymentStatus: (isPaid ? "Paid" : item.paymentStatus || "Pending") as "Pending" | "Paid",
+      };
+    });
+  }, [recordsData, localPaidIds]);
 
   // Export dropdown
   const [isExportOpen, setIsExportOpen] = useState(false);
@@ -159,9 +177,28 @@ export const RentCostPage: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  // Mark an upcoming payment as Paid
-  const handleMarkPaid = (id: string) => {
-    setLocalPaidIds((prev) => [...prev, id]);
+  // Mark an upcoming or active rent payment as Paid
+  const handleMarkPaid = async (id: string) => {
+    if (!id) return;
+    try {
+      setMarkingPaidId(id);
+      const res = await markRentPaidApi(id).unwrap();
+      setLocalPaidIds((prev) => [...prev, id]);
+      setSuccessDialogConfig({
+        isOpen: true,
+        title: "Rent Marked as Paid",
+        message: res.message || "Rent expense has been successfully marked as paid.",
+      });
+    } catch (err: unknown) {
+      console.error("Failed to mark rent as paid", err);
+      const errorMsg =
+        (err as { data?: { message?: string }; message?: string })?.data?.message ||
+        (err as { message?: string })?.message ||
+        "Failed to mark rent as paid.";
+      alert(errorMsg);
+    } finally {
+      setMarkingPaidId(null);
+    }
   };
 
   // Filtered & sorted active properties
@@ -563,8 +600,12 @@ export const RentCostPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleMarkPaid(row.id)}
-                        className="px-4 py-1.5 rounded-lg bg-[#0066FF] hover:bg-[#0052cc] text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                        disabled={markingPaidId === row.id}
+                        className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#0066FF] hover:bg-[#0052cc] text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-50"
                       >
+                        {markingPaidId === row.id && (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        )}
                         Mark Paid
                       </button>
                     )}
@@ -732,6 +773,7 @@ export const RentCostPage: React.FC = () => {
                   </div>
                 </th>
                 <th className="py-3 px-6 whitespace-nowrap">Payment Status</th>
+                <th className="py-3 px-6 whitespace-nowrap text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs">
@@ -745,11 +787,12 @@ export const RentCostPage: React.FC = () => {
                     <td className="py-4 px-6"><Skeleton className="h-4 w-20" /></td>
                     <td className="py-4 px-6"><Skeleton className="h-4 w-24" /></td>
                     <td className="py-4 px-6"><Skeleton className="h-6 w-16 rounded-md" /></td>
+                    <td className="py-4 px-6 text-right"><Skeleton className="h-7 w-20 ml-auto rounded-lg" /></td>
                   </tr>
                 ))
               ) : sortedActiveProperties.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400">
+                  <td colSpan={8} className="py-12 text-center text-slate-400">
                     No active rental properties found.
                   </td>
                 </tr>
@@ -784,6 +827,25 @@ export const RentCostPage: React.FC = () => {
                     >
                       {row.paymentStatus}
                     </span>
+                  </td>
+                  <td className="py-4 px-6 text-right whitespace-nowrap">
+                    {row.paymentStatus === "Paid" ? (
+                      <span className="inline-flex items-center gap-1 text-emerald-600 font-semibold text-xs">
+                        <CheckCircle2 className="w-4 h-4" /> Paid
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleMarkPaid(row.id)}
+                        disabled={markingPaidId === row.id}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#0066FF] hover:bg-[#0052cc] text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        {markingPaidId === row.id && (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        )}
+                        Mark Paid
+                      </button>
+                    )}
                   </td>
                 </tr>
               )))}
@@ -877,6 +939,16 @@ export const RentCostPage: React.FC = () => {
           setActiveDateRangeText(`${range.startDate} - ${range.endDate}`);
           setIsActiveDatePickerOpen(false);
         }}
+      />
+
+      {/* Success Modal */}
+      <SuccessModal
+        isOpen={successDialogConfig.isOpen}
+        onClose={() =>
+          setSuccessDialogConfig((prev) => ({ ...prev, isOpen: false }))
+        }
+        title={successDialogConfig.title}
+        message={successDialogConfig.message}
       />
     </div>
   );

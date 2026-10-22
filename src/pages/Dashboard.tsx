@@ -39,9 +39,9 @@ export type TabType = "today" | "week" | "month";
 
 const FinancePage = () => {
   const [selectedRange, setSelectedRange] = useState<DateRange>(() =>
-    getPeriodRange("week")
+    getPeriodRange(undefined)
   );
-  const [activePeriod, setActivePeriod] = useState<Period>("week");
+  const [activePeriod, setActivePeriod] = useState<Period>(undefined);
   const [isInvoiceOpen, setIsInvoiceOpen] = useState(true);
   const [exportError, setExportError] = useState<string | null>(null);
   const [exportSuccess, setExportSuccess] = useState(false);
@@ -180,7 +180,7 @@ const FinancePage = () => {
     <div className="space-y-6">
       <div className="-mt-4 -mx-4">
         <FilterTabs
-          initialPeriod="week"
+          initialPeriod={undefined}
           selectedPeriod={activePeriod}
           onPeriodChange={(period: Period, range: DateRange) => {
             setActivePeriod(period);
@@ -203,13 +203,14 @@ const FinancePage = () => {
               to: selectedRange.endDate || undefined,
             }}
             onChange={(range) => {
-              setActivePeriod(undefined);
               if (range?.from) {
+                setActivePeriod(null);
                 setSelectedRange({
                   startDate: range.from,
                   endDate: range.to || range.from,
                 });
               } else {
+                setActivePeriod(undefined);
                 setSelectedRange({
                   startDate: null,
                   endDate: null,

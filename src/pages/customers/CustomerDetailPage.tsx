@@ -314,7 +314,9 @@ export default function CustomerDetailPage() {
                 <th className="py-3.5 px-4 font-semibold">STATUS</th>
                 <th className="py-3.5 px-4 font-semibold">START DATE</th>
                 <th className="py-3.5 px-4 font-semibold">END DATE</th>
-                <th className="py-3.5 px-4 font-semibold text-center">ACTION</th>
+                <th className="py-3.5 px-4 font-semibold text-center">
+                  ACTION
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
@@ -394,7 +396,7 @@ export default function CustomerDetailPage() {
         </div>
 
         {/* View All button */}
-        {displayProjects.length > 0 && (
+        {/* {displayProjects.length > 0 && (
           <div className="text-center pt-6">
             <button
               type="button"
@@ -410,7 +412,7 @@ export default function CustomerDetailPage() {
               View All
             </button>
           </div>
-        )}
+        )} */}
       </div>
 
       {/* SECTION 1: CUSTOMER PROFITABILITY OVERVIEW */}

@@ -173,14 +173,11 @@ export const FreightCostPage: React.FC = () => {
     return [];
   }, [carrierDistApi]);
 
-  const [localStatusOverrides, setLocalStatusOverrides] = useState<
-    Record<string, "Approved" | "Pending" | "Rejected">
-  >({});
-
-  const effectiveDeliveryRecords: FreightDeliveryRecord[] = useMemo(() => {
+  const displayRows: FreightDeliveryRecord[] = useMemo(() => {
     if (recordsApi?.rows && recordsApi.rows.length > 0) {
       return recordsApi.rows.map((r, i) => {
         const id = r.id || r._id || `freight-${i}`;
+        const bidId = r.bidId || r.selectedBidId || r.id || r._id;
         const amount = Number(r.amount ?? r.cost) || 0;
         const rawStatus = r.approvalStatus || r.status || "Pending";
         const status: "Approved" | "Pending" | "Rejected" =
@@ -189,8 +186,11 @@ export const FreightCostPage: React.FC = () => {
             : rawStatus === "Rejected"
             ? "Rejected"
             : "Pending";
+        const paymentStatus =
+          r.paymentStatus || (status === "Approved" ? "Paid" : "Unpaid");
         return {
           id,
+          bidId,
           freightId: r.freightId || (r.deliveryId ? `FRT-${r.deliveryId}` : `FRT-${1000 + i}`),
           project: r.projectName || r.project || "-",
           deliveryCompany: r.carrierName || r.deliveryCompany || "-",
@@ -199,6 +199,7 @@ export const FreightCostPage: React.FC = () => {
           cost: amount,
           costFormatted: r.costFormatted || `$${amount.toLocaleString()}`,
           approvalStatus: status,
+          paymentStatus,
           awardedCarrier: r.carrierName || r.deliveryCompany,
           statusText: rawStatus,
         };
@@ -206,13 +207,6 @@ export const FreightCostPage: React.FC = () => {
     }
     return [];
   }, [recordsApi]);
-
-  const displayRows: FreightDeliveryRecord[] = useMemo(() => {
-    return effectiveDeliveryRecords.map((r) => {
-      const override = localStatusOverrides[r.id];
-      return override ? { ...r, approvalStatus: override } : r;
-    });
-  }, [effectiveDeliveryRecords, localStatusOverrides]);
 
   const handleExport = (type: string) => {
     setIsExportMenuOpen(false);
@@ -244,44 +238,6 @@ export const FreightCostPage: React.FC = () => {
         message: "Your export document is being processed and will download shortly.",
       });
     }
-  };
-
-  // Modal actions
-  const handleApprove = (record: FreightDeliveryRecord) => {
-    setLocalStatusOverrides((prev) => ({ ...prev, [record.id]: "Approved" }));
-    setSelectedRecord(null);
-    setSuccessDialogConfig({
-      isOpen: true,
-      title: "Freight Cost Approved",
-      message: `Invoice for ${record.freightId} (${record.deliveryCompany}) has been approved successfully.`,
-    });
-  };
-
-  const handleReject = (record: FreightDeliveryRecord) => {
-    setLocalStatusOverrides((prev) => ({ ...prev, [record.id]: "Rejected" }));
-    setSelectedRecord(null);
-    setSuccessDialogConfig({
-      isOpen: true,
-      title: "Freight Cost Rejected",
-      message: `Invoice for ${record.freightId} has been rejected.`,
-    });
-  };
-
-  const handleMarkPaid = (record: FreightDeliveryRecord) => {
-    setSelectedRecord(null);
-    setSuccessDialogConfig({
-      isOpen: true,
-      title: "Invoice Marked as Paid",
-      message: `Invoice for ${record.deliveryCompany} (${record.costFormatted}) marked as paid successfully.`,
-    });
-  };
-
-  const handleDownloadInvoice = (record: FreightDeliveryRecord) => {
-    setSuccessDialogConfig({
-      isOpen: true,
-      title: "Downloading Invoice",
-      message: `Invoice ${record.invoiceNumber || "INV-45892"} is downloading.`,
-    });
   };
 
   return (
@@ -866,6 +822,7 @@ export const FreightCostPage: React.FC = () => {
                 </th>
                 <th className="py-3 px-5 whitespace-nowrap">Cost</th>
                 <th className="py-3 px-5 whitespace-nowrap">Approval Status</th>
+                <th className="py-3 px-5 whitespace-nowrap">Payment Status</th>
                 <th className="py-3 px-5 whitespace-nowrap text-right"></th>
               </tr>
             </thead>
@@ -880,12 +837,13 @@ export const FreightCostPage: React.FC = () => {
                     <td className="py-3.5 px-5"><Skeleton className="h-4 w-24" /></td>
                     <td className="py-3.5 px-5"><Skeleton className="h-4 w-16" /></td>
                     <td className="py-3.5 px-5"><Skeleton className="h-6 w-20 rounded-md" /></td>
+                    <td className="py-3.5 px-5"><Skeleton className="h-6 w-16 rounded-md" /></td>
                     <td className="py-3.5 px-5 text-right"><Skeleton className="h-6 w-8 ml-auto rounded-md" /></td>
                   </tr>
                 ))
               ) : displayRows.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-400">
+                  <td colSpan={9} className="py-12 text-center text-slate-400">
                     No freight records found matching your criteria.
                   </td>
                 </tr>
@@ -940,6 +898,19 @@ export const FreightCostPage: React.FC = () => {
                       }`}
                     >
                       {row.approvalStatus}
+                    </span>
+                  </td>
+
+                  {/* Payment Status Badge */}
+                  <td className="py-3.5 px-5 whitespace-nowrap">
+                    <span
+                      className={`inline-block px-3 py-1 rounded-md text-[11px] font-semibold tracking-wide ${
+                        row.paymentStatus?.toLowerCase() === "paid"
+                          ? "bg-[#DCFCE7] text-[#16A34A]"
+                          : "bg-slate-100 text-slate-700"
+                      }`}
+                    >
+                      {row.paymentStatus || "Unpaid"}
                     </span>
                   </td>
 
@@ -1059,10 +1030,14 @@ export const FreightCostPage: React.FC = () => {
         isOpen={!!selectedRecord}
         onClose={() => setSelectedRecord(null)}
         record={selectedRecord}
-        onApprove={handleApprove}
-        onReject={handleReject}
-        onMarkPaid={handleMarkPaid}
-        onDownloadInvoice={handleDownloadInvoice}
+        bidId={selectedRecord?.bidId || selectedRecord?.id}
+        onSuccessAction={(message) => {
+          setSuccessDialogConfig({
+            isOpen: true,
+            title: "Success",
+            message,
+          });
+        }}
       />
 
       {/* Success Modal */}

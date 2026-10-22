@@ -1,12 +1,12 @@
 import { useState } from "react";
 
-export type Period = undefined | "week" | "month" | "quarter";
+export type Period = undefined | null | "week" | "month" | "quarter";
 export type DateRange = {
   startDate: Date | null;
   endDate: Date | null;
 };
 
-const periodLabels: Record<Exclude<Period, undefined>, string> = {
+const periodLabels: Record<Exclude<Period, undefined | null>, string> = {
   week: "Today",
   month: "This Month",
   quarter: "This Quarter",
@@ -48,9 +48,11 @@ export const getPeriodRange = (period?: Period) => {
   };
 };
 
-export default function FilterTabs({ initialPeriod, selectedPeriod, onPeriodChange }: Props) {
+export default function FilterTabs(props: Props) {
+  const { initialPeriod, selectedPeriod, onPeriodChange } = props;
+  const isControlled = "selectedPeriod" in props;
   const [internalPeriod, setInternalPeriod] = useState<Period>(initialPeriod);
-  const period = selectedPeriod !== undefined ? selectedPeriod : internalPeriod;
+  const period = isControlled ? selectedPeriod : internalPeriod;
 
   const handleChange = (p: Period) => {
     setInternalPeriod(p);
