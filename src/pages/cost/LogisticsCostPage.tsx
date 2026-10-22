@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import CalendarRangePickerModal from "@/components/common_components/CalendarRangePickerModal";
+import SuccessModal from "@/components/common_components/SuccessModal";
 import LogisticsCostDetailModal, {
   type LogisticsDetailRecord,
 } from "@/components/cost/LogisticsCostDetailModal";
@@ -50,7 +51,7 @@ export const LogisticsCostPage: React.FC = () => {
   const records: LogisticsRecord[] = useMemo(() => {
     if (!recordsData?.rows) return [];
     return recordsData.rows.map((r, idx) => ({
-      id: r.id || `log-${idx}`,
+      id: r.approvalId || r.id || (r as { _id?: string })._id || `log-${idx}`,
       deliveryId: r.deliveryRef || r.deliveryId || `DEL-${1000 + idx}`,
       deliveryCompany: r.deliveryCompany || r.carrier || "-",
       project: r.projectName || r.project || "-",
@@ -96,6 +97,15 @@ export const LogisticsCostPage: React.FC = () => {
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [selectedRecordForDetail, setSelectedRecordForDetail] = useState<LogisticsDetailRecord | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [successDialogConfig, setSuccessDialogConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    message?: string;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+  });
 
   // Dropdown open states
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
@@ -200,21 +210,15 @@ export const LogisticsCostPage: React.FC = () => {
   const handleOpenDetail = (record: LogisticsRecord) => {
     const detailRecord: LogisticsDetailRecord = {
       id: record.id,
-      loadId: "TRX-9876",
-      deliveryId: record.deliveryId || "DEL-1235",
-      project: record.project || "ABC Logistics Warehouse",
-      carrier: record.carrier || record.deliveryCompany || "FastFreight Logistics",
+      deliveryId: record.deliveryId,
+      project: record.project,
+      carrier: record.carrier || record.deliveryCompany,
       deliveryCompany: record.deliveryCompany,
       cost: record.finalAmount,
-      finalAmountFormatted: record.finalAmountFormatted || "$4,500.00",
-      date: record.date || "March 25, 2026",
+      finalAmountFormatted: record.finalAmountFormatted,
+      date: record.date,
       approvalStatus: record.approvalStatus,
-      invoiceStatus: "Under Review",
-      paymentStatus: record.paymentStatus || "Pending",
-      deliveryStatus: "Delivered",
-      invoiceNumber: "INV-45892",
-      invoiceDate: "March 25, 2026",
-      paymentDueDate: "April 1, 2026",
+      paymentStatus: record.paymentStatus,
     };
     setSelectedRecordForDetail(detailRecord);
     setIsDetailModalOpen(true);
@@ -223,7 +227,7 @@ export const LogisticsCostPage: React.FC = () => {
   const handleExport = (format: "csv" | "excel" | "pdf") => {
     setIsExportOpen(false);
     if (format === "csv") {
-      const headers = ["Delivery ID", "Delivery Company", "Project", "Final Amount", "Date", "Approval Status"];
+      const headers = ["Delivery ID", "Delivery Company", "Project", "Final Amount", "Date", "Approval Status", "Payment Status"];
       const rows = filteredRecords.map((r) => [
         r.deliveryId,
         `"${r.deliveryCompany}"`,
@@ -231,6 +235,7 @@ export const LogisticsCostPage: React.FC = () => {
         r.finalAmount,
         r.date,
         r.approvalStatus,
+        r.paymentStatus || "Unpaid",
       ]);
       const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
       const encodedUri = encodeURI(csvContent);
@@ -721,6 +726,7 @@ export const LogisticsCostPage: React.FC = () => {
                 <th className="py-3 px-4 sm:px-5 whitespace-nowrap font-bold">Final Amount</th>
                 <th className="py-3 px-4 sm:px-5 whitespace-nowrap font-bold">Date</th>
                 <th className="py-3 px-4 sm:px-5 whitespace-nowrap font-bold">Approval Status</th>
+                <th className="py-3 px-4 sm:px-5 whitespace-nowrap font-bold">Payment Status</th>
                 <th className="py-3 px-4 sm:px-5 text-right whitespace-nowrap font-bold">Action</th>
               </tr>
             </thead>
@@ -746,6 +752,9 @@ export const LogisticsCostPage: React.FC = () => {
                     <td className="py-4 px-4 sm:px-5">
                       <Skeleton className="h-6 w-16 rounded" />
                     </td>
+                    <td className="py-4 px-4 sm:px-5">
+                      <Skeleton className="h-6 w-16 rounded" />
+                    </td>
                     <td className="py-4 px-4 sm:px-5 text-right">
                       <Skeleton className="h-8 w-8 ml-auto rounded" />
                     </td>
@@ -753,7 +762,7 @@ export const LogisticsCostPage: React.FC = () => {
                 ))
               ) : currentRows.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400">
+                  <td colSpan={8} className="py-12 text-center text-slate-400">
                     No logistics records found.
                   </td>
                 </tr>
@@ -789,6 +798,17 @@ export const LogisticsCostPage: React.FC = () => {
                         }`}
                       >
                         {row.approvalStatus}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4 sm:px-5 whitespace-nowrap">
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded text-[11px] font-medium border ${
+                          row.paymentStatus?.toLowerCase() === "paid"
+                            ? "bg-[#DCFCE7] text-[#16A34A] border-[#BBF7D0]"
+                            : "bg-[#FEF3C7] text-[#D97706] border-[#FDE68A]"
+                        }`}
+                      >
+                        {row.paymentStatus || "Unpaid"}
                       </span>
                     </td>
                     <td className="py-3.5 px-4 sm:px-5 text-right whitespace-nowrap">
@@ -883,6 +903,22 @@ export const LogisticsCostPage: React.FC = () => {
           setSelectedRecordForDetail(null);
         }}
         record={selectedRecordForDetail}
+        approvalId={selectedRecordForDetail?.id}
+        onSuccessAction={(msg) => {
+          setSuccessDialogConfig({
+            isOpen: true,
+            title: "Success",
+            message: msg,
+          });
+        }}
+      />
+
+      {/* Success Modal */}
+      <SuccessModal
+        isOpen={successDialogConfig.isOpen}
+        onClose={() => setSuccessDialogConfig((prev) => ({ ...prev, isOpen: false }))}
+        title={successDialogConfig.title}
+        message={successDialogConfig.message}
       />
     </div>
   );
