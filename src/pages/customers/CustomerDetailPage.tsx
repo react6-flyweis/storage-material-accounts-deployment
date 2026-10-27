@@ -365,7 +365,7 @@ export default function CustomerDetailPage() {
                         <button
                           type="button"
                           onClick={() => {
-                            const targetId = p.projectId || p.leadId || p.id;
+                            const targetId = p.leadId ;
                             navigate(
                               customerId
                                 ? `/customers/${customerId}/projects/${targetId}`
