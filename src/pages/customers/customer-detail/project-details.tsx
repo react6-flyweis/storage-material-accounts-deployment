@@ -32,7 +32,6 @@ export default function ProjectDetailsPage() {
   const actualCustomerId = customerId || passedState?.customerId || "";
   const actualProjectId = projectId || id || passedState?.projectId || "";
 
-
   // Pure API Call: GET /api/account/projects/:projectId
   const {
     data: projectDetail,
@@ -49,7 +48,7 @@ export default function ProjectDetailsPage() {
 
   const handleBack = () => {
     if (actualCustomerId) {
-      navigate(`/customers/${actualCustomerId}/projects`);
+      navigate(`/customers/${actualCustomerId}`);
     } else {
       navigate(-1);
     }
@@ -63,7 +62,9 @@ export default function ProjectDetailsPage() {
           <AlertCircle className="w-6 h-6" />
         </div>
         <div>
-          <h2 className="text-lg font-bold text-slate-900">Project Not Found</h2>
+          <h2 className="text-lg font-bold text-slate-900">
+            Project Not Found
+          </h2>
           <p className="text-xs text-slate-500 mt-1">
             No project identifier was provided in the URL or navigation state.
           </p>
@@ -83,7 +84,9 @@ export default function ProjectDetailsPage() {
     <div className="space-y-5">
       {/* 1. Header: Back button, Title, Loading & Error alerts */}
       <ProjectDetailsHeader
-        projectName={projectDetail?.overview?.projectName || passedState?.projectName}
+        projectName={
+          projectDetail?.overview?.projectName || passedState?.projectName
+        }
         projectId={actualProjectId}
         isLoading={isProjectLoading}
         isError={isProjectError}
