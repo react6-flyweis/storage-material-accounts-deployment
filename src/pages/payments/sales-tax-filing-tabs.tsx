@@ -255,6 +255,8 @@ export function PendingFilingTab({
   onLimitChange,
   onReviewDetails,
   onPrepareFiling,
+  onPayTax,
+  onMarkFiled,
 }: {
   rows: TaxFilingItem[];
   isLoading?: boolean;
@@ -265,6 +267,8 @@ export function PendingFilingTab({
   onLimitChange?: (limit: number) => void;
   onReviewDetails?: (item: TaxFilingItem) => void;
   onPrepareFiling?: (item: TaxFilingItem) => void;
+  onPayTax?: (item: TaxFilingItem) => void;
+  onMarkFiled?: (item: TaxFilingItem) => void;
 }) {
   return (
     <div className="bg-white rounded-lg border overflow-hidden shadow-xs">
@@ -393,14 +397,32 @@ export function PendingFilingTab({
                     <TableCell className="py-4 text-gray-900 font-semibold text-sm">
                       {formatCurrency(amountVal)}
                     </TableCell>
-                    <TableCell className="py-4">{getStatusBadge(row.status)}</TableCell>
                     <TableCell className="py-4">
-                      <div className="flex items-center gap-3">
+                      <div className="flex flex-col gap-1.5 items-start">
+                        {getStatusBadge(row.status)}
+                        {row.isPrepared || row.prepared ? (
+                          <span
+                            className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded"
+                            title={row.preparedAt ? `Prepared at ${formatDate(row.preparedAt, "MMM dd, yyyy hh:mm a")}` : "Prepared"}
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                            Prepared
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded">
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
+                            Not prepared
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-4">
+                      <div className="flex items-center gap-2">
                         {isNoTaxDue ? (
                           <button
                             type="button"
                             onClick={() => onReviewDetails?.(row)}
-                            className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
+                            className="text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors whitespace-nowrap cursor-pointer"
                           >
                             View Details
                           </button>
@@ -409,18 +431,45 @@ export function PendingFilingTab({
                             <button
                               type="button"
                               onClick={() => onReviewDetails?.(row)}
-                              className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
+                              className="text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors whitespace-nowrap cursor-pointer"
                             >
                               Review Details
                             </button>
                             <Button
                               type="button"
                               size="sm"
+                              variant={row.isPrepared || row.prepared ? "outline" : "default"}
                               onClick={() => onPrepareFiling?.(row)}
-                              className="bg-blue-600 hover:bg-blue-700 text-white h-8 text-xs px-3"
+                              className={`h-8 text-xs px-2.5 cursor-pointer whitespace-nowrap ${
+                                row.isPrepared || row.prepared
+                                  ? "border-blue-300 text-blue-700 hover:bg-blue-50"
+                                  : "bg-blue-600 hover:bg-blue-700 text-white"
+                              }`}
                             >
-                              Prepare Filing
+                              {row.isPrepared || row.prepared ? "Prepared" : "Prepare Filing"}
                             </Button>
+                            {onPayTax && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                onClick={() => onPayTax(row)}
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs px-2.5 font-medium cursor-pointer whitespace-nowrap"
+                              >
+                                Pay Tax
+                              </Button>
+                            )}
+                            {onMarkFiled && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => onMarkFiled(row)}
+                                className="text-xs text-gray-500 hover:text-gray-800 h-8 px-2 cursor-pointer whitespace-nowrap"
+                                title="Mark as filed (manual remittal)"
+                              >
+                                Mark Filed
+                              </Button>
+                            )}
                           </>
                         )}
                       </div>
@@ -606,7 +655,20 @@ export function FilingHistoryTab({
                     <TableCell className="py-4 text-gray-600 text-sm">
                       {methodVal}
                     </TableCell>
-                    <TableCell className="py-4">{getStatusBadge(row.status)}</TableCell>
+                    <TableCell className="py-4">
+                      <div className="flex flex-col gap-1.5 items-start">
+                        {getStatusBadge(row.status)}
+                        {row.isPrepared || row.prepared ? (
+                          <span
+                            className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded"
+                            title={row.preparedAt ? `Prepared at ${formatDate(row.preparedAt, "MMM dd, yyyy hh:mm a")}` : "Prepared"}
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                            Prepared
+                          </span>
+                        ) : null}
+                      </div>
+                    </TableCell>
                     <TableCell className="py-4">
                       {receiptId !== "-" ? (
                         <button

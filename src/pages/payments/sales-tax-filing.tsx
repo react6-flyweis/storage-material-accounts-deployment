@@ -25,6 +25,7 @@ import StatCardV2 from "@/components/ui/stat-card-v2";
 import DateRangeFilter from "@/components/ui/date-range-filter";
 import SuccessDialog from "@/components/success-dialog";
 import TaxDetailsSheet from "@/components/payments/tax-details-sheet";
+import TaxPaymentDialog from "@/components/payments/tax-payment-dialog";
 import {
   FilingHistoryTab,
   PendingFilingTab,
@@ -36,6 +37,7 @@ import {
   useExportTaxFilingMutation,
   useDownloadTaxReceiptPdfMutation,
   useSyncTaxFilingMutation,
+  useFileTaxMutation,
 } from "@/modules/payments/payments.hooks";
 import type {
   TaxFilingItem,
@@ -68,6 +70,7 @@ export default function SalesTaxFiling() {
   const [downloadMessage, setDownloadMessage] = useState("Downloaded successfully");
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isPrepareMode, setIsPrepareMode] = useState(false);
+  const [isPayDialogOpen, setIsPayDialogOpen] = useState(false);
   const [selectedTaxItem, setSelectedTaxItem] = useState<TaxFilingItem | null>(null);
 
   // 1. Fetch Filters Data
@@ -124,6 +127,7 @@ export default function SalesTaxFiling() {
   const exportMutation = useExportTaxFilingMutation();
   const downloadReceiptMutation = useDownloadTaxReceiptPdfMutation();
   const syncMutation = useSyncTaxFilingMutation();
+  const fileTaxMutation = useFileTaxMutation();
   const [isSyncing, setIsSyncing] = useState(false);
 
   const kpiStats = statsRes?.data;
@@ -173,9 +177,29 @@ export default function SalesTaxFiling() {
     setIsSheetOpen(true);
   };
 
+  const handlePayTax = (item: TaxFilingItem) => {
+    setSelectedTaxItem(item);
+    setIsPayDialogOpen(true);
+  };
+
+  const handleMarkFiled = async (item: TaxFilingItem) => {
+    const taxId = item.taxRecordId || item._id;
+    if (!taxId || taxId === "temp-id") return;
+    try {
+      await fileTaxMutation.mutateAsync(taxId);
+      setDownloadMessage("Tax record successfully marked as filed");
+      setDownloadSuccessOpen(true);
+      await Promise.all([refetch(), refetchStats()]);
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : "Failed to mark tax as filed";
+      setDownloadMessage(errMsg);
+      setDownloadSuccessOpen(true);
+    }
+  };
+
   const handleSheetOpenChange = (open: boolean) => {
     setIsSheetOpen(open);
-    if (!open) {
+    if (!open && !isPayDialogOpen) {
       setSelectedTaxItem(null);
     }
   };
@@ -602,6 +626,8 @@ export default function SalesTaxFiling() {
             onLimitChange={setLimit}
             onReviewDetails={handleReviewDetails}
             onPrepareFiling={handlePrepareFiling}
+            onPayTax={handlePayTax}
+            onMarkFiled={handleMarkFiled}
           />
         ) : (
           <FilingHistoryTab
@@ -618,7 +644,7 @@ export default function SalesTaxFiling() {
         )}
       </div>
 
-      {/* Review Details / Texas Tax Details / Prepare Filing Modal */}
+      {/* Review Details / Prepare Filing Sheet */}
       {selectedTaxItem && (
         <TaxDetailsSheet
           key={selectedTaxItem.taxRecordId || selectedTaxItem._id || "sales-tax-sheet"}
@@ -632,7 +658,31 @@ export default function SalesTaxFiling() {
           onOpenChange={handleSheetOpenChange}
           item={selectedTaxItem}
           isPrepareMode={isPrepareMode}
-          onSuccess={handleSyncNow}
+          onSuccess={async () => {
+            await Promise.all([refetch(), refetchStats()]);
+          }}
+        />
+      )}
+
+      {/* Direct Pay Tax Dialog from Table Row */}
+      {selectedTaxItem && (
+        <TaxPaymentDialog
+          taxId={selectedTaxItem.taxRecordId || selectedTaxItem._id}
+          state={selectedTaxItem.stateLabel || selectedTaxItem.state}
+          amount={selectedTaxItem.taxDue ?? selectedTaxItem.payable ?? selectedTaxItem.amount ?? 0}
+          filingPeriod={selectedTaxItem.filingPeriod}
+          dueDate={selectedTaxItem.dueDate}
+          daysUntilDue={selectedTaxItem.daysUntilDue}
+          isOpen={isPayDialogOpen}
+          onOpenChange={(open) => {
+            setIsPayDialogOpen(open);
+            if (!open && !isSheetOpen) {
+              setSelectedTaxItem(null);
+            }
+          }}
+          onSuccess={async () => {
+            await Promise.all([refetch(), refetchStats()]);
+          }}
         />
       )}
 

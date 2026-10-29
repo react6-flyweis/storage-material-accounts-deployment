@@ -223,6 +223,7 @@ export default function TaxPaymentDialog({
         receiptEmail={payment?.notificationEmail || notificationEmail}
         status={payment?.status || "processing"}
         estimatedSettlement={payment?.estimatedSettlement || "1-3 business days"}
+        mode={paymentResult?.mode}
         isDownloading={downloadReceiptMutation.isPending}
         onDownload={handleDownloadReceipt}
       />
@@ -289,7 +290,7 @@ export default function TaxPaymentDialog({
                 <h3 className="text-sm font-semibold text-slate-900">
                   1. Payment Method
                 </h3>
-                <span className="text-xs text-slate-500">Processed via Avalara</span>
+                <span className="text-xs text-slate-500">Secure Remittance</span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -439,9 +440,9 @@ export default function TaxPaymentDialog({
             <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-3.5 flex items-start gap-3">
               <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
               <div className="text-xs text-slate-600">
-                <span className="font-semibold text-slate-800">Avalara Certified Partner</span>
+                <span className="font-semibold text-slate-800">Secure Remittance Processing</span>
                 <p className="mt-0.5">
-                  Payments are approved directly through Avalara API. Estimated settlement is 1–3 business days.
+                  Payments are remitted via Avalara Returns or direct ledger based on system configuration. Estimated settlement is 1–3 business days.
                 </p>
               </div>
             </div>

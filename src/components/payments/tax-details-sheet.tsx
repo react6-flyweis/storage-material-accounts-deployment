@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import {
   Sheet,
@@ -118,36 +118,75 @@ export default function TaxDetailsSheet({
     item?.taxRecordId ||
     (item?._id && item._id !== "temp-id" ? item._id : undefined);
 
+  const [activeMode, setActiveMode] = useState<"detail" | "prepare">(
+    isPrepareMode ? "prepare" : "detail"
+  );
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [isLegacyFiled, setIsLegacyFiled] = useState(false);
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+
+  useEffect(() => {
+    setActiveMode(isPrepareMode ? "prepare" : "detail");
+    setFileError(null);
+    setIsLegacyFiled(false);
+  }, [isPrepareMode, isOpen, taxId]);
+
+  const isActuallyPrepareMode = activeMode === "prepare";
+
   const { data: detailRes, isLoading: isDetailLoading } = useTaxFilingDetailQuery(
-    isOpen && !isPrepareMode && taxId ? taxId : undefined
+    isOpen && !isActuallyPrepareMode && taxId ? taxId : undefined
   );
 
-  const { data: prepareRes, isLoading: isPrepareLoading } = useTaxFilingPrepareQuery(
-    isOpen && isPrepareMode && taxId ? taxId : undefined
+  const { data: prepareRes, isLoading: isPrepareLoading, refetch: refetchPrepare } = useTaxFilingPrepareQuery(
+    isOpen && isActuallyPrepareMode && taxId ? taxId : undefined
   );
+
+  // When prepare query returns successfully, notify parent to refresh list so table shows Prepared
+  useEffect(() => {
+    if (prepareRes?.data?.isPrepared || prepareRes?.data?.prepared) {
+      onSuccess?.();
+    }
+  }, [prepareRes]);
 
   const fileTaxMutation = useFileTaxMutation();
   const downloadReceiptMutation = useDownloadTaxReceiptPdfMutation();
-
-  const [isLegacyFiled, setIsLegacyFiled] = useState(false);
-  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
 
   const handleSheetOpenChange = (open: boolean) => {
     if (!open) {
       setIsLegacyFiled(false);
       setIsPaymentDialogOpen(false);
+      setFileError(null);
     }
     onOpenChange(open);
   };
 
-  const isLoading = isPrepareMode ? isPrepareLoading : isDetailLoading;
+  const isLoading = isActuallyPrepareMode ? isPrepareLoading : isDetailLoading;
   // Guard against stale cache: only use detail if it belongs to current taxId
-  const rawDetail = isPrepareMode ? prepareRes?.data?.detail : detailRes?.data?.detail;
+  const rawDetail = isActuallyPrepareMode ? prepareRes?.data?.detail : detailRes?.data?.detail;
   const detail = rawDetail && (!rawDetail._id || rawDetail._id === taxId) ? rawDetail : null;
   const prepareTax = prepareRes?.data?.tax && (!prepareRes.data.tax._id || prepareRes.data.tax._id === taxId) ? prepareRes.data.tax : null;
   const avalaraInfo = detailRes?.data?.avalara || (prepareRes?.data as { avalara?: { filingId?: string; returnsConfigured?: boolean } })?.avalara;
 
   const isVisible = isOpen || isPaymentDialogOpen;
+
+  const isPrepared = Boolean(
+    detailRes?.data?.isPrepared ||
+    detailRes?.data?.prepared ||
+    detail?.isPrepared ||
+    detail?.prepared ||
+    prepareRes?.data?.isPrepared ||
+    prepareRes?.data?.prepared ||
+    item?.isPrepared ||
+    item?.prepared ||
+    isActuallyPrepareMode
+  );
+
+  const preparedAt =
+    detailRes?.data?.preparedAt ||
+    detail?.preparedAt ||
+    prepareRes?.data?.preparedAt ||
+    item?.preparedAt ||
+    null;
 
   const stateCode = (detail?.state || item?.state || propState || "").toUpperCase();
   const stateLabelFromApi = detail?.stateLabel || item?.stateLabel;
@@ -210,14 +249,33 @@ export default function TaxDetailsSheet({
     setIsPaymentDialogOpen(true);
   };
 
+  const handleSwitchToPrepare = async () => {
+    setFileError(null);
+    setActiveMode("prepare");
+    if (taxId) {
+      try {
+        await refetchPrepare();
+        onSuccess?.();
+      } catch (err) {
+        console.error("Failed to prepare filing", err);
+      }
+    }
+  };
+
   const handleLegacyMarkFiled = async () => {
     if (!taxId) return;
+    setFileError(null);
     try {
       await fileTaxMutation.mutateAsync(taxId);
       setIsLegacyFiled(true);
       onSuccess?.();
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Failed to mark tax as filed", err);
+      setFileError(
+        err instanceof Error
+          ? err.message
+          : "Failed to mark tax as filed. If already paid, tax record is already finalized."
+      );
     }
   };
 
@@ -281,12 +339,33 @@ export default function TaxDetailsSheet({
         >
           <SheetHeader className="p-6 border-b flex flex-row items-center gap-3 space-y-0 text-left">
             {renderStateBadge()}
-            <SheetTitle className="text-lg font-bold flex items-center gap-3 text-slate-900 m-0">
-              {displayTitle}
-              <Badge className={`${getStatusBadgeToneClass(currentStatus, statusTone)} rounded-md font-medium text-xs px-2.5 py-0.5 border-0 capitalize`}>
-                {currentStatus}
-              </Badge>
-            </SheetTitle>
+            <div className="flex flex-col gap-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <SheetTitle className="text-lg font-bold text-slate-900 m-0">
+                  {displayTitle}
+                </SheetTitle>
+                <Badge className={`${getStatusBadgeToneClass(currentStatus, statusTone)} rounded-md font-medium text-xs px-2.5 py-0.5 border-0 capitalize`}>
+                  {currentStatus}
+                </Badge>
+                {isPrepared ? (
+                  <span
+                    className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-sm"
+                    title={preparedAt ? `Prepared at ${formatDate(preparedAt, "MMM dd, yyyy")}` : "Prepared"}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                    Prepared
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-sm">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
+                    Not prepared
+                  </span>
+                )}
+              </div>
+              {isActuallyPrepareMode && (
+                <span className="text-xs text-blue-600 font-medium">Prepare Filing Mode</span>
+              )}
+            </div>
           </SheetHeader>
 
           {isLoading ? (
@@ -314,10 +393,35 @@ export default function TaxDetailsSheet({
           ) : (
             <div className="p-6 pt-0 flex flex-col gap-4 bg-white">
               {/* Prepare Mode Message Banner */}
-              {isPrepareMode && (
-                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-blue-600 shrink-0" />
-                  <span>{prepareRes?.data?.message || "Filing details ready for review"}</span>
+              {isActuallyPrepareMode && (
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800 flex items-start gap-2.5">
+                  <FileText className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-semibold block text-blue-900">
+                      {prepareRes?.data?.message || "Filing Worksheet Prepared"}
+                    </span>
+                    <span className="text-blue-700">
+                      Worksheet generated and state record marked as Prepared. Review the calculated amounts below before remitting or closing.
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Notice in review mode if filing is not yet prepared */}
+              {!isActuallyPrepareMode && !isPrepared && !isFiled && (
+                <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 flex items-center justify-between gap-3">
+                  <div>
+                    <span className="font-semibold block text-amber-900">Filing Not Prepared Yet</span>
+                    <span className="text-amber-700">Generate the worksheet summary to prepare this filing.</span>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleSwitchToPrepare}
+                    className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-8 px-3 shrink-0 cursor-pointer"
+                  >
+                    Prepare Filing
+                  </Button>
                 </div>
               )}
 
@@ -437,34 +541,42 @@ export default function TaxDetailsSheet({
                 </div>
               )}
 
-              {isPaymentDue && totalPayable > 0 ? (
-                <div className="space-y-2">
+              {/* Error Alert */}
+              {fileError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg text-xs">
+                  {fileError}
+                </div>
+              )}
+
+              {/* Action Buttons for Unfiled */}
+              {!isFiled && !isLegacyFiled && (totalPayable > 0 || isPaymentDue) && (
+                <div className="space-y-2 pt-1">
                   <Button
                     type="button"
                     onClick={handlePayClick}
                     size="lg"
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold cursor-pointer"
                   >
-                    Pay {formatCurrency(totalPayable)} Now
+                    Pay Tax {totalPayable > 0 ? `(${formatCurrency(totalPayable)})` : ""}
                   </Button>
                   <Button
                     type="button"
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
                     onClick={handleLegacyMarkFiled}
                     disabled={fileTaxMutation.isPending}
-                    className="w-full text-xs text-gray-500 hover:text-gray-700"
+                    className="w-full text-xs text-gray-600 hover:text-gray-900 border-gray-300 cursor-pointer"
                   >
                     {fileTaxMutation.isPending ? (
-                      <Loader2 className="w-3 h-3 animate-spin mr-1.5" />
+                      <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
                     ) : null}
-                    Mark as Filed (No Online Payment)
+                    Mark as Filed (Manual Remittance)
                   </Button>
                 </div>
-              ) : null}
+              )}
 
-              {/* Tax Partner Card */}
-              <div className="mt-2 border border-emerald-500 rounded-xl p-4 bg-emerald-50/40">
+              {/* Tax Engine & Processing Information */}
+              <div className="mt-2 border border-slate-200 rounded-xl p-4 bg-slate-50/60">
                 <div className="flex gap-3">
                   <ShieldCheck
                     className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5"
@@ -472,24 +584,28 @@ export default function TaxDetailsSheet({
                   />
                   <div>
                     <h4 className="text-xs font-bold text-slate-900 mb-1">
-                      Secure Payment
+                      Secure Remittance & Ledger
                     </h4>
                     <p className="text-xs text-slate-600">
-                      Payments are processed securely via our tax partner.
+                      {avalaraInfo?.returnsConfigured
+                        ? "Avalara Returns is configured. Filings are submitted and approved with Avalara."
+                        : "Ledger remittal mode active. Tax payments are recorded in local accounting records."}
                     </p>
                   </div>
                 </div>
-                <div className="mt-4 pt-3 border-t border-emerald-200 flex items-center justify-between text-xs">
+                <div className="mt-4 pt-3 border-t border-slate-200 flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] font-semibold text-slate-600">
-                      Tax Partner:
+                      Processing:
                     </span>
-                    <span className="text-[14px] font-bold text-[#ff6600] tracking-tight">
-                      Avalara
+                    <span className="text-[13px] font-bold text-slate-900 tracking-tight">
+                      {avalaraInfo?.returnsConfigured ? "Avalara Returns" : "Direct / Local Ledger"}
                     </span>
-                    <span className="text-[9px] font-bold text-slate-400 tracking-wider">
-                      CERTIFIED PARTNER
-                    </span>
+                    {avalaraInfo?.returnsConfigured && (
+                      <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1 rounded tracking-wider">
+                        CONFIGURED
+                      </span>
+                    )}
                   </div>
                   {avalaraInfo?.filingId && (
                     <span className="text-[11px] text-slate-500 font-mono font-medium">
