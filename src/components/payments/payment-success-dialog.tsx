@@ -23,6 +23,7 @@ type PaymentSuccessDialogProps = {
   receiptEmail?: string;
   status?: string;
   estimatedSettlement?: string;
+  mode?: string;
   isDownloading?: boolean;
   onDownload?: () => void;
 };
@@ -37,6 +38,7 @@ export default function PaymentSuccessDialog({
   receiptEmail = "accounts@acmeindustries.com",
   status = "Processing",
   estimatedSettlement = "1-3 business days",
+  mode,
   isDownloading = false,
   onDownload,
 }: PaymentSuccessDialogProps) {
@@ -108,6 +110,20 @@ export default function PaymentSuccessDialog({
               <div className="text-base text-slate-900 sm:text-right">
                 {estimatedSettlement}
               </div>
+
+              {mode && (
+                <>
+                  <div className="flex items-center gap-4">
+                    <ShieldCheck className="size-6 shrink-0 text-slate-700" />
+                    <p className="">Processing Mode</p>
+                  </div>
+                  <div className="sm:text-right">
+                    <Badge variant="outline" className="rounded-md border-slate-300 text-slate-700 font-medium">
+                      {mode.toLowerCase() === "avalara" ? "Avalara Returns" : "Local Ledger"}
+                    </Badge>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
