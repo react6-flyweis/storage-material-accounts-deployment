@@ -167,6 +167,9 @@ export type TaxFilingItem = {
   method?: string;
   receipt?: TaxFilingReceiptInfo;
   status: string | TaxFilingStatusObject;
+  isPrepared?: boolean;
+  prepared?: boolean;
+  preparedAt?: string | null;
   leadId?: string | TaxFilingLeadInfo | null;
   projectName?: string;
   jobId?: string;
@@ -238,9 +241,10 @@ export type TaxFilingDetailBreakdown = {
 export type TaxFilingDetailPayNow = {
   enabled: boolean;
   amount: number;
-  currency: string;
-  provider: string;
-  providerLabel: string;
+  currency?: string;
+  endpoint?: string;
+  provider?: string;
+  providerLabel?: string;
 };
 
 export type TaxFilingDetailRecentActivity = {
@@ -255,6 +259,9 @@ export type TaxFilingDetailItem = {
   state: string;
   stateLabel?: string;
   uiStatus?: TaxFilingStatusObject;
+  isPrepared?: boolean;
+  prepared?: boolean;
+  preparedAt?: string | null;
   filingPeriod?: string;
   filingPeriodRange?: {
     start: string;
@@ -269,6 +276,9 @@ export type TaxFilingDetailItem = {
 };
 
 export type TaxFilingDetailData = {
+  isPrepared?: boolean;
+  prepared?: boolean;
+  preparedAt?: string | null;
   detail: TaxFilingDetailItem;
   avalara?: {
     filingId?: string;
@@ -284,6 +294,9 @@ export type GetTaxFilingDetailResponse = {
 };
 
 export type TaxFilingPrepareData = {
+  isPrepared?: boolean;
+  prepared?: boolean;
+  preparedAt?: string | null;
   tax: {
     _id: string;
     state: string;
@@ -324,6 +337,7 @@ export type PayTaxPaymentData = {
 };
 
 export type PayTaxResponseData = {
+  mode?: "avalara" | "local" | string;
   payment: PayTaxPaymentData;
   tax?: {
     _id: string;
@@ -731,13 +745,8 @@ export async function submitTaxPaymentProvider(
   id: string,
   payload: PayTaxPayload
 ): Promise<PayTaxResponse> {
-  try {
-    return await approveTaxFilingProvider(id, payload);
-  } catch (err: unknown) {
-    // If Returns env is missing or approve returns 400 with Avalara error, fall back to /pay
-    console.warn("Approve endpoint failed, attempting /pay fallback:", err instanceof Error ? err.message : err);
-    return await payTaxFilingProvider(id, payload);
-  }
+  // Always call POST .../tax-filing/:taxId/pay. Backend selects Avalara or Local mode automatically.
+  return payTaxFilingProvider(id, payload);
 }
 
 export async function getTaxFilingReceiptProvider(
