@@ -9,6 +9,9 @@ import {
   Truck,
   Package,
   Store,
+  Wrench,
+  Receipt,
+  Building2,
   Calendar,
   ArrowRight,
   ArrowDownRight,
@@ -57,10 +60,14 @@ const STATUS_LABEL_MAP: Record<string, ApprovalStatus> = {
 };
 
 // API invoiceTypeCode → UI label
-const TYPE_LABEL_MAP: Record<string, InvoiceType> = {
+const TYPE_LABEL_MAP: Record<string, string> = {
   carrier: "Carrier",
   delivery_company: "Delivery Company",
   vendor: "Vendor",
+  vendor_payment: "Vendor Payment",
+  shipper_payment: "Shipper Payment",
+  equipment: "Equipment",
+  other_expenses: "Other Expenses",
 };
 
 // UI filter value → API status param
@@ -77,6 +84,14 @@ const UI_TO_API_TYPE: Record<string, string> = {
   Carrier: "carrier",
   "Delivery Company": "delivery_company",
   Vendor: "vendor",
+  "Vendor Payment": "vendor_payment",
+  "Shipper Payment": "shipper_payment",
+  Equipment: "equipment",
+  "Other Expenses": "other_expenses",
+  vendor_payment: "vendor_payment",
+  shipper_payment: "shipper_payment",
+  equipment: "equipment",
+  other_expenses: "other_expenses",
 };
 
 function mapApiItemToUi(item: PaymentApprovalApiItem): PaymentApprovalItem {
@@ -253,27 +268,58 @@ const PaymentApprovalsPage = () => {
     setIsSuccessModalOpen(true);
   };
 
-  const renderTypeBadge = (type: InvoiceType) => {
-    switch (type) {
-      case "Carrier":
+  const renderTypeBadge = (type: string) => {
+    const normalizedType = type?.toLowerCase().replace(/[\s-]+/g, "_");
+
+    switch (normalizedType) {
+      case "carrier":
         return (
           <span className="border border-blue-400 text-blue-600 bg-white rounded-full px-3 py-1 text-xs font-medium inline-flex items-center gap-1.5 shadow-2xs">
             <Truck className="w-3.5 h-3.5" />
             <span>Carrier</span>
           </span>
         );
-      case "Delivery Company":
+      case "delivery_company":
         return (
           <span className="border border-emerald-400 text-emerald-600 bg-white rounded-full px-3 py-1 text-xs font-medium inline-flex items-center gap-1.5 shadow-2xs">
             <Package className="w-3.5 h-3.5" />
             <span>Delivery Company</span>
           </span>
         );
-      case "Vendor":
+      case "vendor":
+      case "vendor_payment":
         return (
           <span className="border border-purple-400 text-purple-600 bg-white rounded-full px-3 py-1 text-xs font-medium inline-flex items-center gap-1.5 shadow-2xs">
             <Store className="w-3.5 h-3.5" />
-            <span>Vendor</span>
+            <span>{type === "vendor_payment" ? "Vendor Payment" : type}</span>
+          </span>
+        );
+      case "shipper_payment":
+        return (
+          <span className="border border-sky-400 text-sky-600 bg-white rounded-full px-3 py-1 text-xs font-medium inline-flex items-center gap-1.5 shadow-2xs">
+            <Truck className="w-3.5 h-3.5" />
+            <span>Shipper Payment</span>
+          </span>
+        );
+      case "equipment":
+        return (
+          <span className="border border-amber-400 text-amber-600 bg-white rounded-full px-3 py-1 text-xs font-medium inline-flex items-center gap-1.5 shadow-2xs">
+            <Wrench className="w-3.5 h-3.5" />
+            <span>Equipment</span>
+          </span>
+        );
+      case "other_expenses":
+        return (
+          <span className="border border-rose-400 text-rose-600 bg-white rounded-full px-3 py-1 text-xs font-medium inline-flex items-center gap-1.5 shadow-2xs">
+            <Receipt className="w-3.5 h-3.5" />
+            <span>Other Expenses</span>
+          </span>
+        );
+      default:
+        return (
+          <span className="border border-gray-300 text-gray-700 bg-white rounded-full px-3 py-1 text-xs font-medium inline-flex items-center gap-1.5 shadow-2xs">
+            <Building2 className="w-3.5 h-3.5" />
+            <span>{type || "Unknown"}</span>
           </span>
         );
     }
@@ -453,13 +499,13 @@ const PaymentApprovalsPage = () => {
 
           {/* Payee Type Dropdown */}
           <Select value={typeFilter} onValueChange={handleTypeChange}>
-            <SelectTrigger className="w-full sm:w-35 h-10 text-sm text-gray-700 bg-[#F3F4F6] border-none rounded-xl px-3.5 focus:ring-1 focus:ring-blue-500 shadow-none cursor-pointer">
-              <SelectValue placeholder="Status">
-                {typeFilter === "All" ? "Status" : typeFilter}
+            <SelectTrigger className="w-full sm:w-40 h-10 text-sm text-gray-700 bg-[#F3F4F6] border-none rounded-xl px-3.5 focus:ring-1 focus:ring-blue-500 shadow-none cursor-pointer">
+              <SelectValue placeholder="Invoice Type">
+                {typeFilter === "All" ? "Invoice Type" : typeFilter}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="All">All Status</SelectItem>
+              <SelectItem value="All">All Invoice Types</SelectItem>
               {filtersData?.payeeTypes && filtersData.payeeTypes.length > 0 ? (
                 filtersData.payeeTypes.map((pt) => (
                   <SelectItem key={pt.code} value={pt.label || pt.code}>
@@ -468,6 +514,10 @@ const PaymentApprovalsPage = () => {
                 ))
               ) : (
                 <>
+                  <SelectItem value="Vendor Payment">Vendor Payment</SelectItem>
+                  <SelectItem value="Shipper Payment">Shipper Payment</SelectItem>
+                  <SelectItem value="Equipment">Equipment</SelectItem>
+                  <SelectItem value="Other Expenses">Other Expenses</SelectItem>
                   <SelectItem value="Carrier">Carrier</SelectItem>
                   <SelectItem value="Delivery Company">Delivery Company</SelectItem>
                   <SelectItem value="Vendor">Vendor</SelectItem>
