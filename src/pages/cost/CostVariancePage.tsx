@@ -90,7 +90,7 @@ export interface VarianceDetailRow {
   varianceType: "over" | "under" | "exact";
   status: "Over Budget" | "Under Budget" | "On Budget" | string;
   source?: string;
-  breakdown?: CostVarianceBreakdown;
+  // breakdown?: CostVarianceBreakdown;
 }
 
 export default function CostVariancePage() {
@@ -246,9 +246,7 @@ export default function CostVariancePage() {
               ? `-$${Math.abs(rawVariance).toLocaleString()}`
               : "$0",
         variancePct:
-          rawPct != null
-            ? `${rawPct > 0 ? "+" : ""}${rawPct}%`
-            : undefined,
+          rawPct != null ? `${rawPct > 0 ? "+" : ""}${rawPct}%` : undefined,
         rawAwarded,
         rawActual,
         rawVariance,
@@ -382,12 +380,7 @@ export default function CostVariancePage() {
     });
 
     return rows;
-  }, [
-    varianceRows,
-    search,
-    selectedProjectLabel,
-    selectedStatus,
-  ]);
+  }, [varianceRows, search, selectedProjectLabel, selectedStatus]);
 
   const totalEntries = filteredRows.length;
   const totalPages = Math.max(1, Math.ceil(totalEntries / rowsPerPage));
@@ -450,7 +443,8 @@ export default function CostVariancePage() {
               </svg>
             </span>
             <span>
-              Track awarded amounts vs actual invoices and identify cost discrepancies
+              Track awarded amounts vs actual invoices and identify cost
+              discrepancies
             </span>
           </div>
         </div>
