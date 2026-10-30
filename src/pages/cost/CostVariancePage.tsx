@@ -61,6 +61,7 @@ export interface HighVarianceAlertItem {
   actual: string;
   variance: string;
   percentageBadge: string;
+  source?: string;
 }
 
 export interface TrendChartPoint {
@@ -71,7 +72,10 @@ export interface TrendChartPoint {
 
 export interface VarianceDetailRow {
   id: string;
+  leadId?: string;
   project: string;
+  projectName?: string;
+  jobId?: string | number;
   description: string;
   deliveryId: string;
   vendor: string;
@@ -79,14 +83,19 @@ export interface VarianceDetailRow {
   awardedAmount: string;
   actualInvoice: string;
   variance: string;
+  variancePct?: string;
+  rawAwarded: number;
+  rawActual: number;
   rawVariance: number;
   varianceType: "over" | "under" | "exact";
-  status: "Over Budget" | "Under Budget" | "On Budget";
+  status: "Over Budget" | "Under Budget" | "On Budget" | string;
+  source?: string;
+  breakdown?: CostVarianceBreakdown;
 }
 
 export default function CostVariancePage() {
   // --- Unified Filter States ---
-  // 1. Single unified search input
+  // 1. Single unified search input (project name / job id / description / vendor)
   const [search, setSearch] = useState("");
 
   // 2. Unified project selector (standard component across project)
@@ -94,7 +103,7 @@ export default function CostVariancePage() {
     useState("All Projects");
   const [selectedLeadId, setSelectedLeadId] = useState("");
 
-  // 3. Status filter state
+  // 3. Status filter state (Over Budget, Under Budget, On Budget)
   const [selectedStatus, setSelectedStatus] = useState("All Status");
 
   // 4. Date range filter states
@@ -104,19 +113,14 @@ export default function CostVariancePage() {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   /*
-   * =========================================================================
-   * FILTERS NOT CONNECTED TO API (Documented as requested):
-   * 1. Designation (selectedDesignation):
-   *    - The backend /api/account/costs/variance endpoints do not accept a
-   *      designation parameter. Designation is specific to employee/salary costs.
-   * 2. Price Range (selectedPriceRange):
-   *    - The backend variance endpoints do not have price range filtering.
-   * 3. Sort By (selectedSort):
-   *    - The backend does not support custom variance sort ordering;
-   *      therefore, sorting is handled client-side on the records.
-   * =========================================================================
+   * Filters connected to backend API:
+   * 1. Search (search) -> /api/account/costs/variance/details?search=...
+   * 2. Project (leadId / project) -> /api/account/costs/variance/details?leadId=...
+   * 3. Status (status) -> /api/account/costs/variance/details?status=...
+   * 4. Date Range (startDate, endDate) -> /api/account/costs/variance/details?startDate=...&endDate=...
+   *
+   * Disconnected filters (Designation, Price Range, Sort By) are hidden.
    */
-  const [selectedSort, setSelectedSort] = useState("Sort By : Last 7 Days");
 
   // Pagination
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -130,6 +134,7 @@ export default function CostVariancePage() {
     () => ({
       search: search.trim() || undefined,
       leadId: selectedLeadId || undefined,
+      projectId: selectedLeadId || undefined,
       project:
         selectedProjectLabel !== "All Projects"
           ? selectedProjectLabel
@@ -137,6 +142,7 @@ export default function CostVariancePage() {
       status: selectedStatus !== "All Status" ? selectedStatus : undefined,
       startDate: startDate || undefined,
       endDate: endDate || undefined,
+      view: "project", // Default view: whole project planned budget vs whole project expense
     }),
     [
       search,
@@ -165,45 +171,96 @@ export default function CostVariancePage() {
       : Array.isArray(detailsData)
         ? detailsData
         : [];
+
     return rawRows.map((row, idx) => {
+      // Awarded Amount or Planned Budget
+      const rawAwarded =
+        row.plannedBudget != null
+          ? Number(row.plannedBudget)
+          : row.awardedAmount != null
+            ? Number(row.awardedAmount)
+            : 0;
+
+      // Actual Invoice or Actual Expense
+      const rawActual =
+        row.actualExpense != null
+          ? Number(row.actualExpense)
+          : row.actualInvoice != null
+            ? Number(row.actualInvoice)
+            : 0;
+
+      // Variance
       const rawVariance =
         typeof row.variance === "number"
           ? row.variance
-          : Number(row.variance) || 0;
+          : row.variance != null
+            ? Number(row.variance)
+            : rawActual - rawAwarded;
+
+      // Variance percentage
+      let rawPct: number | null = null;
+      if (row.variancePct != null) {
+        rawPct = Number(row.variancePct);
+      } else if (rawAwarded > 0) {
+        rawPct = Number(((rawVariance / rawAwarded) * 100).toFixed(1));
+      }
+
+      // Status
+      const approvalStatus =
+        row.approvalStatus ||
+        row.status ||
+        (rawVariance > 0
+          ? "Over Budget"
+          : rawVariance < 0
+            ? "Under Budget"
+            : "On Budget");
+
+      const varianceType: "over" | "under" | "exact" =
+        row.varianceType ||
+        (approvalStatus === "Over Budget" || rawVariance > 0
+          ? "over"
+          : approvalStatus === "Under Budget" || rawVariance < 0
+            ? "under"
+            : "exact");
+
       return {
         id: row._id || row.id || `row-${idx}`,
-        project: row.project || "General",
-        description: row.description || "-",
+        leadId: row.leadId,
+        project: row.projectName || row.project || "General",
+        projectName: row.projectName || row.project,
+        jobId: row.jobId,
+        description:
+          row.description ||
+          (row.source === "project_budget"
+            ? "Total project budget vs total expense"
+            : "-"),
         deliveryId: row.deliveryId || "-",
-        vendor: row.vendor || "-",
+        vendor: row.vendor || "",
         vendorCode: row.vendorCode || "-",
-        awardedAmount:
-          typeof row.awardedAmount === "number"
-            ? `$${row.awardedAmount.toLocaleString()}`
-            : String(row.awardedAmount || "$0"),
-        actualInvoice:
-          typeof row.actualInvoice === "number"
-            ? `$${row.actualInvoice.toLocaleString()}`
-            : String(row.actualInvoice || "$0"),
+        awardedAmount: `$${rawAwarded.toLocaleString()}`,
+        actualInvoice: `$${rawActual.toLocaleString()}`,
         variance:
           rawVariance > 0
             ? `+$${rawVariance.toLocaleString()}`
-            : `$${rawVariance.toLocaleString()}`,
-        rawVariance,
-        varianceType:
-          row.varianceType ||
-          (rawVariance > 0 ? "over" : rawVariance < 0 ? "under" : "exact"),
-        status:
-          (row.status as "Over Budget" | "Under Budget" | "On Budget") ||
-          (rawVariance > 0
-            ? "Over Budget"
             : rawVariance < 0
-              ? "Under Budget"
-              : "On Budget"),
+              ? `-$${Math.abs(rawVariance).toLocaleString()}`
+              : "$0",
+        variancePct:
+          rawPct != null
+            ? `${rawPct > 0 ? "+" : ""}${rawPct}%`
+            : undefined,
+        rawAwarded,
+        rawActual,
+        rawVariance,
+        varianceType,
+        status: approvalStatus,
+        source: row.source,
+        breakdown: row.breakdown,
       };
     });
   }, [detailsData]);
 
+  // High Variance Alerts (project budget vs expense ±5% variance)
   const highVarianceAlerts = useMemo(() => {
     const rawList = Array.isArray(alertsData)
       ? alertsData
@@ -215,26 +272,56 @@ export default function CostVariancePage() {
             ? (alertsData as unknown as { data: unknown[] }).data
             : [];
 
-    return rawList.map((a: any, idx: number) => ({
-      id: a._id || a.id || `alert-${idx}`,
-      title: a.title,
-      subtitle: a.subtitle || a.projectName || "Cost Overrun Alert",
-      awarded:
-        typeof a.awarded === "number"
-          ? `$${a.awarded.toLocaleString()}`
-          : String(a.awarded || "$0"),
-      actual:
-        typeof a.actual === "number"
-          ? `$${a.actual.toLocaleString()}`
-          : String(a.actual || "$0"),
-      variance:
+    return rawList.map((a: any, idx: number) => {
+      const awarded =
+        a.plannedBudget != null
+          ? Number(a.plannedBudget)
+          : a.awarded != null
+            ? Number(a.awarded)
+            : 0;
+      const actual =
+        a.actualExpense != null
+          ? Number(a.actualExpense)
+          : a.actual != null
+            ? Number(a.actual)
+            : 0;
+      const rawVariance =
         typeof a.variance === "number"
-          ? a.variance > 0
-            ? `+$${a.variance.toLocaleString()}`
-            : `$${a.variance.toLocaleString()}`
-          : String(a.variance || "0"),
-      percentageBadge: a.percentageBadge || "+0%",
-    }));
+          ? a.variance
+          : a.variance != null
+            ? Number(a.variance)
+            : actual - awarded;
+
+      let pct = a.percentageBadge;
+      if (!pct) {
+        if (a.variancePct != null) {
+          const num = Number(a.variancePct);
+          pct = `${num > 0 ? "+" : ""}${num}%`;
+        } else if (awarded > 0) {
+          const num = ((rawVariance / awarded) * 100).toFixed(1);
+          pct = `${Number(num) > 0 ? "+" : ""}${num}%`;
+        } else {
+          pct = "+0%";
+        }
+      }
+
+      return {
+        id: a._id || a.id || `alert-${idx}`,
+        title: a.title || a.projectName || a.project || "Budget Variance Alert",
+        subtitle:
+          a.subtitle ||
+          (a.jobId ? `Job #${a.jobId} • ` : "") +
+            (a.projectName || a.description || "Project budget vs expense"),
+        awarded: `$${awarded.toLocaleString()}`,
+        actual: `$${actual.toLocaleString()}`,
+        variance:
+          rawVariance > 0
+            ? `+$${rawVariance.toLocaleString()}`
+            : `$${rawVariance.toLocaleString()}`,
+        percentageBadge: pct,
+        source: a.source,
+      };
+    });
   }, [alertsData]);
 
   const trendChartData: TrendChartPoint[] = useMemo(() => {
@@ -258,7 +345,7 @@ export default function CostVariancePage() {
   // Filtered rows (client-side matching and sorting for instant reactivity)
   const filteredRows = useMemo(() => {
     let rows = varianceRows.filter((row) => {
-      // Unified search filter
+      // Unified search filter (project name, jobId, description, vendor, deliveryId)
       if (search.trim()) {
         const q = search.toLowerCase();
         const matches =
@@ -266,6 +353,7 @@ export default function CostVariancePage() {
           row.vendor.toLowerCase().includes(q) ||
           row.deliveryId.toLowerCase().includes(q) ||
           row.project.toLowerCase().includes(q) ||
+          (row.jobId && String(row.jobId).toLowerCase().includes(q)) ||
           row.vendorCode.toLowerCase().includes(q);
         if (!matches) return false;
       }
@@ -282,20 +370,16 @@ export default function CostVariancePage() {
         }
       }
 
-      // Status filter
+      // Status filter (uses approvalStatus text)
       if (selectedStatus !== "All Status") {
-        if (row.status !== selectedStatus) return false;
+        const matchesStatus =
+          row.status.toLowerCase().includes(selectedStatus.toLowerCase()) ||
+          selectedStatus.toLowerCase().includes(row.status.toLowerCase());
+        if (!matchesStatus) return false;
       }
 
       return true;
     });
-
-    // Client-side sort handling
-    if (selectedSort === "Sort By : Highest Variance") {
-      rows = [...rows].sort((a, b) => b.rawVariance - a.rawVariance);
-    } else if (selectedSort === "Sort By : Lowest Variance") {
-      rows = [...rows].sort((a, b) => a.rawVariance - b.rawVariance);
-    }
 
     return rows;
   }, [
@@ -303,7 +387,6 @@ export default function CostVariancePage() {
     search,
     selectedProjectLabel,
     selectedStatus,
-    selectedSort,
   ]);
 
   const totalEntries = filteredRows.length;
@@ -323,11 +406,11 @@ export default function CostVariancePage() {
     setIsExportOpen(false);
     if (type === "csv" || type === "excel") {
       const headers =
-        "Project,Description,Delivery ID,Vendor,Vendor Code,Awarded Amount,Actual Invoice,Variance,Status\n";
+        "Project,Job ID,Description,Vendor,Awarded Amount,Actual Invoice,Variance,Status\n";
       const rows = filteredRows
         .map(
           (r) =>
-            `"${r.project}","${r.description}","${r.deliveryId}","${r.vendor}","${r.vendorCode}","${r.awardedAmount}","${r.actualInvoice}","${r.variance}","${r.status}"`,
+            `"${r.project}","${r.jobId || ""}","${r.description}","${r.vendor || ""}","${r.awardedAmount}","${r.actualInvoice}","${r.variance}","${r.status}"`,
         )
         .join("\n");
       const blob = new Blob([headers + rows], {
@@ -347,7 +430,7 @@ export default function CostVariancePage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F4F7FE] p-4 md:p-6 lg:p-8 space-y-6 text-[#1E293B] font-sans antialiased">
+    <div className=" space-y-6 font-sans antialiased">
       {/* ----------------- Header Section ----------------- */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -367,8 +450,7 @@ export default function CostVariancePage() {
               </svg>
             </span>
             <span>
-              Track awarded amounts vs actual invoices and identify cost
-              discrepancies
+              Track awarded amounts vs actual invoices and identify cost discrepancies
             </span>
           </div>
         </div>
@@ -424,14 +506,25 @@ export default function CostVariancePage() {
             {isSummaryLoading ? (
               <Skeleton className="h-7 w-20" />
             ) : (
-              <div className="text-2xl font-bold text-[#10B981] tracking-tight">
+              <div
+                className={`text-2xl font-bold tracking-tight ${
+                  Number(summaryData?.netVariance ?? 0) < 0
+                    ? "text-[#10B981]"
+                    : Number(summaryData?.netVariance ?? 0) > 0
+                      ? "text-[#EF4444]"
+                      : "text-[#3B82F6]"
+                }`}
+              >
                 {summaryData?.netVariance != null
                   ? `$${Number(summaryData.netVariance).toLocaleString()}`
                   : "$0"}
               </div>
             )}
-            <p className="text-[11px] text-[#94A3B8] font-normal">
-              {summaryData?.netVarianceSub || "Overall variance"}
+            <p className="text-[11px] text-[#94A3B8] font-normal truncate">
+              {summaryData?.totalPlannedBudget != null &&
+              summaryData?.totalActualExpense != null
+                ? `Budget: $${Number(summaryData.totalPlannedBudget).toLocaleString()} · Spent: $${Number(summaryData.totalActualExpense).toLocaleString()}`
+                : summaryData?.netVarianceSub || "Overall variance"}
             </p>
           </div>
           <div className="w-12 h-12 rounded-xl bg-[#F1F5F9] flex items-center justify-center text-[#64748B] font-semibold text-lg">
@@ -500,8 +593,10 @@ export default function CostVariancePage() {
                 {summaryData?.onBudgetCount ?? 0}
               </div>
             )}
-            <p className="text-[11px] text-[#3B82F6] font-medium">
-              {summaryData?.onBudgetSub || "Exact match"}
+            <p className="text-[11px] text-[#3B82F6] font-medium truncate">
+              {summaryData?.projectCount != null
+                ? `${summaryData.projectCount} budgeted projects${summaryData.noBudget ? ` (${summaryData.noBudget} no budget)` : ""}`
+                : summaryData?.onBudgetSub || "Exact match"}
             </p>
           </div>
           <div className="w-12 h-12 rounded-xl bg-[#DBEAFE] flex items-center justify-center text-[#3B82F6]">
@@ -682,9 +777,9 @@ export default function CostVariancePage() {
       </div>
 
       {/* ----------------- Top Controls (Search & Filters Above Table) ----------------- */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-        {/* Unified Search Input (replaces duplicate top/table search) */}
-        <div className="md:col-span-6 relative">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {/* Unified Search Input */}
+        <div className="relative">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8] pointer-events-none" />
           <Input
             type="text"
@@ -698,8 +793,8 @@ export default function CostVariancePage() {
           />
         </div>
 
-        {/* Unified Project Selector (Standard ProjectSelectorDropdownModal used across the project) */}
-        <div className="md:col-span-3">
+        {/* Unified Project Selector */}
+        <div>
           <ProjectSelectorDropdownModal
             trigger={
               <Button
@@ -722,8 +817,8 @@ export default function CostVariancePage() {
           />
         </div>
 
-        {/* Status Filter (shadcn Select component) */}
-        <div className="md:col-span-3">
+        {/* Status Filter */}
+        <div>
           <Select
             value={selectedStatus}
             onValueChange={(val) => {
@@ -742,6 +837,75 @@ export default function CostVariancePage() {
             </SelectContent>
           </Select>
         </div>
+
+        {/* Date Range Filter */}
+        <div className="relative">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setIsCalendarOpen(!isCalendarOpen)}
+            className={`w-full h-10 px-3 bg-white border rounded-xl text-xs md:text-sm font-medium cursor-pointer shadow-xs transition-colors flex items-center justify-between gap-2 ${
+              dateRangeStr
+                ? "border-blue-500 text-blue-600 bg-blue-50/30"
+                : "border-[#E2E8F0] text-[#475569] hover:bg-[#F8FAFC]"
+            }`}
+          >
+            <div className="flex items-center gap-2 truncate">
+              <Calendar className="w-4 h-4 text-[#94A3B8] shrink-0" />
+              <span className="truncate">
+                {dateRangeStr || "Select Date Range"}
+              </span>
+            </div>
+            {dateRangeStr ? (
+              <span
+                role="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDateRangeStr("");
+                  setStartDate("");
+                  setEndDate("");
+                  setCurrentPage(1);
+                }}
+                className="p-0.5 hover:bg-slate-200 rounded-full text-slate-400 hover:text-slate-700"
+              >
+                <X className="w-3.5 h-3.5" />
+              </span>
+            ) : (
+              <ChevronDown className="w-4 h-4 text-[#94A3B8] shrink-0" />
+            )}
+          </Button>
+
+          {isCalendarOpen && (
+            <CalendarRangePickerModal
+              isOpen={isCalendarOpen}
+              onClose={() => setIsCalendarOpen(false)}
+              initialStartDate={startDate || undefined}
+              initialEndDate={endDate || undefined}
+              onApply={(range) => {
+                if (range && range.startDate && range.endDate) {
+                  setStartDate(range.startDate);
+                  setEndDate(range.endDate);
+                  setDateRangeStr(`${range.startDate} - ${range.endDate}`);
+                  setCurrentPage(1);
+                } else if (range?.from && range?.to) {
+                  const fromStr = range.from.toISOString().slice(0, 10);
+                  const toStr = range.to.toISOString().slice(0, 10);
+                  setStartDate(fromStr);
+                  setEndDate(toStr);
+                  setDateRangeStr(`${fromStr} - ${toStr}`);
+                  setCurrentPage(1);
+                }
+                setIsCalendarOpen(false);
+              }}
+              onSelectRange={(rangeStr) => {
+                if (rangeStr) {
+                  setDateRangeStr(rangeStr);
+                }
+              }}
+              align="right"
+            />
+          )}
+        </div>
       </div>
 
       {/* ----------------- Table Container with Subheader & Filter Row ----------------- */}
@@ -751,102 +915,6 @@ export default function CostVariancePage() {
           <h2 className="text-base md:text-lg font-bold text-[#1E293B]">
             Variance Details
           </h2>
-
-          {/* Action filters bar */}
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Date range picker trigger button */}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setIsCalendarOpen(true)}
-              className="inline-flex items-center gap-1.5 h-8 px-3 bg-white border border-[#E2E8F0] rounded-lg text-xs text-[#64748B] hover:bg-[#F8FAFC] cursor-pointer"
-            >
-              <Calendar className="w-3.5 h-3.5 text-[#94A3B8]" />
-              <span>{dateRangeStr || "dd/mm/yyyy - dd/mm/yyyy"}</span>
-              {dateRangeStr && (
-                <span
-                  role="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setDateRangeStr("");
-                    setStartDate("");
-                    setEndDate("");
-                    setCurrentPage(1);
-                  }}
-                  className="ml-1 p-0.5 hover:bg-slate-200 rounded-full text-slate-400 hover:text-slate-700"
-                >
-                  <X className="w-3 h-3" />
-                </span>
-              )}
-            </Button>
-
-            {/*
-              =================================================================
-              FILTER NOT CONNECTED TO API:
-              Designation is an employee/payroll filter and is not applicable
-              to material/vendor cost variance endpoints.
-              =================================================================
-            */}
-            {/* 
-            <div className="relative">
-              <Select disabled value={selectedDesignation}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="Designation (Not Connected)" />
-                </SelectTrigger>
-              </Select>
-            </div>
-            */}
-
-            {/*
-              =================================================================
-              REDUNDANT DUPLICATE PROJECT SELECTOR REMOVED:
-              Previously, a second project dropdown with hardcoded names was
-              placed here. Removed in favor of the unified ProjectSelector above.
-              =================================================================
-            */}
-
-            {/*
-              =================================================================
-              FILTER NOT CONNECTED TO API:
-              Price Range filter ($0.00 - $100+, etc.) is not supported by the
-              backend variance API endpoints.
-              =================================================================
-            */}
-            {/* 
-            <div className="relative">
-              <Select disabled value={selectedPriceRange}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="Price Range (Not Connected)" />
-                </SelectTrigger>
-              </Select>
-            </div>
-            */}
-
-            {/* Sort by dropdown (shadcn Select - sorted client-side as API does not support variance sort) */}
-            <Select
-              value={selectedSort}
-              onValueChange={(val) => setSelectedSort(val)}
-            >
-              <SelectTrigger className="h-8 text-xs bg-white border border-[#E2E8F0] rounded-lg text-[#64748B]">
-                <SelectValue placeholder="Sort By : Last 7 Days" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Sort By : Last 7 Days">
-                  Sort By : Last 7 Days
-                </SelectItem>
-                <SelectItem value="Sort By : Highest Variance">
-                  Sort By : Highest Variance
-                </SelectItem>
-                <SelectItem value="Sort By : Lowest Variance">
-                  Sort By : Lowest Variance
-                </SelectItem>
-                <SelectItem value="Sort By : Newest">
-                  Sort By : Newest
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
         </div>
 
         {/* Row count inside table */}
@@ -872,15 +940,6 @@ export default function CostVariancePage() {
             </Select>
             <span>Entries</span>
           </div>
-
-          {/* 
-            =================================================================
-            REDUNDANT DUPLICATE SEARCH REMOVED:
-            Previously, a second search input ('tableSearch') existed here,
-            causing confusion with 'topSearch'. All search filtering is now
-            handled through the unified search input above.
-            =================================================================
-          */}
         </div>
 
         {/* ----------------- Table Component ----------------- */}
@@ -908,7 +967,7 @@ export default function CostVariancePage() {
                       <Skeleton className="h-4 w-36" />
                     </td>
                     <td className="py-4 px-5">
-                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-4 w-24" />
                     </td>
                     <td className="py-4 px-5">
                       <Skeleton className="h-4 w-20" />
@@ -939,9 +998,16 @@ export default function CostVariancePage() {
                     key={row.id}
                     className="hover:bg-[#F8FAFC]/80 transition-colors"
                   >
-                    {/* Project */}
-                    <td className="py-4 px-5 font-semibold text-[#1E293B]">
-                      {row.project}
+                    {/* Project / Project Name / Job ID */}
+                    <td className="py-4 px-5">
+                      <div className="font-semibold text-[#1E293B]">
+                        {row.project}
+                      </div>
+                      {row.jobId && (
+                        <div className="text-[11px] text-[#64748B] mt-0.5 font-normal">
+                          Job #{row.jobId}
+                        </div>
+                      )}
                     </td>
 
                     {/* Description & DEL Code */}
@@ -949,42 +1015,67 @@ export default function CostVariancePage() {
                       <div className="font-semibold text-[#1E293B]">
                         {row.description}
                       </div>
-                      <div className="text-[11px] text-[#94A3B8] mt-0.5 font-normal">
-                        {row.deliveryId}
-                      </div>
+                      {row.deliveryId && row.deliveryId !== "-" && (
+                        <div className="text-[11px] text-[#94A3B8] mt-0.5 font-normal">
+                          DEL: {row.deliveryId}
+                        </div>
+                      )}
                     </td>
 
-                    {/* Vendor & Code */}
+                    {/* Vendor (optional; often empty on project rows) */}
                     <td className="py-4 px-5">
-                      <div className="font-medium text-[#1E293B]">
-                        {row.vendor}
-                      </div>
-                      <div className="text-[11px] text-[#94A3B8] mt-0.5 font-normal">
-                        {row.vendorCode}
-                      </div>
+                      {row.vendor ? (
+                        <div>
+                          <div className="font-medium text-[#1E293B]">
+                            {row.vendor}
+                          </div>
+                          {row.vendorCode && row.vendorCode !== "-" && (
+                            <div className="text-[11px] text-[#94A3B8] mt-0.5 font-normal">
+                              {row.vendorCode}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 font-normal">—</span>
+                      )}
                     </td>
 
-                    {/* Awarded Amount */}
+                    {/* Awarded Amount or Planned Budget */}
                     <td className="py-4 px-5 font-semibold text-[#1E293B]">
                       {row.awardedAmount}
                     </td>
 
-                    {/* Actual Invoice */}
+                    {/* Actual Invoice or Actual Expense */}
                     <td className="py-4 px-5 font-semibold text-[#1E293B]">
                       {row.actualInvoice}
                     </td>
 
-                    {/* Variance */}
+                    {/* Variance and Variance Percentage */}
                     <td className="py-4 px-5 font-semibold">
-                      {row.varianceType === "over" && (
-                        <span className="text-[#EF4444]">{row.variance}</span>
-                      )}
-                      {row.varianceType === "under" && (
-                        <span className="text-[#10B981]">{row.variance}</span>
-                      )}
-                      {row.varianceType === "exact" && (
-                        <span className="text-[#64748B]">{row.variance}</span>
-                      )}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {row.varianceType === "over" && (
+                          <span className="text-[#EF4444]">{row.variance}</span>
+                        )}
+                        {row.varianceType === "under" && (
+                          <span className="text-[#10B981]">{row.variance}</span>
+                        )}
+                        {row.varianceType === "exact" && (
+                          <span className="text-[#64748B]">{row.variance}</span>
+                        )}
+                        {row.variancePct && (
+                          <span
+                            className={`text-[11px] font-medium px-1.5 py-0.5 rounded ${
+                              row.varianceType === "over"
+                                ? "bg-red-50 text-red-600"
+                                : row.varianceType === "under"
+                                  ? "bg-green-50 text-green-700"
+                                  : "bg-slate-100 text-slate-600"
+                            }`}
+                          >
+                            {row.variancePct}
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     {/* Approval Status Badge */}
@@ -1004,6 +1095,13 @@ export default function CostVariancePage() {
                           On Budget
                         </Badge>
                       )}
+                      {row.status !== "Over Budget" &&
+                        row.status !== "Under Budget" &&
+                        row.status !== "On Budget" && (
+                          <Badge className="bg-slate-100 text-slate-700 border-transparent font-medium text-xs rounded-md px-2.5 py-0.5">
+                            {row.status}
+                          </Badge>
+                        )}
                     </td>
                   </tr>
                 ))
@@ -1029,7 +1127,7 @@ export default function CostVariancePage() {
               <ChevronLeft className="w-4 h-4" />
             </button>
 
-            {/* Pagination buttons: 1, 2, 3, 4 (active), ... 15 */}
+            {/* Pagination buttons */}
             <button
               type="button"
               onClick={() => setCurrentPage(1)}
@@ -1111,23 +1209,6 @@ export default function CostVariancePage() {
           </div>
         </div>
       </div>
-
-      {/* Date Range Modal */}
-      {isCalendarOpen && (
-        <CalendarRangePickerModal
-          isOpen={isCalendarOpen}
-          onClose={() => setIsCalendarOpen(false)}
-          onApply={(range) => {
-            if (range && range.startDate && range.endDate) {
-              setStartDate(range.startDate);
-              setEndDate(range.endDate);
-              setDateRangeStr(`${range.startDate} - ${range.endDate}`);
-              setCurrentPage(1);
-            }
-            setIsCalendarOpen(false);
-          }}
-        />
-      )}
     </div>
   );
 }
