@@ -48,6 +48,8 @@ export interface CostListQueryParams {
   flowType?: "income" | "expense";
   timeframe?: string;
   project?: string;
+  view?: "project" | "freight" | "all" | string;
+  includeBreakdown?: boolean;
 }
 
 // --- 1. Salary Types ---
@@ -536,19 +538,33 @@ export interface CostVarianceSummary {
   underBudgetAmount?: number | string;
   onBudgetCount?: number;
   onBudgetSub?: string;
+  totalPlannedBudget?: number;
+  totalActualExpense?: number;
+  projectCount?: number;
+  noBudget?: number;
   [key: string]: unknown;
 }
 
 export interface CostVarianceAlertItem {
   _id?: string;
   id?: string;
+  leadId?: string;
+  jobId?: string | number;
   title: string;
   subtitle?: string;
+  project?: string;
   projectName?: string;
-  awarded: number | string;
-  actual: number | string;
+  description?: string;
+  awarded?: number | string;
+  plannedBudget?: number | string;
+  actual?: number | string;
+  actualExpense?: number | string;
   variance: number | string;
+  variancePct?: number | string;
   percentageBadge?: string;
+  source?: string;
+  approvalStatus?: string;
+  [key: string]: unknown;
 }
 
 export interface CostVarianceTrendItem {
@@ -558,20 +574,38 @@ export interface CostVarianceTrendItem {
   actualInvoice: number;
 }
 
+export interface CostVarianceBreakdown {
+  manualExpense?: number;
+  vendorMaterial?: number;
+  freight?: number;
+  categories?: Record<string, number>;
+  [key: string]: unknown;
+}
+
 export interface CostVarianceDetailItem {
-  _id: string;
+  _id?: string;
   id?: string;
-  project: string;
   leadId?: string;
+  projectId?: string;
+  project: string;
+  projectName?: string;
+  jobId?: string | number;
   description: string;
   deliveryId?: string;
   vendor: string;
   vendorCode?: string;
-  awardedAmount: number | string;
-  actualInvoice: number | string;
+  awardedAmount?: number | string;
+  plannedBudget?: number | string;
+  actualInvoice?: number | string;
+  actualExpense?: number | string;
   variance: number | string;
+  variancePct?: number | string;
   varianceType?: "over" | "under" | "exact";
+  approvalStatus?: "Over Budget" | "Under Budget" | "On Budget" | string;
   status: "Over Budget" | "Under Budget" | "On Budget" | string;
+  source?: string;
+  breakdown?: CostVarianceBreakdown;
+  [key: string]: unknown;
 }
 
 export interface CostVarianceDetailsResponse {
@@ -763,8 +797,8 @@ export interface CreateFutureCostPayload {
 }
 
 // Helper to normalize query parameters
-const cleanQueryParams = (params?: CostListQueryParams): Record<string, string | number> => {
-  const clean: Record<string, string | number> = {};
+const cleanQueryParams = (params?: CostListQueryParams): Record<string, string | number | boolean> => {
+  const clean: Record<string, string | number | boolean> = {};
   if (!params) return clean;
   if (params.page !== undefined) clean.page = params.page;
   if (params.limit !== undefined) clean.limit = params.limit;
@@ -780,6 +814,8 @@ const cleanQueryParams = (params?: CostListQueryParams): Record<string, string |
   if (params.flowType) clean.flowType = params.flowType;
   if (params.timeframe) clean.timeframe = params.timeframe;
   if (params.project && params.project !== "All") clean.project = params.project;
+  if (params.view) clean.view = params.view;
+  if (params.includeBreakdown !== undefined) clean.includeBreakdown = params.includeBreakdown;
   return clean;
 };
 
@@ -1312,7 +1348,30 @@ export const costsApi = createApi({
         method: "GET",
         params: cleanQueryParams(params || undefined),
       }),
-      transformResponse: unwrapData<CostVarianceDetailsResponse>,
+      transformResponse: (res: ApiResponse<unknown> | unknown): CostVarianceDetailsResponse => {
+        const unwrapped = unwrapData<unknown>(res);
+        if (Array.isArray(unwrapped)) {
+          return { rows: unwrapped as CostVarianceDetailItem[], total: unwrapped.length };
+        }
+        if (unwrapped && typeof unwrapped === "object") {
+          const obj = unwrapped as Record<string, unknown>;
+          if (Array.isArray(obj.rows)) {
+            return {
+              rows: obj.rows as CostVarianceDetailItem[],
+              total: typeof obj.total === "number" ? obj.total : obj.rows.length,
+              pagination: obj.pagination as any,
+            };
+          }
+          if (Array.isArray(obj.data)) {
+            return {
+              rows: obj.data as CostVarianceDetailItem[],
+              total: typeof obj.total === "number" ? obj.total : obj.data.length,
+              pagination: obj.pagination as any,
+            };
+          }
+        }
+        return { rows: [], total: 0 };
+      },
       providesTags: ["VarianceDetails"],
     }),
 
