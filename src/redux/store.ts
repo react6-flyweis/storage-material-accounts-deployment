@@ -1,4 +1,5 @@
 import { configureStore } from "@reduxjs/toolkit";
+import { setupListeners } from "@reduxjs/toolkit/query";
 import { persistReducer, persistStore } from "redux-persist";
 import storage from "redux-persist/lib/storage";
 import { authApi } from "./api/authApi";
@@ -16,6 +17,7 @@ import { reportsApi } from "./api/reportsApi";
 import { costsApi } from "./api/costsApi";
 import { deliveriesApi } from "./api/deliveriesApi";
 import { invoiceManagementApi } from "./api/invoiceManagementApi";
+import { profileApi } from "./api/profileApi";
 import authReducer from "./slices/authSlice";
 import inventoryReducer from "./slices/inventorySlice";
 import maintenanceReducer from "./slices/maintenanceSlice";
@@ -48,6 +50,7 @@ export const store = configureStore({
     [costsApi.reducerPath]: costsApi.reducer,
     [deliveriesApi.reducerPath]: deliveriesApi.reducer,
     [invoiceManagementApi.reducerPath]: invoiceManagementApi.reducer,
+    [profileApi.reducerPath]: profileApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -76,9 +79,12 @@ export const store = configureStore({
       reportsApi.middleware,
       costsApi.middleware,
       deliveriesApi.middleware,
-      invoiceManagementApi.middleware
+      invoiceManagementApi.middleware,
+      profileApi.middleware
     ),
 });
+
+setupListeners(store.dispatch);
 
 export const persistor = persistStore(store);
 
