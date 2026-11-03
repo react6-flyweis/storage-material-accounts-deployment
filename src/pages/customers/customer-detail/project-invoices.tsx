@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import {
   ArrowLeft,
@@ -18,115 +18,53 @@ import {
   AlertCircle,
   AlertTriangle,
   X,
-  Send,
+  Loader2,
+  RefreshCw,
+  Mail,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useMarkInvoicePaidMutation } from "@/redux/api/customerApi";
+import SuccessModal from "@/components/common_components/SuccessModal";
+import {
+  useGetProjectInvoicesSummaryQuery,
+  useGetProjectInvoiceRecordsQuery,
+  useMarkProjectInvoicePaidMutation,
+  useFollowUpProjectInvoiceMutation,
+  type ProjectInvoiceRecordItem,
+} from "@/redux/api/projectApi";
+import { formatCurrency, formatDisplayDate } from "@/lib/dashboardFormatters";
 
-export interface InvoiceRowItem {
-  id: string;
-  invoiceNumber: string;
-  amount: number;
-  amountFormatted: string;
-  sentDate: string;
-  sentDateRaw: string;
-  items: number;
-  status: "Pending" | "Paid" | "Overdue";
-}
-
-const INITIAL_INVOICES: InvoiceRowItem[] = [
-  {
-    id: "inv-1001",
-    invoiceNumber: "INV-1001",
-    amount: 30000,
-    amountFormatted: "$30,000",
-    sentDate: "22 Feb 2025",
-    sentDateRaw: "2025-02-22",
-    items: 125,
-    status: "Pending",
-  },
-  {
-    id: "inv-1002",
-    invoiceNumber: "INV-1002",
-    amount: 30000,
-    amountFormatted: "$30,000",
-    sentDate: "07 Feb 2025",
-    sentDateRaw: "2025-02-07",
-    items: 98,
-    status: "Paid",
-  },
-  {
-    id: "inv-1003",
-    invoiceNumber: "INV-1003",
-    amount: 30000,
-    amountFormatted: "$30,000",
-    sentDate: "30 Jan 2025",
-    sentDateRaw: "2025-01-30",
-    items: 210,
-    status: "Overdue",
-  },
-  {
-    id: "inv-1004",
-    invoiceNumber: "INV-1004",
-    amount: 30000,
-    amountFormatted: "$30,000",
-    sentDate: "17 Jan 2025",
-    sentDateRaw: "2025-01-17",
-    items: 125,
-    status: "Pending",
-  },
-  {
-    id: "inv-1005",
-    invoiceNumber: "INV-1005",
-    amount: 30000,
-    amountFormatted: "$30,000",
-    sentDate: "04 Jan 2025",
-    sentDateRaw: "2025-01-04",
-    items: 98,
-    status: "Paid",
-  },
-  {
-    id: "inv-1006",
-    invoiceNumber: "INV-1006",
-    amount: 30000,
-    amountFormatted: "$30,000",
-    sentDate: "09 Dec 2024",
-    sentDateRaw: "2024-12-09",
-    items: 210,
-    status: "Overdue",
-  },
-];
+export type { ProjectInvoiceRecordItem as InvoiceRowItem };
 
 export default function ProjectInvoicesPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { projectId, id } = useParams<{
+  const { projectId, id, customerId } = useParams<{
     projectId?: string;
     id?: string;
+    customerId?: string;
   }>();
 
-  const state = location.state as {
+  const locationState = location.state as {
     projectName?: string;
     projectId?: string;
+    leadId?: string;
     customerName?: string;
+    customerId?: string;
   } | null;
 
-  const currentProjectId = projectId || id || state?.projectId;
-  const projectTitle =
-    state?.projectName ||
-    (currentProjectId ? `Project ${currentProjectId}` : "Project 1");
-
-  // Invoices list state
-  const [invoices, setInvoices] = useState<InvoiceRowItem[]>(INITIAL_INVOICES);
-  const [markPaidMutation] = useMarkInvoicePaidMutation();
+  const currentProjectId =
+    projectId || id || locationState?.projectId || locationState?.leadId || "";
 
   // Search & Filter state
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
 
-  // Sorting state
-  const [sortField, setSortField] = useState<"sentDate" | "items" | "amount">("sentDate");
+  // Sorting state: backend supports sortBy: "dueDate" | "amount" | "date", sortOrder: "asc" | "desc"
+  const [sortField, setSortField] = useState<"dueDate" | "amount" | "date">(
+    "date",
+  );
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [sortLabel, setSortLabel] = useState("Latest");
   const [showSortDropdown, setShowSortDropdown] = useState(false);
@@ -134,202 +72,274 @@ export default function ProjectInvoicesPage() {
   // Checkbox selection state
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  // Pagination state: Default page 4 as shown in the screenshot
-  const [currentPage, setCurrentPage] = useState(4);
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const totalDisplayPages = 15;
 
-  // Follow-up modal state
-  const [followUpInvoice, setFollowUpInvoice] = useState<InvoiceRowItem | null>(null);
-  const [followUpSuccess, setFollowUpSuccess] = useState(false);
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setCurrentPage(1);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
-  // Stat cards data matching the image
-  const totalInvoicesCount = invoices.length;
-  const paidAmount = "$100,000";
-  const pendingAmount = "$20,000";
-  const overdueAmount = "$8,000";
+  // 1. Invoices summary API
+  const {
+    data: summaryData,
+    isLoading: isSummaryLoading,
+    isError: isSummaryError,
+    refetch: refetchSummary,
+  } = useGetProjectInvoicesSummaryQuery(currentProjectId, {
+    skip: !currentProjectId,
+  });
 
+  // 2. Invoices records API
+  const {
+    data: recordsResponse,
+    isLoading: isRecordsLoading,
+    isFetching: isRecordsFetching,
+    isError: isRecordsError,
+    refetch: refetchRecords,
+  } = useGetProjectInvoiceRecordsQuery(
+    {
+      projectId: currentProjectId,
+      page: currentPage,
+      limit: rowsPerPage,
+      search: debouncedSearch.trim() || undefined,
+      paymentStatus: statusFilter === "all" ? undefined : statusFilter,
+      sortBy: sortField,
+      sortOrder: sortDirection,
+    },
+    {
+      skip: !currentProjectId,
+    },
+  );
+
+  const records = useMemo(() => {
+    return recordsResponse?.records || [];
+  }, [recordsResponse]);
+
+  const totalRecords = recordsResponse?.total ?? records.length;
+  const totalPages = Math.max(1, Math.ceil(totalRecords / rowsPerPage));
+
+  // 3. Row action mutations
+  const [markPaid] = useMarkProjectInvoicePaidMutation();
+  const [followUp] = useFollowUpProjectInvoiceMutation();
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [successModal, setSuccessModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    subTitle: string;
+  }>({
+    isOpen: false,
+    title: "",
+    subTitle: "",
+  });
+
+  const handleMarkPaid = async (invoiceId: string, invoiceNumber: string) => {
+    try {
+      setActionLoadingId(`${invoiceId}-paid`);
+      setActionError(null);
+      const res = await markPaid({ invoiceId, projectId: currentProjectId }).unwrap();
+      setSuccessModal({
+        isOpen: true,
+        title: "Invoice Marked as Paid",
+        subTitle:
+          (res as { message?: string })?.message ||
+          `Invoice ${invoiceNumber} marked as paid successfully.`,
+      });
+    } catch (err: unknown) {
+      console.error("Failed to mark invoice as paid:", err);
+      const errorMsg =
+        (err as { data?: { message?: string }; message?: string })?.data?.message ||
+        (err as { message?: string })?.message ||
+        "Failed to mark invoice as paid. Please try again.";
+      setActionError(errorMsg);
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleFollowUp = async (invoiceId: string, invoiceNumber: string) => {
+    try {
+      setActionLoadingId(`${invoiceId}-followup`);
+      setActionError(null);
+      const res = await followUp({ invoiceId, projectId: currentProjectId }).unwrap();
+      const channels = res?.data?.channels;
+      const channelInfo = channels
+        ? [channels.email ? "Email" : null, channels.inApp ? "In-App Notification" : null]
+            .filter(Boolean)
+            .join(" & ")
+        : "";
+      setSuccessModal({
+        isOpen: true,
+        title: "Payment Follow-up Sent",
+        subTitle:
+          res?.message ||
+          `Payment follow-up sent for invoice ${invoiceNumber}${
+            channelInfo ? ` via ${channelInfo}` : ""
+          }.`,
+      });
+    } catch (err: unknown) {
+      console.error("Failed to send follow-up reminder:", err);
+      const errorMsg =
+        (err as { data?: { message?: string }; message?: string })?.data?.message ||
+        (err as { message?: string })?.message ||
+        "Failed to send follow-up reminder. Please try again.";
+      setActionError(errorMsg);
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  // Determine project title
+  const displayProjectName =
+    locationState?.projectName ||
+    recordsResponse?.projectName ||
+    (currentProjectId ? `Project ${currentProjectId}` : "Project");
+
+  // Stat cards matching API summary response
   const stats = [
     {
       title: "Total Invoices",
-      value: `${totalInvoicesCount} Invoices`,
+      value: isSummaryLoading
+        ? "..."
+        : `${summaryData?.totalInvoices ?? 0} Invoices`,
       bg: "bg-[#1E4D8C]",
       icon: <Hammer className="w-5 h-5 text-[#1E4D8C]" />,
     },
     {
       title: "Paid Amount",
-      value: paidAmount,
+      value: isSummaryLoading
+        ? "..."
+        : formatCurrency(summaryData?.totalReceived ?? 0),
       bg: "bg-[#22C55E]",
       icon: <ShieldCheck className="w-5 h-5 text-[#22C55E]" />,
     },
     {
       title: "Pending Amount",
-      value: pendingAmount,
+      value: isSummaryLoading
+        ? "..."
+        : formatCurrency(summaryData?.outstandingAmount ?? 0),
       bg: "bg-[#E5A500]",
       icon: <CircleDollarSign className="w-5 h-5 text-[#E5A500]" />,
     },
     {
       title: "Overdue Amount",
-      value: overdueAmount,
-      hasAlert: true,
+      value: isSummaryLoading
+        ? "..."
+        : formatCurrency(summaryData?.overdueAmount ?? 0),
+      hasAlert: (summaryData?.overdueAmount ?? 0) > 0,
       bg: "bg-[#FA743E]",
       icon: <LineChart className="w-5 h-5 text-[#FA743E]" />,
     },
   ];
 
-  // Filtering & Sorting
-  const filteredAndSortedInvoices = useMemo(() => {
-    let result = [...invoices];
-
-    if (searchTerm.trim()) {
-      const q = searchTerm.toLowerCase().trim();
-      result = result.filter(
-        (inv) =>
-          inv.invoiceNumber.toLowerCase().includes(q) ||
-          inv.amountFormatted.toLowerCase().includes(q) ||
-          inv.sentDate.toLowerCase().includes(q) ||
-          inv.status.toLowerCase().includes(q) ||
-          String(inv.items).includes(q)
-      );
-    }
-
-    if (statusFilter !== "all") {
-      result = result.filter(
-        (inv) => inv.status.toLowerCase() === statusFilter.toLowerCase()
-      );
-    }
-
-    result.sort((a, b) => {
-      let comparison = 0;
-      if (sortField === "sentDate") {
-        comparison =
-          new Date(a.sentDateRaw).getTime() - new Date(b.sentDateRaw).getTime();
-      } else if (sortField === "items") {
-        comparison = a.items - b.items;
-      } else if (sortField === "amount") {
-        comparison = a.amount - b.amount;
-      }
-      return sortDirection === "asc" ? comparison : -comparison;
-    });
-
-    return result;
-  }, [invoices, searchTerm, statusFilter, sortField, sortDirection]);
-
-  // Projects visible on current page
-  const visibleInvoices = useMemo(() => {
-    if (searchTerm || statusFilter !== "all") {
-      const start = (Math.max(1, currentPage) - 1) * rowsPerPage;
-      return filteredAndSortedInvoices.slice(start, start + rowsPerPage);
-    }
-    // Default mock pagination view shows the 6 invoices
-    return filteredAndSortedInvoices;
-  }, [filteredAndSortedInvoices, currentPage, rowsPerPage, searchTerm, statusFilter]);
-
   // Checkbox handlers
   const allCurrentSelected =
-    visibleInvoices.length > 0 &&
-    visibleInvoices.every((inv) => selectedIds.includes(inv.id));
+    records.length > 0 &&
+    records.every((inv) => selectedIds.includes(inv.invoiceId));
 
   const toggleSelectAll = () => {
     if (allCurrentSelected) {
       setSelectedIds((prev) =>
-        prev.filter((id) => !visibleInvoices.some((inv) => inv.id === id))
+        prev.filter((id) => !records.some((inv) => inv.invoiceId === id)),
       );
     } else {
-      const visibleIds = visibleInvoices.map((inv) => inv.id);
+      const visibleIds = records.map((inv) => inv.invoiceId);
       setSelectedIds((prev) => Array.from(new Set([...prev, ...visibleIds])));
     }
   };
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
     );
   };
 
-  // Header column sort
-  const handleSort = (field: "sentDate" | "items") => {
+  // Header column sort toggle
+  const handleHeaderSort = (field: "date" | "amount" | "dueDate") => {
     if (sortField === field) {
       setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
     } else {
       setSortField(field);
       setSortDirection("desc");
+      if (field === "date") setSortLabel("Latest");
+      else if (field === "amount") setSortLabel("Amount (High-Low)");
+      else if (field === "dueDate") setSortLabel("Due Date");
     }
+    setCurrentPage(1);
   };
 
-  // Sort dropdown selector
+  // Sort dropdown selection
   const handleSortSelect = (
     label: string,
-    field: "sentDate" | "items" | "amount",
-    dir: "asc" | "desc"
+    field: "dueDate" | "amount" | "date",
+    dir: "asc" | "desc",
   ) => {
     setSortLabel(label);
     setSortField(field);
     setSortDirection(dir);
     setShowSortDropdown(false);
+    setCurrentPage(1);
   };
 
-  // Mark as Paid action
-  const handleMarkAsPaid = async (invId: string) => {
-    try {
-      await markPaidMutation(invId).unwrap();
-    } catch {
-      // ignore
+  // Status badge renderer
+  const renderStatusBadge = (statusStr?: string, paymentStatusStr?: string) => {
+    const rawStatus = (paymentStatusStr || statusStr || "")
+      .toLowerCase()
+      .trim();
+
+    if (rawStatus === "paid") {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-[#DCFCE7] text-[#16A34A] border border-[#86EFAC]">
+          <CheckCircle2 className="w-3 h-3 text-[#16A34A]" />
+          Paid
+        </span>
+      );
     }
-    setInvoices((prev) =>
-      prev.map((inv) =>
-        inv.id === invId ? { ...inv, status: "Paid" as const } : inv
-      )
+
+    if (rawStatus === "overdue") {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-[#FEE2E2] text-[#DC2626] border border-[#FCA5A5]">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#DC2626]" />
+          Overdue
+          <AlertCircle className="w-3 h-3 text-[#DC2626]" />
+        </span>
+      );
+    }
+
+    // Default to pending / unpaid
+    return (
+      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-[#FEF9C3] text-[#D97706] border border-[#FDE047]">
+        {rawStatus === "unpaid" ? "Unpaid" : "Pending"}
+        <Clock className="w-3 h-3 text-[#D97706]" />
+      </span>
     );
   };
 
-  // Status badge renderer matching image
-  const renderStatusBadge = (status: "Pending" | "Paid" | "Overdue") => {
-    switch (status) {
-      case "Pending":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-[#FEF9C3] text-[#D97706] border border-[#FDE047]">
-            Pending
-            <Clock className="w-3 h-3 text-[#D97706]" />
-          </span>
-        );
-      case "Paid":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-[#DCFCE7] text-[#16A34A] border border-[#86EFAC]">
-            <CheckCircle2 className="w-3 h-3 text-[#16A34A]" />
-            Paid
-          </span>
-        );
-      case "Overdue":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-[#FEE2E2] text-[#DC2626] border border-[#FCA5A5]">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#DC2626]" />
-            Overdue
-            <AlertCircle className="w-3 h-3 text-[#DC2626]" />
-          </span>
-        );
-    }
-  };
-
-  // Render pagination buttons matching < 1 2 3 4 ... 15 > with orange active circle
+  // Render pagination buttons
   const renderPageNumbers = () => {
     const pages: (number | string)[] = [];
 
-    if (totalDisplayPages <= 6) {
-      for (let i = 1; i <= totalDisplayPages; i++) {
+    if (totalPages <= 6) {
+      for (let i = 1; i <= totalPages; i++) {
         pages.push(i);
       }
     } else {
       if (currentPage <= 4) {
-        pages.push(1, 2, 3, 4, "...", totalDisplayPages);
-      } else if (currentPage >= totalDisplayPages - 3) {
+        pages.push(1, 2, 3, 4, "...", totalPages);
+      } else if (currentPage >= totalPages - 3) {
         pages.push(
           1,
           "...",
-          totalDisplayPages - 3,
-          totalDisplayPages - 2,
-          totalDisplayPages - 1,
-          totalDisplayPages
+          totalPages - 3,
+          totalPages - 2,
+          totalPages - 1,
+          totalPages,
         );
       } else {
         pages.push(
@@ -339,7 +349,7 @@ export default function ProjectInvoicesPage() {
           currentPage,
           currentPage + 1,
           "...",
-          totalDisplayPages
+          totalPages,
         );
       }
     }
@@ -347,7 +357,10 @@ export default function ProjectInvoicesPage() {
     return pages.map((page, index) => {
       if (page === "...") {
         return (
-          <span key={`dots-${index}`} className="text-slate-400 text-xs px-1 select-none">
+          <span
+            key={`dots-${index}`}
+            className="text-slate-400 text-xs px-1 select-none"
+          >
             ...
           </span>
         );
@@ -371,8 +384,31 @@ export default function ProjectInvoicesPage() {
     });
   };
 
+  // If no projectId can be found
+  if (!currentProjectId) {
+    return (
+      <div className="p-8 text-center max-w-md mx-auto space-y-4 my-12 bg-white rounded-2xl shadow-xs border border-slate-200">
+        <div className="w-12 h-12 bg-amber-50 rounded-full flex items-center justify-center mx-auto text-amber-600">
+          <AlertCircle className="w-6 h-6" />
+        </div>
+        <h2 className="text-lg font-bold text-slate-900">Project Not Found</h2>
+        <p className="text-xs text-slate-500">
+          No project ID was provided in the route parameters or navigation
+          state.
+        </p>
+        <Button
+          onClick={() => navigate(-1)}
+          className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs px-4 py-2"
+        >
+          <ArrowLeft className="w-3.5 h-3.5 mr-1.5" />
+          Go Back
+        </Button>
+      </div>
+    );
+  }
+
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-6 min-h-screen bg-[#F0F4F8]">
+    <div className="space-y-5">
       {/* 1. Header: Back button, Title & Create New Invoice button */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -385,17 +421,33 @@ export default function ProjectInvoicesPage() {
             Back
           </Button>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-            {projectTitle.startsWith("Project") ? projectTitle : `Project 1`} - Invoices
+            {displayProjectName} - Invoices
           </h1>
         </div>
 
-        <Button
-          type="button"
-          onClick={() => navigate("/payments/new-invoice")}
-          className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-5 py-2.5 rounded-lg font-medium text-sm shadow-xs transition-colors cursor-pointer"
-        >
-          Create New Invoice
-        </Button>
+        <div className="flex items-center gap-2">
+          {(isRecordsFetching || isSummaryLoading) && (
+            <div className="flex items-center gap-1.5 text-xs text-slate-500 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-xs">
+              <RefreshCw className="w-3 h-3 animate-spin text-blue-600" />
+              <span>Updating...</span>
+            </div>
+          )}
+          <Button
+            type="button"
+            onClick={() =>
+              navigate("/payments/new-invoice", {
+                state: {
+                  projectId: currentProjectId,
+                  projectName: displayProjectName,
+                  customerId,
+                },
+              })
+            }
+            className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-5 py-2.5 rounded-lg font-medium text-sm shadow-xs transition-colors cursor-pointer"
+          >
+            Create New Invoice
+          </Button>
+        </div>
       </div>
 
       {/* 2. 4 Stat Cards */}
@@ -423,6 +475,39 @@ export default function ProjectInvoicesPage() {
         ))}
       </div>
 
+      {isSummaryError && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-center justify-between text-xs text-red-700">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+            <span>Could not load invoices summary statistics.</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => refetchSummary()}
+            className="underline font-semibold hover:text-red-900"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {actionError && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-center justify-between text-xs text-red-700">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+            <span>{actionError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setActionError(null)}
+            className="text-red-500 hover:text-red-700 p-0.5"
+            aria-label="Dismiss error"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* 3. Toolbar: Search, Filter & Sort */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         {/* Left: Search input & Filter button */}
@@ -431,12 +516,9 @@ export default function ProjectInvoicesPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
             <input
               type="text"
-              placeholder="Search"
+              placeholder="Search invoices"
               value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
+              onChange={(e) => setSearchTerm(e.target.value)}
               className="h-9 w-48 sm:w-56 rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-xs text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 shadow-none"
             />
           </div>
@@ -479,7 +561,7 @@ export default function ProjectInvoicesPage() {
 
                 <div className="space-y-1">
                   <label className="text-[11px] font-semibold text-slate-600">
-                    Status
+                    Payment Status
                   </label>
                   <select
                     value={statusFilter}
@@ -490,9 +572,10 @@ export default function ProjectInvoicesPage() {
                     className="w-full text-xs rounded-md border border-slate-200 p-1.5 text-slate-700 bg-white focus:outline-none focus:border-blue-500"
                   >
                     <option value="all">All Statuses</option>
-                    <option value="Pending">Pending</option>
-                    <option value="Paid">Paid</option>
-                    <option value="Overdue">Overdue</option>
+                    <option value="paid">Paid</option>
+                    <option value="pending">Pending</option>
+                    <option value="unpaid">Unpaid</option>
+                    <option value="overdue">Overdue</option>
                   </select>
                 </div>
 
@@ -521,7 +604,7 @@ export default function ProjectInvoicesPage() {
           </div>
         </div>
 
-        {/* Right: Sort by : Latest dropdown */}
+        {/* Right: Sort by dropdown */}
         <div className="relative">
           <button
             type="button"
@@ -533,49 +616,67 @@ export default function ProjectInvoicesPage() {
           >
             <ListFilter className="h-3.5 w-3.5 text-slate-500" />
             <span>
-              Sort by : <span className="font-semibold text-slate-900">{sortLabel}</span>
+              Sort by :{" "}
+              <span className="font-semibold text-slate-900">{sortLabel}</span>
             </span>
             <ChevronDown className="h-3.5 w-3.5 text-slate-500 ml-0.5" />
           </button>
 
           {showSortDropdown && (
-            <div className="absolute right-0 mt-1.5 w-44 bg-white rounded-xl shadow-lg border border-slate-200 p-1.5 z-20 space-y-0.5">
+            <div className="absolute right-0 mt-1.5 w-48 bg-white rounded-xl shadow-lg border border-slate-200 p-1.5 z-20 space-y-0.5">
               <button
                 type="button"
-                onClick={() => handleSortSelect("Latest", "sentDate", "desc")}
+                onClick={() => handleSortSelect("Latest", "date", "desc")}
                 className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${
                   sortLabel === "Latest"
                     ? "bg-blue-50 text-blue-600 font-semibold"
                     : "text-slate-700 hover:bg-slate-50"
                 }`}
               >
-                Latest
+                Latest (Date)
               </button>
               <button
                 type="button"
-                onClick={() => handleSortSelect("Oldest", "sentDate", "asc")}
+                onClick={() => handleSortSelect("Oldest", "date", "asc")}
                 className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${
                   sortLabel === "Oldest"
                     ? "bg-blue-50 text-blue-600 font-semibold"
                     : "text-slate-700 hover:bg-slate-50"
                 }`}
               >
-                Oldest
+                Oldest (Date)
               </button>
               <button
                 type="button"
-                onClick={() => handleSortSelect("Items (High-Low)", "items", "desc")}
+                onClick={() =>
+                  handleSortSelect("Due Date (Earliest)", "dueDate", "asc")
+                }
                 className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${
-                  sortLabel === "Items (High-Low)"
+                  sortLabel === "Due Date (Earliest)"
                     ? "bg-blue-50 text-blue-600 font-semibold"
                     : "text-slate-700 hover:bg-slate-50"
                 }`}
               >
-                Items (High-Low)
+                Due Date (Earliest)
               </button>
               <button
                 type="button"
-                onClick={() => handleSortSelect("Amount (High-Low)", "amount", "desc")}
+                onClick={() =>
+                  handleSortSelect("Due Date (Latest)", "dueDate", "desc")
+                }
+                className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${
+                  sortLabel === "Due Date (Latest)"
+                    ? "bg-blue-50 text-blue-600 font-semibold"
+                    : "text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                Due Date (Latest)
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  handleSortSelect("Amount (High-Low)", "amount", "desc")
+                }
                 className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${
                   sortLabel === "Amount (High-Low)"
                     ? "bg-blue-50 text-blue-600 font-semibold"
@@ -583,6 +684,19 @@ export default function ProjectInvoicesPage() {
                 }`}
               >
                 Amount (High-Low)
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  handleSortSelect("Amount (Low-High)", "amount", "asc")
+                }
+                className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${
+                  sortLabel === "Amount (Low-High)"
+                    ? "bg-blue-50 text-blue-600 font-semibold"
+                    : "text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                Amount (Low-High)
               </button>
             </div>
           )}
@@ -605,10 +719,18 @@ export default function ProjectInvoicesPage() {
                   />
                 </th>
                 <th className="px-5 py-4 font-bold text-slate-800">Invoice</th>
-                <th className="px-5 py-4 font-bold text-slate-800">Amount</th>
                 <th
                   className="px-5 py-4 font-bold text-slate-800 cursor-pointer select-none"
-                  onClick={() => handleSort("sentDate")}
+                  onClick={() => handleHeaderSort("amount")}
+                >
+                  <div className="inline-flex items-center gap-1">
+                    Amount
+                    <ArrowUpDown className="h-3 w-3 text-slate-400" />
+                  </div>
+                </th>
+                <th
+                  className="px-5 py-4 font-bold text-slate-800 cursor-pointer select-none"
+                  onClick={() => handleHeaderSort("date")}
                 >
                   <div className="inline-flex items-center gap-1">
                     Sent Date
@@ -617,82 +739,222 @@ export default function ProjectInvoicesPage() {
                 </th>
                 <th
                   className="px-5 py-4 font-bold text-slate-800 cursor-pointer select-none"
-                  onClick={() => handleSort("items")}
+                  onClick={() => handleHeaderSort("dueDate")}
                 >
                   <div className="inline-flex items-center gap-1">
-                    Items
+                    Due Date
                     <ArrowUpDown className="h-3 w-3 text-slate-400" />
                   </div>
                 </th>
+                <th className="px-5 py-4 font-bold text-slate-800">Items</th>
                 <th className="px-5 py-4 font-bold text-slate-800">Status</th>
-                <th className="px-5 py-4 font-bold text-slate-800 text-right"></th>
+                <th className="px-5 py-4 font-bold text-slate-800 text-right">
+                  Action
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
-              {visibleInvoices.length === 0 ? (
+              {isRecordsLoading ? (
                 <tr>
-                  <td colSpan={7} className="px-5 py-12 text-center text-slate-500">
+                  <td
+                    colSpan={8}
+                    className="px-5 py-12 text-center text-slate-500"
+                  >
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+                      <span className="text-xs text-slate-500">
+                        Loading invoices...
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              ) : isRecordsError ? (
+                <tr>
+                  <td
+                    colSpan={8}
+                    className="px-5 py-12 text-center text-slate-500"
+                  >
+                    <div className="flex flex-col items-center justify-center gap-2 text-red-600">
+                      <AlertCircle className="w-6 h-6" />
+                      <span className="text-sm font-semibold">
+                        Failed to load invoices
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => refetchRecords()}
+                        className="text-xs mt-1"
+                      >
+                        Try Again
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ) : records.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={8}
+                    className="px-5 py-12 text-center text-slate-500"
+                  >
                     No invoices found matching the criteria.
                   </td>
                 </tr>
               ) : (
-                visibleInvoices.map((inv) => (
-                  <tr
-                    key={inv.id}
-                    className="hover:bg-slate-50/60 transition-colors"
-                  >
-                    <td className="w-12 px-5 py-4">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.includes(inv.id)}
-                        onChange={() => toggleSelect(inv.id)}
-                        aria-label={`Select invoice ${inv.invoiceNumber}`}
-                        className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                      />
-                    </td>
-                    <td className="px-5 py-4 font-bold text-slate-900 whitespace-nowrap font-mono">
-                      {inv.invoiceNumber}
-                    </td>
-                    <td className="px-5 py-4 text-slate-700 font-medium">
-                      {inv.amountFormatted}
-                    </td>
-                    <td className="px-5 py-4 text-slate-600 whitespace-nowrap">
-                      {inv.sentDate}
-                    </td>
-                    <td className="px-5 py-4 text-slate-600">
-                      {inv.items}
-                    </td>
-                    <td className="px-5 py-4 whitespace-nowrap">
-                      {renderStatusBadge(inv.status)}
-                    </td>
-                    <td className="px-5 py-4 text-right">
-                      {inv.status === "Pending" ? (
-                        <Button
+                records.map((inv) => {
+                  const normalizedStatus = (
+                    inv.paymentStatus ||
+                    inv.status ||
+                    ""
+                  ).toLowerCase();
+                  const isPending =
+                    normalizedStatus === "pending" ||
+                    normalizedStatus === "unpaid";
+                  const isOverdue = normalizedStatus === "overdue";
+
+                  return (
+                    <tr
+                      key={inv.invoiceId}
+                      className="hover:bg-slate-50/60 transition-colors"
+                    >
+                      <td className="w-12 px-5 py-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(inv.invoiceId)}
+                          onChange={() => toggleSelect(inv.invoiceId)}
+                          aria-label={`Select invoice ${inv.invoiceNumber}`}
+                          className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                      </td>
+                      <td className="px-5 py-4 font-bold text-slate-900 whitespace-nowrap font-mono">
+                        <button
                           type="button"
-                          onClick={() => handleMarkAsPaid(inv.id)}
-                          className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-semibold px-4 py-1.5 h-auto rounded-lg shadow-xs transition-colors cursor-pointer"
+                          onClick={() => {
+                            navigate(`/invoices/project-invoices/${inv.invoiceId}`, {
+                              state: { invoice: inv },
+                            });
+                          }}
+                          className="hover:text-blue-600 hover:underline cursor-pointer text-left font-mono font-bold"
                         >
-                          Mark as Paid
-                        </Button>
-                      ) : inv.status === "Overdue" ? (
-                        <Button
-                          type="button"
-                          onClick={() => setFollowUpInvoice(inv)}
-                          className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-semibold px-4 py-1.5 h-auto rounded-lg shadow-xs transition-colors cursor-pointer"
-                        >
-                          Follow up
-                        </Button>
-                      ) : null}
-                    </td>
-                  </tr>
-                ))
+                          {inv.invoiceNumber}
+                        </button>
+                      </td>
+                      <td className="px-5 py-4 text-slate-700 font-medium">
+                        {formatCurrency(inv.amount)}
+                      </td>
+                      <td className="px-5 py-4 text-slate-600 whitespace-nowrap">
+                        {formatDisplayDate(inv.sentDate || inv.invoiceDate)}
+                      </td>
+                      <td className="px-5 py-4 text-slate-600 whitespace-nowrap">
+                        {inv.dueDate ? formatDisplayDate(inv.dueDate) : "-"}
+                      </td>
+                      <td className="px-5 py-4 text-slate-600">
+                        {inv.items ?? 1}
+                      </td>
+                      <td className="px-5 py-4 whitespace-nowrap">
+                        {renderStatusBadge(inv.status, inv.paymentStatus)}
+                      </td>
+                      <td className="px-5 py-4 text-right">
+                        <div className="inline-flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigate(`/invoices/project-invoices/${inv.invoiceId}`, {
+                                state: { invoice: inv },
+                              });
+                            }}
+                            className="px-2.5 py-1 text-xs text-slate-600 hover:text-slate-900 font-medium hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                          >
+                            Details
+                          </button>
+                          {isPending ? (
+                            <>
+                              <Button
+                                type="button"
+                                disabled={Boolean(actionLoadingId)}
+                                onClick={() => handleMarkPaid(inv.invoiceId, inv.invoiceNumber)}
+                                className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-semibold px-3 py-1.5 h-auto rounded-lg shadow-xs transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
+                              >
+                                {actionLoadingId === `${inv.invoiceId}-paid` ? (
+                                  <>
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                    Saving...
+                                  </>
+                                ) : (
+                                  "Mark as Paid"
+                                )}
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                disabled={Boolean(actionLoadingId)}
+                                onClick={() => handleFollowUp(inv.invoiceId, inv.invoiceNumber)}
+                                className="border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold px-3 py-1.5 h-auto rounded-lg transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
+                                title="Send payment reminder"
+                              >
+                                {actionLoadingId === `${inv.invoiceId}-followup` ? (
+                                  <>
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                    Sending...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Mail className="w-3 h-3 text-slate-500" />
+                                    Follow up
+                                  </>
+                                )}
+                              </Button>
+                            </>
+                          ) : isOverdue ? (
+                            <>
+                              <Button
+                                type="button"
+                                disabled={Boolean(actionLoadingId)}
+                                onClick={() => handleFollowUp(inv.invoiceId, inv.invoiceNumber)}
+                                className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-semibold px-3 py-1.5 h-auto rounded-lg shadow-xs transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
+                                title="Send overdue payment reminder"
+                              >
+                                {actionLoadingId === `${inv.invoiceId}-followup` ? (
+                                  <>
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                    Sending...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Mail className="w-3 h-3" />
+                                    Follow up
+                                  </>
+                                )}
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                disabled={Boolean(actionLoadingId)}
+                                onClick={() => handleMarkPaid(inv.invoiceId, inv.invoiceNumber)}
+                                className="border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold px-3 py-1.5 h-auto rounded-lg transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
+                              >
+                                {actionLoadingId === `${inv.invoiceId}-paid` ? (
+                                  <>
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                    Saving...
+                                  </>
+                                ) : (
+                                  "Mark as Paid"
+                                )}
+                              </Button>
+                            </>
+                          ) : null}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* 5. Bottom Pagination Bar matching screenshot */}
+      {/* 5. Bottom Pagination Bar */}
       <div className="bg-white rounded-2xl shadow-xs border border-slate-100 px-6 py-3.5 flex flex-col sm:flex-row items-center justify-between gap-4">
         {/* Left: Row Per Page [10 ˅] Entries */}
         <div className="flex items-center gap-2 text-xs text-slate-500 font-normal">
@@ -712,14 +974,20 @@ export default function ProjectInvoicesPage() {
             </select>
             <ChevronDown className="w-3 h-3 text-slate-400 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
-          <span>Entries</span>
+          <span>
+            Entries (
+            {totalRecords > 0
+              ? `${(currentPage - 1) * rowsPerPage + 1}-${Math.min(currentPage * rowsPerPage, totalRecords)} of ${totalRecords}`
+              : "0"}
+            )
+          </span>
         </div>
 
-        {/* Right: < 1 2 3 4 ... 15 > */}
+        {/* Right: < 1 2 3 ... > */}
         <div className="flex items-center gap-1.5 text-xs">
           <button
             type="button"
-            disabled={currentPage === 1}
+            disabled={currentPage <= 1}
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
             className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
             aria-label="Previous page"
@@ -731,8 +999,8 @@ export default function ProjectInvoicesPage() {
 
           <button
             type="button"
-            disabled={currentPage === totalDisplayPages}
-            onClick={() => setCurrentPage((p) => Math.min(totalDisplayPages, p + 1))}
+            disabled={currentPage >= totalPages}
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
             className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
             aria-label="Next page"
           >
@@ -741,95 +1009,13 @@ export default function ProjectInvoicesPage() {
         </div>
       </div>
 
-      {/* Follow-up Reminder Modal */}
-      {followUpInvoice && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <h3 className="text-base font-bold text-slate-900">
-                Payment Follow-up
-              </h3>
-              <button
-                type="button"
-                onClick={() => {
-                  setFollowUpInvoice(null);
-                  setFollowUpSuccess(false);
-                }}
-                className="text-slate-400 hover:text-slate-600 text-sm font-semibold"
-              >
-                ✕
-              </button>
-            </div>
-
-            {followUpSuccess ? (
-              <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-center space-y-2">
-                <p className="text-sm font-semibold text-green-800">
-                  Follow-up reminder sent successfully!
-                </p>
-                <p className="text-xs text-green-600">
-                  Notification delivered for {followUpInvoice.invoiceNumber} (
-                  {followUpInvoice.amountFormatted}).
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Send an automated payment reminder to customer for overdue invoice{" "}
-                  <span className="font-bold text-slate-900">
-                    {followUpInvoice.invoiceNumber}
-                  </span>{" "}
-                  amounting to{" "}
-                  <span className="font-bold text-slate-900">
-                    {followUpInvoice.amountFormatted}
-                  </span>
-                  .
-                </p>
-                <div className="bg-slate-50 rounded-lg p-3 text-xs text-slate-700 border border-slate-100">
-                  <p className="text-[11px] font-semibold text-slate-500 mb-1">
-                    Reminder Message Preview:
-                  </p>
-                  <p className="italic">
-                    "Dear Customer, this is a gentle reminder that invoice{" "}
-                    {followUpInvoice.invoiceNumber} for {followUpInvoice.amountFormatted}{" "}
-                    is currently overdue. Please arrange payment at your earliest
-                    convenience."
-                  </p>
-                </div>
-              </div>
-            )}
-
-            <div className="pt-2 flex justify-end gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setFollowUpInvoice(null);
-                  setFollowUpSuccess(false);
-                }}
-                className="text-xs"
-              >
-                {followUpSuccess ? "Close" : "Cancel"}
-              </Button>
-              {!followUpSuccess && (
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    setFollowUpSuccess(true);
-                    setTimeout(() => {
-                      setFollowUpInvoice(null);
-                      setFollowUpSuccess(false);
-                    }, 1800);
-                  }}
-                  className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs gap-1.5"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                  Send Reminder
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 6. Success Modal */}
+      <SuccessModal
+        isOpen={successModal.isOpen}
+        onClose={() => setSuccessModal((prev) => ({ ...prev, isOpen: false }))}
+        title={successModal.title}
+        subTitle={successModal.subTitle}
+      />
     </div>
   );
 }

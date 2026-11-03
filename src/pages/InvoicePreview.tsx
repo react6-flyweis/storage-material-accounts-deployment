@@ -1,260 +1,219 @@
-import { useNavigate, useLocation } from "react-router-dom";
+import { useState } from "react";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { ChevronLeft, Download, Mail, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Mail } from "lucide-react";
-import logo from "@/assets/logo.svg";
+import InvoiceTemplate from "@/components/invoices/InvoiceTemplate";
+import SendInvoiceModal from "@/components/invoices/SendInvoiceModal";
+import SuccessModal from "@/components/common_components/SuccessModal";
+import {
+  useGetInvoiceDetailQuery,
+  useMarkProjectInvoicePaidMutation,
+  downloadInvoicePdfBinary,
+} from "@/redux/api/invoiceManagementApi";
 
 export default function InvoicePreview() {
   const navigate = useNavigate();
   const location = useLocation();
-  const {
-    invoiceNumber = "2460",
-    date = "2025-10-25",
-    daysToPay = "15",
-    items = [],
-    subtotal = 0,
-    taxAmount = 0,
-    total = 0,
-  } = location.state || {};
+  const params = useParams<{ id?: string; invoiceId?: string }>();
+  const navState = (location.state as any) || {};
 
-  const deposit = total * 0.25;
+  const activeInvoiceId =
+    params.invoiceId ||
+    params.id ||
+    navState.invoiceId ||
+    navState.invoice?._id ||
+    navState.invoice?.invoiceId ||
+    "";
+
+  const {
+    data: detailData,
+    isLoading,
+    isError,
+    refetch,
+  } = useGetInvoiceDetailQuery(activeInvoiceId, {
+    skip: !activeInvoiceId,
+  });
+
+  const [markPaidMutation, { isLoading: isMarkingPaid }] = useMarkProjectInvoicePaidMutation();
+  const [isSendModalOpen, setIsSendModalOpen] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successModal, setSuccessModal] = useState({ isOpen: false, title: "", subTitle: "" });
+
+  const invoice =
+    detailData?.invoice ||
+    navState.invoice ||
+    (navState.invoiceNumber || navState.subtotal
+      ? {
+          invoiceNumber: navState.invoiceNumber,
+          date: navState.date,
+          daysToPay: navState.daysToPay,
+          subtotal: navState.subtotal,
+          tax: navState.taxAmount,
+          taxAmount: navState.taxAmount,
+          discount: navState.discount,
+          totalAmount: navState.total,
+          depositAmount: navState.deposit,
+          billingAddress: navState.billingAddress,
+          recipientAddress: navState.recipientAddress,
+          bankDetails: navState.bankDetails,
+          lineItems: navState.lineItems || navState.items,
+        }
+      : null);
+
+  const paymentSchedule = detailData?.paymentSchedule || null;
+
+  if (isLoading && !invoice) {
+    return (
+      <div className="p-16 text-center text-gray-500 max-w-xl mx-auto space-y-3">
+        <Loader2 className="w-7 h-7 animate-spin mx-auto text-blue-600" />
+        <p className="text-sm font-medium">Loading invoice details...</p>
+      </div>
+    );
+  }
+
+  if (!invoice && (isError || !activeInvoiceId)) {
+    return (
+      <div className="p-16 text-center text-gray-600 max-w-md mx-auto space-y-4">
+        <AlertCircle className="w-8 h-8 text-red-500 mx-auto" />
+        <p className="text-sm font-medium">
+          Invoice details could not be loaded. Please verify the invoice link or go back.
+        </p>
+        <Button variant="outline" onClick={() => navigate(-1)} className="text-xs">
+          Return to previous page
+        </Button>
+      </div>
+    );
+  }
+
+  const isPaid =
+    invoice?.status?.toLowerCase() === "paid" ||
+    invoice?.paymentStatus?.toLowerCase() === "paid" ||
+    (invoice as any)?.isPaid === true;
+
+  const handleDownloadPdf = async () => {
+    if (!activeInvoiceId) return;
+    try {
+      setErrorMessage(null);
+      setIsDownloading(true);
+      await downloadInvoicePdfBinary(
+        activeInvoiceId,
+        invoice?.invoiceNumber || "Invoice",
+        invoice?.pdfUrl || invoice?.documentUrl
+      );
+    } catch (err: any) {
+      setErrorMessage("Could not download invoice PDF. The document may still be compiling.");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const handleMarkPaid = async () => {
+    if (!activeInvoiceId) return;
+    try {
+      setErrorMessage(null);
+      await markPaidMutation(activeInvoiceId).unwrap();
+      setSuccessModal({
+        isOpen: true,
+        title: "Invoice Marked Paid",
+        subTitle: "The invoice status has been updated to Paid successfully.",
+      });
+      refetch();
+    } catch (err: any) {
+      const msg = err?.data?.message || err?.message || "Failed to mark invoice as paid.";
+      setErrorMessage(msg);
+    }
+  };
+
+  const customerEmail =
+    (typeof invoice?.customerId === "object" && invoice?.customerId?.email) ||
+    (invoice as any)?.customerEmail ||
+    "";
 
   return (
-    <div className="md:px-5 px-2 md:pt-5 pb-10 space-y-6">
-      {/* Top Actions */}
-      <div className="flex justify-start items-center mb-3 mt-1 max-w-7xl gap-4 mr-auto">
-        <Button
-          variant="outline"
-          className="bg-white hover:bg-gray-50 text-gray-700 border-gray-200 min-w-[100px]"
-          onClick={() => navigate("/payments/new-invoice")}
+    <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto space-y-6">
+      {/* Action Toolbar */}
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 cursor-pointer font-medium"
         >
-          Edit
-        </Button>
-        <Button className="bg-[#2563EB] hover:bg-blue-700 text-white min-w-[100px] gap-2">
-          <Mail className="w-4 h-4" />
-          Email
-        </Button>
-      </div>
+          <ChevronLeft className="w-4 h-4" />
+          Back
+        </button>
 
-      <div className="bg-white rounded-[4px] p-6 sm:p-14 shadow-sm mx-auto max-w-8xl">
-        <h1 className="text-center text-gray-300 font-bold text-md md:text-xl tracking-widest uppercase mb-12">
-          Invoice
-        </h1>
-
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row justify-between gap-12 mb-16 ">
-          <div className="space-y-6">
-            <div className="flex items-center gap-2">
-              <div className="flex items-center shrink-0">
-                <img
-                  src={logo}
-                  alt="Logo"
-                  className="md:w-29 w-20 md:h-16  object-contain"
-                />
-              </div>
-            </div>
-
-            <div className="text-xs text-gray-500 leading-relaxed">
-              1851 Madison Ave Suite 300
-              <br />
-              Council Bluffs, IA
-              <br />
-              51503
-              <br />
-              United States
-              <br />
-              travis@storagematerials.com
-              <br />
-              www.storagematerials.com
-            </div>
-          </div>
-
-          <div className="min-w-[200px] space-y-2">
-            <div className="flex justify-between text-xs">
-              <span className="text-gray-500 font-medium">Payment terms</span>
-              <span className="text-gray-900">{daysToPay} days</span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-gray-500 font-medium">Invoice #</span>
-              <span className="text-gray-900">{invoiceNumber}</span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-gray-500 font-medium">Date</span>
-              <span className="text-gray-900">{date}</span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-gray-500 font-medium">Business/Tax #</span>
-              <span className="text-gray-900">99- 4515145</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Line Items */}
-        <div className="mb-12">
-          <div className="flex justify-between border-b border-gray-800 pb-2 mb-6">
-            <span className="text-xs font-bold text-gray-700">Description</span>
-            <span className="text-xs font-bold text-gray-700">Total</span>
-          </div>
-
-          <div className="space-y-8">
-            {items.map((item: any, index: number) => (
-              <div
-                key={item.id}
-                className={index > 0 ? "border-t border-gray-100 pt-4" : ""}
-              >
-                <div className="flex justify-between mb-2">
-                  <span className="text-xs text-gray-600 font-medium">
-                    {item.description || "Item Description"}
-                  </span>
-                  {/* Calculate item total */}
-                  <span className="text-xs text-gray-600">
-                    $
-                    {(item.rate * item.quantity).toLocaleString("en-US", {
-                      minimumFractionDigits: 2,
-                    })}
-                  </span>
-                </div>
-
-                {item.notes && (
-                  <div className="text-[10px] text-gray-400 mb-2">
-                    {item.notes}
-                  </div>
-                )}
-
-                {/* Display Photos if any */}
-                {item.photos && item.photos.length > 0 && (
-                  <div className="flex flex-wrap gap-4 mt-3 mb-4">
-                    {item.photos.map((photo: string, i: number) => (
-                      <div
-                        key={i}
-                        className="w-64 h-40 overflow-hidden rounded-sm bg-gray-100"
-                      >
-                        {/* Use the photo URL if it looks like a blob/url, otherwise placeholder */}
-                        <img
-                          src={
-                            photo.startsWith("blob:") ||
-                            photo.startsWith("http")
-                              ? photo
-                              : "https://images.unsplash.com/photo-1504307651254-35680f356dfd?q=80&w=2670&auto=format&fit=crop"
-                          }
-                          alt={`Item photo ${i + 1}`}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-            {/* Fallback to show something if no items */}
-            {items.length === 0 && (
-              <div className="text-center text-gray-400 text-sm py-4">
-                No items added
-              </div>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            onClick={handleDownloadPdf}
+            disabled={isDownloading || !activeInvoiceId}
+            className="text-xs h-9 cursor-pointer"
+          >
+            {isDownloading ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+            ) : (
+              <Download className="w-3.5 h-3.5 mr-1.5" />
             )}
-          </div>
-        </div>
+            Download PDF
+          </Button>
 
-        {/* Summary Section */}
-        <div className="flex justify-end mb-12">
-          <div className="w-64 space-y-3">
-            <div className="flex justify-between text-xs">
-              <span className="text-gray-900 font-bold">Subtotal</span>
-              <span className="text-gray-500">
-                $
-                {Number(subtotal).toLocaleString("en-US", {
-                  minimumFractionDigits: 2,
-                })}
-              </span>
-            </div>
-            <div className="flex justify-between text-xs border-b border-gray-100 pb-3">
-              <span className="text-gray-500">Tax</span>
-              <span className="text-gray-500">
-                $
-                {Number(taxAmount).toLocaleString("en-US", {
-                  minimumFractionDigits: 2,
-                })}
-              </span>
-            </div>
-            <div className="flex justify-between text-xs pt-1">
-              <span className="text-gray-900 font-bold">Total</span>
-              <span className="text-gray-900 font-bold">
-                $
-                {Number(total).toLocaleString("en-US", {
-                  minimumFractionDigits: 2,
-                })}
-              </span>
-            </div>
-            <div className="flex justify-between text-xs pt-2 border-t border-gray-100">
-              <span className="text-gray-900 font-medium">Deposit Due</span>
-              <span className="text-gray-900 font-bold">
-                ${deposit.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-              </span>
-            </div>
-          </div>
-        </div>
+          <Button
+            variant="outline"
+            onClick={() => setIsSendModalOpen(true)}
+            disabled={!activeInvoiceId}
+            className="text-xs h-9 cursor-pointer"
+          >
+            <Mail className="w-3.5 h-3.5 mr-1.5" />
+            Email Invoice
+          </Button>
 
-        {/* Payment Schedule */}
-        <div className="mb-16 max-w-lg ml-auto">
-          <h3 className="text-xs font-bold text-gray-900 mb-4">
-            Payment Schedule
-          </h3>
-          <div className="space-y-3">
-            <div className="flex justify-between text-xs border-b border-gray-50 pb-2">
-              <span className="text-gray-500">Deposit(25%)</span>
-              <span className="text-gray-500">
-                $
-                {(total * 0.25).toLocaleString("en-US", {
-                  minimumFractionDigits: 2,
-                })}
-              </span>
-            </div>
-            <div className="flex justify-between text-xs border-b border-gray-50 pb-2">
-              <span className="text-gray-500">1st payment 50% (50%)</span>
-              <span className="text-gray-900 font-medium">
-                $
-                {(total * 0.5).toLocaleString("en-US", {
-                  minimumFractionDigits: 2,
-                })}
-              </span>
-            </div>
-            <div className="flex justify-between text-xs border-b border-gray-50 pb-2">
-              <span className="text-gray-500">2nd payment 20%</span>
-              <span className="text-gray-500">
-                $
-                {(total * 0.2).toLocaleString("en-US", {
-                  minimumFractionDigits: 2,
-                })}
-              </span>
-            </div>
-            <div className="flex justify-between text-xs pb-2">
-              <span className="text-gray-500">Final payment (5%)</span>
-              <span className="text-gray-500">
-                $
-                {(total * 0.05).toLocaleString("en-US", {
-                  minimumFractionDigits: 2,
-                })}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="border-t border-gray-200 pt-6">
-          <p className="text-[10px] text-gray-500 mb-8">
-            Thank you for your business? Reach out with any questions
-          </p>
-          <p className="text-[10px] text-gray-500 mb-16">
-            By Signing this document the customer agrees to the services and
-            conditions outlined in this document
-          </p>
-
-          <div className="flex justify-end">
-            <div className="border-t border-gray-400 w-64 pt-2">
-              <p className="text-xs text-gray-500">Client signature</p>
-            </div>
-          </div>
+          {!isPaid ? (
+            <Button
+              onClick={handleMarkPaid}
+              disabled={isMarkingPaid || !activeInvoiceId}
+              className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-9 font-semibold cursor-pointer shadow-xs"
+            >
+              {isMarkingPaid && <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />}
+              Mark Paid
+            </Button>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 font-semibold px-3 py-1.5 rounded-md text-xs bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+              Paid
+            </span>
+          )}
         </div>
       </div>
+
+      {errorMessage && (
+        <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg flex items-start gap-2.5 text-xs">
+          <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
+
+      {/* Embedded Presentation Template */}
+      {invoice && (
+        <InvoiceTemplate invoice={invoice as any} paymentSchedule={paymentSchedule} />
+      )}
+
+      {/* Email Modal */}
+      <SendInvoiceModal
+        isOpen={isSendModalOpen}
+        onClose={() => setIsSendModalOpen(false)}
+        invoiceId={activeInvoiceId}
+        customerEmail={customerEmail}
+        invoiceNumber={invoice?.invoiceNumber || ""}
+      />
+
+      {/* Success Modal */}
+      <SuccessModal
+        isOpen={successModal.isOpen}
+        onClose={() => setSuccessModal({ isOpen: false, title: "", subTitle: "" })}
+        title={successModal.title}
+        subTitle={successModal.subTitle}
+      />
     </div>
   );
 }

@@ -25,63 +25,21 @@ import {
 } from "recharts";
 import CalendarRangePickerModal from "@/components/common_components/CalendarRangePickerModal";
 import SuccessModal from "@/components/common_components/SuccessModal";
+import { Skeleton } from "@/components/ui/skeleton";
 import { CostStatCard } from "@/components/cost/CostStatCard";
 import {
-  INITIAL_PROJECT_WISE_MISC_COST,
-  INITIAL_MISC_EXPENSE_RECORDS,
-  type ProjectWiseMiscCost,
-  type MiscExpenseRecord,
+  useGetCostFiltersQuery,
+  useGetMiscSummaryQuery,
+  useGetMiscOverviewChartQuery,
+  useGetMiscByCategoryQuery,
+  useGetMiscByProjectQuery,
+  useGetMiscRecordsQuery,
+} from "@/redux/api/costsApi";
+import { formatDisplayDate } from "@/lib/dashboardFormatters";
+import type {
+  ProjectWiseMiscCost,
+  MiscExpenseRecord,
 } from "@/components/cost/miscellaneousCostData";
-
-// Overview Chart Data matching the reference screenshot exactly:
-// Nov 2023, Dec 2023, Jan 2024, Feb 2024, Mar 2024, Apr 2024
-const OVERVIEW_CHART_DATA = [
-  { label: "Nov\n2023", planned: 95, actual: 42 },
-  { label: "Dec\n2023", planned: 68, actual: 40 },
-  { label: "Jan\n2024", planned: 40, actual: 12 },
-  { label: "Feb\n2024", planned: 95, actual: 20 },
-  { label: "Mar\n2024", planned: 78, actual: 43 },
-  { label: "Apr\n2024", planned: 95, actual: 21 },
-];
-
-// Expense Category Distribution Table Data matching screenshot exactly:
-const CATEGORY_DISTRIBUTION = [
-  {
-    category: "Repairs & Maintenance",
-    amount: "$1.86L",
-    percentage: "22.1%",
-  },
-  {
-    category: "Office Supplies",
-    amount: "$1.24L",
-    percentage: "14.7%",
-  },
-  {
-    category: "Utilities",
-    amount: "$1.08L",
-    percentage: "12.8%",
-  },
-  {
-    category: "Equipment & Tools",
-    amount: "$96K",
-    percentage: "11.4%",
-  },
-  {
-    category: "Travel",
-    amount: "$82K",
-    percentage: "9.7%",
-  },
-  {
-    category: "Software",
-    amount: "$64K",
-    percentage: "7.6%",
-  },
-  {
-    category: "Others",
-    amount: "$1.72L",
-    percentage: "20.4%",
-  },
-];
 
 export const MiscellaneousCostPage: React.FC = () => {
   const navigate = useNavigate();
@@ -101,10 +59,15 @@ export const MiscellaneousCostPage: React.FC = () => {
     message: "",
   });
 
+  // RTK Query API Integration
+  const { data: filtersData } = useGetCostFiltersQuery();
+  const { data: summaryData, isLoading: isSummaryLoading } = useGetMiscSummaryQuery();
+  const { data: chartDataApi, isLoading: isChartLoading } = useGetMiscOverviewChartQuery({
+    timeframe: selectedTimeframe,
+  });
+  const { data: categoryDataApi, isLoading: isCategoryLoading } = useGetMiscByCategoryQuery();
+
   // ===================== TABLE 1: PROJECT-WISE MISCELLANEOUS COST =====================
-  const [projectData] = useState<ProjectWiseMiscCost[]>(
-    INITIAL_PROJECT_WISE_MISC_COST,
-  );
   const [table1DateRange, setTable1DateRange] = useState("dd/mm/yyyy - dd/mm/yyyy");
   const [isTable1DateOpen, setIsTable1DateOpen] = useState(false);
   const [table1Designation, setTable1Designation] = useState("All");
@@ -115,22 +78,39 @@ export const MiscellaneousCostPage: React.FC = () => {
   const [table1Search, setTable1Search] = useState("");
   const [table1Page, setTable1Page] = useState(1);
 
-  const filteredProjectData = useMemo(() => {
-    let result = [...projectData];
-    if (table1Search.trim()) {
-      const q = table1Search.toLowerCase();
-      result = result.filter(
-        (p) =>
-          p.project.toLowerCase().includes(q) ||
-          p.customer.name.toLowerCase().includes(q) ||
-          p.amountFormatted.toLowerCase().includes(q),
-      );
+  const { data: projectWiseApi, isLoading: isProjectLoading } = useGetMiscByProjectQuery({
+    search: table1Search,
+    project: table1Project !== "All" ? table1Project : undefined,
+  });
+
+  const effectiveProjectData: ProjectWiseMiscCost[] = useMemo(() => {
+    if (projectWiseApi && projectWiseApi.length > 0) {
+      return projectWiseApi.map((p, idx) => ({
+        id: p.leadId || `p-${idx}`,
+        project: p.projectName,
+        customer: {
+          name: p.projectName,
+          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(p.projectName)}&background=1D51A4&color=fff&size=100`,
+        },
+        expensesCount: p.transactionsCount ?? 0,
+        amount: p.amount,
+        amountFormatted: `$${(p.amount ?? 0).toLocaleString()}`,
+        budget: p.amount,
+        budgetFormatted: `$${(p.amount ?? 0).toLocaleString()}`,
+        variance: 0,
+        varianceFormatted: "$0",
+        status: "Under",
+      }));
     }
-    if (table1Project !== "All") {
-      result = result.filter((p) => p.project === table1Project);
-    }
-    return result;
-  }, [projectData, table1Search, table1Project]);
+    return [];
+  }, [projectWiseApi]);
+
+  const filteredProjectData = effectiveProjectData;
+
+  const table1TotalPages = Math.max(
+    1,
+    Math.ceil(filteredProjectData.length / table1RowsPerPage),
+  );
 
   const table1DisplayRows = useMemo(() => {
     const start = (table1Page - 1) * table1RowsPerPage;
@@ -138,9 +118,6 @@ export const MiscellaneousCostPage: React.FC = () => {
   }, [filteredProjectData, table1Page, table1RowsPerPage]);
 
   // ===================== TABLE 2: MISCELLANEOUS EXPENSE RECORDS =====================
-  const [expenseData] = useState<MiscExpenseRecord[]>(
-    INITIAL_MISC_EXPENSE_RECORDS,
-  );
   const [table2DateRange, setTable2DateRange] = useState("dd/mm/yyyy - dd/mm/yyyy");
   const [isTable2DateOpen, setIsTable2DateOpen] = useState(false);
   const [table2Designation, setTable2Designation] = useState("All");
@@ -153,35 +130,47 @@ export const MiscellaneousCostPage: React.FC = () => {
   const [dateSortOrder, setDateSortOrder] = useState<"asc" | "desc">("desc");
   const [vendorSortOrder, setVendorSortOrder] = useState<"asc" | "desc">("asc");
 
-  const filteredExpenseData = useMemo(() => {
-    let result = [...expenseData];
-    if (table2Search.trim()) {
-      const q = table2Search.toLowerCase();
-      result = result.filter(
-        (e) =>
-          e.expense.toLowerCase().includes(q) ||
-          e.category.toLowerCase().includes(q) ||
-          e.project.toLowerCase().includes(q) ||
-          e.vendor.toLowerCase().includes(q),
-      );
+  const { data: recordsApi, isLoading: isRecordsLoading } = useGetMiscRecordsQuery({
+    page: table2Page,
+    limit: table2RowsPerPage,
+    search: table2Search,
+    project: table2Project !== "All" ? table2Project : undefined,
+  });
+
+  const effectiveExpenseData: MiscExpenseRecord[] = useMemo(() => {
+    if (recordsApi?.rows && recordsApi.rows.length > 0) {
+      return recordsApi.rows.map((r, idx) => ({
+        id: r.id || r._id || `exp-${idx}`,
+        date: r.expenseDate || "",
+        expense: r.expenseName || "Expense",
+        category: r.expenseCategory || "Miscellaneous",
+        project: r.projectName || "General",
+        vendor: r.vendorPayee || "N/A",
+        amount: r.amount || 0,
+        amountFormatted: `$${(r.amount || 0).toLocaleString()}`,
+        approvalStatus: (r.paymentStatus === "Paid" ? "Approved" : "Pending") as "Approved" | "Pending" | "Rejected",
+      }));
     }
-    if (table2Project !== "All") {
-      result = result.filter((e) => e.project === table2Project);
-    }
-    return result;
-  }, [expenseData, table2Search, table2Project]);
+    return [];
+  }, [recordsApi]);
+
+  const filteredExpenseData = effectiveExpenseData;
+
+  const table2Total = recordsApi?.total ?? effectiveExpenseData.length;
+  const table2TotalPages =
+    recordsApi?.pagination?.totalPages ??
+    Math.max(1, Math.ceil(table2Total / table2RowsPerPage));
 
   const table2DisplayRows = useMemo(() => {
-    const start = (table2Page - 1) * table2RowsPerPage;
-    return filteredExpenseData.slice(start, start + table2RowsPerPage);
-  }, [filteredExpenseData, table2Page, table2RowsPerPage]);
+    return filteredExpenseData;
+  }, [filteredExpenseData]);
 
   // Export Action
   const handleExport = (type: string) => {
     setIsExportMenuOpen(false);
     if (type === "csv") {
       const headers = "Date,Expense,Category,Project,Vendor,Amount,Approval Status\n";
-      const rows = expenseData
+      const rows = effectiveExpenseData
         .map(
           (d) =>
             `"${d.date}","${d.expense}","${d.category}","${d.project}","${d.vendor}","${d.amountFormatted}","${d.approvalStatus}"`,
@@ -283,29 +272,49 @@ export const MiscellaneousCostPage: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5">
         <CostStatCard
           title="Total Miscellaneous Cost"
-          value="$8,42,650"
-          changeText="5.62% from last month"
+          value={
+            summaryData?.totalMiscCost !== undefined
+              ? `$${Number(summaryData.totalMiscCost).toLocaleString()}`
+              : "$0"
+          }
+          isLoading={isSummaryLoading}
+          changeText="From backend analytics"
           color="purple"
           icon={<DollarSign className="w-5 h-5 stroke-[1.8]" />}
         />
         <CostStatCard
           title="Approved Expenses"
-          value="$6,84,200"
-          changeText="11.4% from last month"
+          value={
+            summaryData?.approvedExpenses !== undefined
+              ? `$${Number(summaryData.approvedExpenses).toLocaleString()}`
+              : "$0"
+          }
+          isLoading={isSummaryLoading}
+          changeText="From backend analytics"
           color="emerald"
           icon={<ShoppingBag className="w-5 h-5 stroke-[1.8]" />}
         />
         <CostStatCard
           title="Pending Approval"
-          value="$1,18,450"
-          changeText="8.52% from last month"
+          value={
+            summaryData?.pendingApproval !== undefined
+              ? `$${Number(summaryData.pendingApproval).toLocaleString()}`
+              : "$0"
+          }
+          isLoading={isSummaryLoading}
+          changeText="From backend analytics"
           color="amber"
           icon={<Clock className="w-5 h-5 stroke-[1.8]" />}
         />
         <CostStatCard
           title="Unplanned Expenses"
-          value="$94,800"
-          changeText="8.52% from last month"
+          value={
+            summaryData?.unplannedExpenses !== undefined
+              ? `$${Number(summaryData.unplannedExpenses).toLocaleString()}`
+              : "$0"
+          }
+          isLoading={isSummaryLoading}
+          changeText="From backend analytics"
           color="amber"
           icon={<Clock className="w-5 h-5 stroke-[1.8]" />}
         />
@@ -337,104 +346,93 @@ export const MiscellaneousCostPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Badges Row (Planned, Actual, Unplanned) */}
-            <div className="flex flex-wrap items-center gap-3 my-4">
-              <div className="px-4 py-2 rounded-xl border border-slate-100 bg-slate-50/60 flex flex-col">
-                <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
-                  <span className="w-2 h-2 rounded-full bg-[#2563EB]" />
-                  <span>Planned</span>
-                </div>
-                <span className="text-lg font-bold text-slate-900 mt-0.5">
-                  49 Lacks
-                </span>
+            {/* Chart Legend */}
+            <div className="flex items-center gap-4 mt-3 mb-1">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#2563EB]" />
+                <span>Planned</span>
               </div>
-
-              <div className="px-4 py-2 rounded-xl border border-slate-100 bg-slate-50/60 flex flex-col">
-                <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
-                  <span className="w-2 h-2 rounded-full bg-[#10B981]" />
-                  <span>Actual</span>
-                </div>
-                <span className="text-lg font-bold text-slate-900 mt-0.5">
-                  38 Lacks
-                </span>
-              </div>
-
-              <div className="px-4 py-2 rounded-xl border border-slate-100 bg-slate-50/60 flex flex-col">
-                <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
-                  <span className="w-2 h-2 rounded-full bg-[#F59E0B]" />
-                  <span>Unplanned</span>
-                </div>
-                <span className="text-lg font-bold text-slate-900 mt-0.5">
-                  30 Lacks
-                </span>
+              <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#10B981]" />
+                <span>Actual</span>
               </div>
             </div>
           </div>
 
           {/* Bar Chart Container */}
           <div className="h-64 w-full mt-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={OVERVIEW_CHART_DATA}
-                margin={{ top: 10, right: 10, left: -15, bottom: 20 }}
-                barGap={8}
-              >
-                <XAxis
-                  dataKey="label"
-                  tickLine={false}
-                  axisLine={{ stroke: "#F1F5F9" }}
-                  tick={{ fill: "#64748B", fontSize: 11 }}
-                  interval={0}
-                  dy={6}
-                />
-                <YAxis
-                  tickLine={false}
-                  axisLine={false}
-                  tick={{ fill: "#64748B", fontSize: 11 }}
-                  ticks={[0, 10, 20, 40, 60, 80, 100]}
-                  tickFormatter={(val) => (val === 0 ? "0" : `${val} L`)}
-                />
-                <Tooltip
-                  cursor={{ fill: "transparent" }}
-                  content={({ active, payload, label }) => {
-                    if (active && payload && payload.length) {
-                      return (
-                        <div className="bg-slate-900 text-white rounded-lg p-2.5 text-xs shadow-xl border border-slate-800 space-y-1">
-                          <p className="font-semibold text-slate-300 whitespace-pre-line">
-                            {label}
-                          </p>
-                          <div className="flex items-center gap-2 text-blue-400">
-                            <span>Planned:</span>
-                            <span className="font-bold">
-                              {payload[0]?.value} L
-                            </span>
+            {isChartLoading ? (
+              <div className="h-full w-full flex items-center justify-center p-4">
+                <Skeleton className="h-56 w-full rounded-xl" />
+              </div>
+            ) : chartDataApi && chartDataApi.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={chartDataApi}
+                  margin={{ top: 10, right: 10, left: -15, bottom: 20 }}
+                  barGap={8}
+                >
+                  <XAxis
+                    dataKey="label"
+                    tickLine={false}
+                    axisLine={{ stroke: "#F1F5F9" }}
+                    tick={{ fill: "#64748B", fontSize: 11 }}
+                    interval={0}
+                    dy={6}
+                  />
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fill: "#64748B", fontSize: 11 }}
+                    ticks={[0, 10, 20, 40, 60, 80, 100]}
+                    tickFormatter={(val) => (val === 0 ? "0" : `${val} L`)}
+                  />
+                  <Tooltip
+                    cursor={{ fill: "transparent" }}
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="bg-slate-900 text-white rounded-lg p-2.5 text-xs shadow-xl border border-slate-800 space-y-1">
+                            <p className="font-semibold text-slate-300 whitespace-pre-line">
+                              {label}
+                            </p>
+                            <div className="flex items-center gap-2 text-blue-400">
+                              <span>Planned:</span>
+                              <span className="font-bold">
+                                {payload[0]?.value} L
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 text-emerald-400">
+                              <span>Actual:</span>
+                              <span className="font-bold">
+                                {payload[1]?.value} L
+                              </span>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2 text-emerald-400">
-                            <span>Actual:</span>
-                            <span className="font-bold">
-                              {payload[1]?.value} L
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    }
-                    return null;
-                  }}
-                />
-                <Bar
-                  dataKey="planned"
-                  fill="#2563EB"
-                  radius={[8, 8, 0, 0]}
-                  maxBarSize={28}
-                />
-                <Bar
-                  dataKey="actual"
-                  fill="#10B981"
-                  radius={[8, 8, 0, 0]}
-                  maxBarSize={28}
-                />
-              </BarChart>
-            </ResponsiveContainer>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Bar
+                    dataKey="planned"
+                    fill="#2563EB"
+                    radius={[8, 8, 0, 0]}
+                    maxBarSize={28}
+                  />
+                  <Bar
+                    dataKey="actual"
+                    fill="#10B981"
+                    radius={[8, 8, 0, 0]}
+                    maxBarSize={28}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-xs text-slate-400">
+                No overview chart data available.
+              </div>
+            )}
           </div>
         </div>
 
@@ -455,22 +453,38 @@ export const MiscellaneousCostPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs sm:text-[13px]">
-                  {CATEGORY_DISTRIBUTION.map((row) => (
-                    <tr
-                      key={row.category}
-                      className="hover:bg-slate-50/60 transition-colors"
-                    >
-                      <td className="py-3 font-medium text-slate-600">
-                        {row.category}
-                      </td>
-                      <td className="py-3 font-bold text-[#1D51A4]">
-                        {row.amount}
-                      </td>
-                      <td className="py-3 font-semibold text-slate-800 text-right">
-                        {row.percentage}
+                  {isCategoryLoading ? (
+                    Array.from({ length: 5 }).map((_, i) => (
+                      <tr key={`cat-skel-${i}`}>
+                        <td className="py-3"><Skeleton className="h-4 w-32" /></td>
+                        <td className="py-3"><Skeleton className="h-4 w-16" /></td>
+                        <td className="py-3 text-right"><Skeleton className="h-4 w-10 ml-auto" /></td>
+                      </tr>
+                    ))
+                  ) : categoryDataApi && categoryDataApi.length > 0 ? (
+                    categoryDataApi.map((row) => (
+                      <tr
+                        key={row.category}
+                        className="hover:bg-slate-50/60 transition-colors"
+                      >
+                        <td className="py-3 font-medium text-slate-600">
+                          {row.category}
+                        </td>
+                        <td className="py-3 font-bold text-[#1D51A4]">
+                          {row.amount}
+                        </td>
+                        <td className="py-3 font-semibold text-slate-800 text-right">
+                          {row.percentage}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={3} className="py-8 text-center text-slate-400">
+                        No expense categories recorded.
                       </td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>
@@ -508,10 +522,12 @@ export const MiscellaneousCostPage: React.FC = () => {
                 }}
                 className="appearance-none bg-white border border-slate-200 rounded-lg pl-3 pr-8 py-1.5 text-xs text-slate-700 font-medium cursor-pointer focus:outline-none focus:border-[#1D51A4]"
               >
-                <option value="All">Designation</option>
-                <option value="Finance">Finance</option>
-                <option value="Production">Production</option>
-                <option value="Manager">Manager</option>
+                <option value="All">All Designations</option>
+                {filtersData?.designations?.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
               </select>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
@@ -526,11 +542,12 @@ export const MiscellaneousCostPage: React.FC = () => {
                 }}
                 className="appearance-none bg-white border border-slate-200 rounded-lg pl-3 pr-8 py-1.5 text-xs text-slate-700 font-medium cursor-pointer focus:outline-none focus:border-[#1D51A4]"
               >
-                <option value="All">Project</option>
-                <option value="SMDT Warehouse">SMDT Warehouse</option>
-                <option value="Steel Unit">Steel Unit</option>
-                <option value="Industrial Shed">Industrial Shed</option>
-                <option value="Warehouse Expansion">Warehouse Expansion</option>
+                <option value="All">All Projects</option>
+                {filtersData?.projects?.map((p) => (
+                  <option key={p._id} value={p.projectName}>
+                    {p.projectName}
+                  </option>
+                ))}
               </select>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
@@ -617,11 +634,35 @@ export const MiscellaneousCostPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs sm:text-[13px]">
-              {table1DisplayRows.map((row) => (
-                <tr
-                  key={row.id}
-                  className="hover:bg-slate-50/80 transition-colors"
-                >
+              {isProjectLoading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={`proj-skel-${i}`}>
+                    <td className="py-3.5 px-5"><Skeleton className="h-4 w-36" /></td>
+                    <td className="py-3.5 px-5">
+                      <div className="flex items-center gap-2.5">
+                        <Skeleton className="w-8 h-8 rounded-full" />
+                        <Skeleton className="h-4 w-24" />
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-5"><Skeleton className="h-4 w-8" /></td>
+                    <td className="py-3.5 px-5"><Skeleton className="h-4 w-16" /></td>
+                    <td className="py-3.5 px-5"><Skeleton className="h-4 w-16" /></td>
+                    <td className="py-3.5 px-5"><Skeleton className="h-4 w-16" /></td>
+                    <td className="py-3.5 px-5"><Skeleton className="h-6 w-16 rounded-md" /></td>
+                  </tr>
+                ))
+              ) : table1DisplayRows.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-12 text-center text-slate-400">
+                    No project-wise miscellaneous costs found.
+                  </td>
+                </tr>
+              ) : (
+                table1DisplayRows.map((row) => (
+                  <tr
+                    key={row.id}
+                    className="hover:bg-slate-50/80 transition-colors"
+                  >
                   {/* Project */}
                   <td className="py-3.5 px-5 font-normal text-slate-700 whitespace-nowrap">
                     {row.project}
@@ -631,17 +672,22 @@ export const MiscellaneousCostPage: React.FC = () => {
                   <td className="py-3.5 px-5 whitespace-nowrap">
                     <div className="flex items-center gap-2.5">
                       <img
-                        src={row.customer.avatar}
-                        alt={row.customer.name}
+                        src={
+                          row.customer?.avatar ||
+                          `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                            row.customer?.name || (row as unknown as { projectName?: string }).projectName || "Customer",
+                          )}&background=1D51A4&color=fff&size=100`
+                        }
+                        alt={row.customer?.name || (row as unknown as { projectName?: string }).projectName || "Customer"}
                         className="w-8 h-8 rounded-full object-cover ring-1 ring-slate-100"
                         onError={(e) => {
                           e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                            row.customer.name,
+                            row.customer?.name || (row as unknown as { projectName?: string }).projectName || "Customer",
                           )}&background=1D51A4&color=fff&size=100`;
                         }}
                       />
                       <span className="font-semibold text-slate-900 text-xs sm:text-[13px]">
-                        {row.customer.name}
+                        {row.customer?.name || (row as unknown as { projectName?: string }).projectName || "N/A"}
                       </span>
                     </div>
                   </td>
@@ -687,7 +733,7 @@ export const MiscellaneousCostPage: React.FC = () => {
                     </span>
                   </td>
                 </tr>
-              ))}
+              )))}
             </tbody>
           </table>
         </div>
@@ -695,7 +741,7 @@ export const MiscellaneousCostPage: React.FC = () => {
         {/* Table 1 Pagination */}
         <div className="px-4 sm:px-5 py-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-xs text-slate-500 font-normal">
-            Showing 1 to {table1DisplayRows.length} of 16 entries
+            Showing {filteredProjectData.length > 0 ? (table1Page - 1) * table1RowsPerPage + 1 : 0} to {Math.min(table1Page * table1RowsPerPage, filteredProjectData.length)} of {filteredProjectData.length} entries
           </div>
 
           <div className="flex items-center gap-1.5 text-xs">
@@ -708,35 +754,46 @@ export const MiscellaneousCostPage: React.FC = () => {
               <ChevronLeft className="w-4 h-4" />
             </button>
 
-            {[1, 2, 3, 4].map((page) => (
-              <button
-                key={`t1-p-${page}`}
-                type="button"
-                onClick={() => setTable1Page(page)}
-                className={`w-6 h-6 rounded-full text-xs transition-colors flex items-center justify-center cursor-pointer ${
-                  page === table1Page
-                    ? "bg-[#1D51A4] text-white font-bold shadow-xs"
-                    : "text-slate-600 hover:bg-slate-100 font-medium"
-                }`}
-              >
-                {page}
-              </button>
-            ))}
+            {Array.from({ length: Math.min(5, table1TotalPages) }, (_, idx) => {
+              const page = idx + 1;
+              return (
+                <button
+                  key={`t1-p-${page}`}
+                  type="button"
+                  onClick={() => setTable1Page(page)}
+                  className={`w-6 h-6 rounded-full text-xs transition-colors flex items-center justify-center cursor-pointer ${
+                    page === table1Page
+                      ? "bg-[#1D51A4] text-white font-bold shadow-xs"
+                      : "text-slate-600 hover:bg-slate-100 font-medium"
+                  }`}
+                >
+                  {page}
+                </button>
+              );
+            })}
 
-            <span className="px-1 text-slate-400">...</span>
+            {table1TotalPages > 5 && (
+              <>
+                <span className="px-1 text-slate-400">...</span>
+                <button
+                  type="button"
+                  onClick={() => setTable1Page(table1TotalPages)}
+                  className={`w-6 h-6 rounded-full text-xs transition-colors flex items-center justify-center cursor-pointer ${
+                    table1Page === table1TotalPages
+                      ? "bg-[#1D51A4] text-white font-bold shadow-xs"
+                      : "text-slate-600 hover:bg-slate-100 font-medium"
+                  }`}
+                >
+                  {table1TotalPages}
+                </button>
+              </>
+            )}
 
             <button
               type="button"
-              onClick={() => setTable1Page(15)}
-              className="w-6 h-6 rounded-full text-xs text-slate-600 hover:bg-slate-100 font-medium transition-colors flex items-center justify-center cursor-pointer"
-            >
-              15
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setTable1Page((p) => Math.min(15, p + 1))}
-              className="p-1 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+              disabled={table1Page >= table1TotalPages}
+              onClick={() => setTable1Page((p) => Math.min(table1TotalPages, p + 1))}
+              className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -774,9 +831,12 @@ export const MiscellaneousCostPage: React.FC = () => {
                 }}
                 className="appearance-none bg-white border border-slate-200 rounded-lg pl-3 pr-8 py-1.5 text-xs text-slate-700 font-medium cursor-pointer focus:outline-none focus:border-[#1D51A4]"
               >
-                <option value="All">Designation</option>
-                <option value="Finance">Finance</option>
-                <option value="Production">Production</option>
+                <option value="All">All Designations</option>
+                {filtersData?.designations?.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
               </select>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
@@ -791,11 +851,12 @@ export const MiscellaneousCostPage: React.FC = () => {
                 }}
                 className="appearance-none bg-white border border-slate-200 rounded-lg pl-3 pr-8 py-1.5 text-xs text-slate-700 font-medium cursor-pointer focus:outline-none focus:border-[#1D51A4]"
               >
-                <option value="All">Project</option>
-                <option value="SMDT Warehouse">SMDT Warehouse</option>
-                <option value="Steel Unit">Steel Unit</option>
-                <option value="Industrial Shed">Industrial Shed</option>
-                <option value="Warehouse Expansion">Warehouse Expansion</option>
+                <option value="All">All Projects</option>
+                {filtersData?.projects?.map((p) => (
+                  <option key={p._id} value={p.projectName}>
+                    {p.projectName}
+                  </option>
+                ))}
               </select>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
@@ -904,14 +965,33 @@ export const MiscellaneousCostPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs sm:text-[13px]">
-              {table2DisplayRows.map((row) => (
-                <tr
-                  key={row.id}
-                  className="hover:bg-slate-50/80 transition-colors"
-                >
+              {isRecordsLoading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={`exp-skel-${i}`}>
+                    <td className="py-3.5 px-5"><Skeleton className="h-4 w-20" /></td>
+                    <td className="py-3.5 px-5"><Skeleton className="h-4 w-32" /></td>
+                    <td className="py-3.5 px-5"><Skeleton className="h-4 w-24" /></td>
+                    <td className="py-3.5 px-5"><Skeleton className="h-4 w-28" /></td>
+                    <td className="py-3.5 px-5"><Skeleton className="h-4 w-24" /></td>
+                    <td className="py-3.5 px-5"><Skeleton className="h-4 w-16" /></td>
+                    <td className="py-3.5 px-5"><Skeleton className="h-6 w-20 rounded-md" /></td>
+                  </tr>
+                ))
+              ) : table2DisplayRows.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-12 text-center text-slate-400">
+                    No miscellaneous expense records found.
+                  </td>
+                </tr>
+              ) : (
+                table2DisplayRows.map((row) => (
+                  <tr
+                    key={row.id}
+                    className="hover:bg-slate-50/80 transition-colors"
+                  >
                   {/* Date */}
                   <td className="py-3.5 px-5 font-normal text-slate-600 whitespace-nowrap">
-                    {row.date}
+                    {formatDisplayDate(row.date)}
                   </td>
 
                   {/* Expense Name */}
@@ -952,7 +1032,7 @@ export const MiscellaneousCostPage: React.FC = () => {
                     </span>
                   </td>
                 </tr>
-              ))}
+              )))}
             </tbody>
           </table>
         </div>
@@ -960,7 +1040,7 @@ export const MiscellaneousCostPage: React.FC = () => {
         {/* Table 2 Pagination */}
         <div className="px-4 sm:px-5 py-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-xs text-slate-500 font-normal">
-            Showing 1 to {table2DisplayRows.length} of 18 entries
+            Showing {table2Total > 0 ? (table2Page - 1) * table2RowsPerPage + 1 : 0} to {Math.min(table2Page * table2RowsPerPage, table2Total)} of {table2Total} entries
           </div>
 
           <div className="flex items-center gap-1.5 text-xs">
@@ -973,35 +1053,46 @@ export const MiscellaneousCostPage: React.FC = () => {
               <ChevronLeft className="w-4 h-4" />
             </button>
 
-            {[1, 2, 3, 4].map((page) => (
-              <button
-                key={`t2-p-${page}`}
-                type="button"
-                onClick={() => setTable2Page(page)}
-                className={`w-6 h-6 rounded-full text-xs transition-colors flex items-center justify-center cursor-pointer ${
-                  page === table2Page
-                    ? "bg-[#1D51A4] text-white font-bold shadow-xs"
-                    : "text-slate-600 hover:bg-slate-100 font-medium"
-                }`}
-              >
-                {page}
-              </button>
-            ))}
+            {Array.from({ length: Math.min(5, table2TotalPages) }, (_, idx) => {
+              const page = idx + 1;
+              return (
+                <button
+                  key={`t2-p-${page}`}
+                  type="button"
+                  onClick={() => setTable2Page(page)}
+                  className={`w-6 h-6 rounded-full text-xs transition-colors flex items-center justify-center cursor-pointer ${
+                    page === table2Page
+                      ? "bg-[#1D51A4] text-white font-bold shadow-xs"
+                      : "text-slate-600 hover:bg-slate-100 font-medium"
+                  }`}
+                >
+                  {page}
+                </button>
+              );
+            })}
 
-            <span className="px-1 text-slate-400">...</span>
+            {table2TotalPages > 5 && (
+              <>
+                <span className="px-1 text-slate-400">...</span>
+                <button
+                  type="button"
+                  onClick={() => setTable2Page(table2TotalPages)}
+                  className={`w-6 h-6 rounded-full text-xs transition-colors flex items-center justify-center cursor-pointer ${
+                    table2Page === table2TotalPages
+                      ? "bg-[#1D51A4] text-white font-bold shadow-xs"
+                      : "text-slate-600 hover:bg-slate-100 font-medium"
+                  }`}
+                >
+                  {table2TotalPages}
+                </button>
+              </>
+            )}
 
             <button
               type="button"
-              onClick={() => setTable2Page(15)}
-              className="w-6 h-6 rounded-full text-xs text-slate-600 hover:bg-slate-100 font-medium transition-colors flex items-center justify-center cursor-pointer"
-            >
-              15
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setTable2Page((p) => Math.min(15, p + 1))}
-              className="p-1 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+              disabled={table2Page >= table2TotalPages}
+              onClick={() => setTable2Page((p) => Math.min(table2TotalPages, p + 1))}
+              className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
             >
               <ChevronRight className="w-4 h-4" />
             </button>

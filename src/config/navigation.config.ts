@@ -87,7 +87,6 @@ export const NAV_ITEMS: NavItem[] = [
       { label: "Logistics Cost", path: "/cost/logistics-cost" },
       { label: "Rent Cost", path: "/cost/rent-cost" },
       { label: "Item Cost List", path: "/cost/item-cost-list" },
-      { label: "Future Analysis", path: "/cost/future-income-expense-analysis" },
       { label: "Cost Variance", path: "/cost/cost-variance" },
     ],
   },

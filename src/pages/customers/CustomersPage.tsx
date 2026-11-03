@@ -242,6 +242,7 @@ export default function CustomersPage() {
             itemsPerPage={limit}
             currentPage={page}
             onPageChange={setPage}
+            className="mt-0 border-t-0"
           />
         </div>
       )}

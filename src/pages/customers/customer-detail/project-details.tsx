@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { AlertCircle, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,7 +8,6 @@ import { ProjectOverviewCard } from "./components/ProjectOverviewCard";
 import { ProjectFinancialKpiGrid } from "./components/ProjectFinancialKpiGrid";
 import { ProjectProgressStepper } from "./components/ProjectProgressStepper";
 import { ProjectFinancialPerformanceTable } from "./components/ProjectFinancialPerformanceTable";
-import { MaterialDeliveryModal } from "./components/MaterialDeliveryModal";
 
 export default function ProjectDetailsPage() {
   const navigate = useNavigate();
@@ -34,8 +32,6 @@ export default function ProjectDetailsPage() {
   const actualCustomerId = customerId || passedState?.customerId || "";
   const actualProjectId = projectId || id || passedState?.projectId || "";
 
-  const [isDeliveryModalOpen, setIsDeliveryModalOpen] = useState(false);
-
   // Pure API Call: GET /api/account/projects/:projectId
   const {
     data: projectDetail,
@@ -52,7 +48,7 @@ export default function ProjectDetailsPage() {
 
   const handleBack = () => {
     if (actualCustomerId) {
-      navigate(`/customers/${actualCustomerId}/projects`);
+      navigate(`/customers/${actualCustomerId}`);
     } else {
       navigate(-1);
     }
@@ -66,7 +62,9 @@ export default function ProjectDetailsPage() {
           <AlertCircle className="w-6 h-6" />
         </div>
         <div>
-          <h2 className="text-lg font-bold text-slate-900">Project Not Found</h2>
+          <h2 className="text-lg font-bold text-slate-900">
+            Project Not Found
+          </h2>
           <p className="text-xs text-slate-500 mt-1">
             No project identifier was provided in the URL or navigation state.
           </p>
@@ -86,7 +84,9 @@ export default function ProjectDetailsPage() {
     <div className="space-y-5">
       {/* 1. Header: Back button, Title, Loading & Error alerts */}
       <ProjectDetailsHeader
-        projectName={projectDetail?.overview?.projectName || passedState?.projectName}
+        projectName={
+          projectDetail?.overview?.projectName || passedState?.projectName
+        }
         projectId={actualProjectId}
         isLoading={isProjectLoading}
         isError={isProjectError}
@@ -103,7 +103,6 @@ export default function ProjectDetailsPage() {
         contact={projectDetail?.contact}
         agreement={projectDetail?.agreement}
         actionLinks={projectDetail?.actionLinks}
-        onOpenMaterialDelivery={() => setIsDeliveryModalOpen(true)}
       />
 
       {/* Section Title */}
@@ -135,13 +134,6 @@ export default function ProjectDetailsPage() {
       {/* 6. Project Financial Performance Table */}
       <ProjectFinancialPerformanceTable
         profitabilityOverview={projectDetail?.profitabilityOverview}
-      />
-
-      {/* 7. Material Delivery Modal */}
-      <MaterialDeliveryModal
-        isOpen={isDeliveryModalOpen}
-        onClose={() => setIsDeliveryModalOpen(false)}
-        overview={projectDetail?.overview}
       />
     </div>
   );

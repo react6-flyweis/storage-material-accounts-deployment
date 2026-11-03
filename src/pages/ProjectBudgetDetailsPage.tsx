@@ -22,7 +22,7 @@ import {
   useGetBudgetVsActualDetailQuery,
   type GroupedByDepartmentItem,
 } from "@/redux/api/financialApi";
-import { formatCurrency } from "@/lib/dashboardFormatters";
+import { formatCurrency, formatDateToIso } from "@/lib/dashboardFormatters";
 import ManageBudgetModal from "@/components/modals/ManageBudgetModal";
 import { Button } from "@/components/ui/button";
 
@@ -33,35 +33,39 @@ interface DateRangeOption {
   endDate?: string;
 }
 
-const DATE_RANGE_OPTIONS: DateRangeOption[] = [
-  { label: "All Time", startDate: undefined, endDate: undefined },
-  {
-    label: "This Month",
-    startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-      .toISOString()
-      .split("T")[0],
-    endDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0)
-      .toISOString()
-      .split("T")[0],
-  },
-  {
-    label: "Last 30 Days",
-    startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-      .toISOString()
-      .split("T")[0],
-    endDate: new Date().toISOString().split("T")[0],
-  },
-  {
-    label: "Q1 2025",
-    startDate: "2025-01-01",
-    endDate: "2025-03-31",
-  },
-  {
-    label: "Year 2025",
-    startDate: "2025-01-01",
-    endDate: "2025-12-31",
-  },
-];
+const getDateRangeOptions = (): DateRangeOption[] => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+
+  const startOfMonth = new Date(year, month, 1);
+  const endOfMonth = new Date(year, month + 1, 0);
+
+  const thirtyDaysAgo = new Date(now);
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  const startOfYear = new Date(year, 0, 1);
+  const endOfYear = new Date(year, 11, 31);
+
+  return [
+    { label: "All Time", startDate: undefined, endDate: undefined },
+    {
+      label: "This Month",
+      startDate: formatDateToIso(startOfMonth),
+      endDate: formatDateToIso(endOfMonth),
+    },
+    {
+      label: "Last 30 Days",
+      startDate: formatDateToIso(thirtyDaysAgo),
+      endDate: formatDateToIso(now),
+    },
+    {
+      label: "This Year",
+      startDate: formatDateToIso(startOfYear),
+      endDate: formatDateToIso(endOfYear),
+    },
+  ];
+};
 
 export default function ProjectBudgetDetailsPage() {
   const navigate = useNavigate();
@@ -106,8 +110,9 @@ export default function ProjectBudgetDetailsPage() {
   const [costCategory, setCostCategory] = useState<string>("All");
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
 
+  const dateRangeOptions = useMemo(() => getDateRangeOptions(), []);
   const [selectedDateRange, setSelectedDateRange] = useState<DateRangeOption>(
-    DATE_RANGE_OPTIONS[0]
+    dateRangeOptions[0]
   );
   const [isDateRangeOpen, setIsDateRangeOpen] = useState(false);
 
@@ -151,12 +156,12 @@ export default function ProjectBudgetDetailsPage() {
 
   // Project display details
   const projectInfo = detailData?.project;
-  const projectName = projectInfo?.projectName || activeProjectFromList?.projectName || "Selected Project";
-  const projectCode = projectInfo?.projectCode || activeProjectFromList?.jobId || "N/A";
-  const clientName = projectInfo?.clientName || "Not specified";
-  const salesRep = projectInfo?.salesRep || "Not assigned";
+  const projectName = projectInfo?.projectName || activeProjectFromList?.projectName || "";
+  const projectCode = projectInfo?.projectCode || activeProjectFromList?.jobId || "—";
+  const clientName = projectInfo?.clientName || "—";
+  const salesRep = projectInfo?.salesRep || "—";
 
-  // Financial Summary
+  // Financial Summary from Server Stats
   const summary = detailData?.summary || {
     totalBudget: 0,
     totalActualExpenses: 0,
@@ -166,7 +171,7 @@ export default function ProjectBudgetDetailsPage() {
   };
 
   const isOverBudget =
-    summary.totalActualExpenses > summary.totalBudget || summary.budgetUsedPct > 100;
+    (summary.budgetUsedPct ?? 0) > 100 || summary.totalActualExpenses > summary.totalBudget;
 
   // Filtered Cost Heads
   const costHeads = detailData?.costHeads || [];
@@ -192,32 +197,28 @@ export default function ProjectBudgetDetailsPage() {
     return ["All", ...Array.from(set)];
   }, [costHeads]);
 
-  // Donut Chart Data Calculation
+  // Donut Chart Data from Server Summary Stats (No mock data, no client-side stats calculation)
   const donutData = useMemo(() => {
     const totalBudget = summary.totalBudget || 0;
     const totalActual = summary.totalActualExpenses || 0;
+    const totalVariance = Math.abs(summary.totalVariance || 0);
 
     if (totalBudget === 0 && totalActual === 0) {
-      return [
-        { name: "Budget", value: 100, color: "#E5E7EB" },
-      ];
+      return [];
     }
 
-    if (totalActual <= totalBudget) {
-      const remaining = Math.max(0, totalBudget - totalActual);
-      return [
-        { name: "Actual (USD)", value: totalActual, color: "#EA580C" }, // Orange
-        { name: "Remaining (USD)", value: remaining, color: "#0E4A60" }, // Dark teal
-      ];
-    } else {
-      // Over budget
-      const overBudgetAmount = totalActual - totalBudget;
+    if (isOverBudget) {
       return [
         { name: "Budget (USD)", value: totalBudget, color: "#0E4A60" },
-        { name: "Overrun (USD)", value: overBudgetAmount, color: "#EF4444" }, // Red
+        { name: "Overrun (USD)", value: totalVariance, color: "#EF4444" },
+      ];
+    } else {
+      return [
+        { name: "Actual (USD)", value: totalActual, color: "#EA580C" },
+        { name: "Remaining (USD)", value: totalVariance, color: "#0E4A60" },
       ];
     }
-  }, [summary]);
+  }, [summary.totalBudget, summary.totalActualExpenses, summary.totalVariance, isOverBudget]);
 
   return (
     <div className="space-y-6 px-2 sm:px-4 xl:px-0 pb-10">
@@ -274,7 +275,11 @@ export default function ProjectBudgetDetailsPage() {
                       ? "Loading projects..."
                       : projects.length === 0
                       ? "No projects found"
-                      : `${projectName} (${projectCode})`}
+                      : projectName
+                      ? `${projectName} (${projectCode})`
+                      : projectCode !== "—"
+                      ? `Job (${projectCode})`
+                      : "Select Project"}
                   </span>
                   <ChevronDown className="w-3 h-3 text-gray-400 shrink-0" />
                 </button>
@@ -313,7 +318,7 @@ export default function ProjectBudgetDetailsPage() {
                           >
                             <span className="truncate">{proj.projectName}</span>
                             <span className="text-[11px] text-gray-400 font-normal">
-                              Job #{proj.jobId || "N/A"}
+                              {proj.jobId ? `Job #${proj.jobId}` : "No Job ID"}
                             </span>
                           </button>
                         ))
@@ -363,7 +368,7 @@ export default function ProjectBudgetDetailsPage() {
               <div className="flex items-center gap-4">
                 {/* Project Avatar / Icon */}
                 <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shrink-0 shadow-sm font-bold text-xl">
-                  {projectName.charAt(0).toUpperCase()}
+                  {projectName ? projectName.charAt(0).toUpperCase() : "P"}
                 </div>
 
                 {/* Title & Client */}
@@ -378,7 +383,7 @@ export default function ProjectBudgetDetailsPage() {
                   </div>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <h2 className="text-lg font-bold text-gray-900 leading-tight">
-                      {projectName}
+                      {projectName || "Project"}
                     </h2>
                     <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
                   </div>
@@ -478,7 +483,7 @@ export default function ProjectBudgetDetailsPage() {
                       isOverBudget ? "text-red-600" : "text-emerald-600"
                     }`}
                   >
-                    {isOverBudget ? "+" : ""}
+                    {summary.totalVariance === 0 ? "" : isOverBudget ? "+" : "-"}
                     {formatCurrency(Math.abs(summary.totalVariance))}
                   </p>
                   <p
@@ -605,7 +610,7 @@ export default function ProjectBudgetDetailsPage() {
           </button>
           {isDateRangeOpen && (
             <div className="absolute left-0 mt-1 w-56 bg-white border border-gray-100 rounded-lg shadow-lg py-1 z-30 text-xs animate-in fade-in-50">
-              {DATE_RANGE_OPTIONS.map((range) => (
+              {dateRangeOptions.map((range) => (
                 <button
                   key={range.label}
                   onClick={() => {
@@ -689,10 +694,6 @@ export default function ProjectBudgetDetailsPage() {
                   ) : (
                     filteredCostHeads.map((item, index) => {
                       const itemOverBudget = item.actual > item.budget;
-                      const variancePct =
-                        item.budget > 0
-                          ? ((Math.abs(item.variance) / item.budget) * 100).toFixed(1)
-                          : "0.0";
                       const headLabel = item.head || item.category || `Cost Head ${index + 1}`;
 
                       return (
@@ -723,11 +724,8 @@ export default function ProjectBudgetDetailsPage() {
                               itemOverBudget ? "text-[#EF4444]" : "text-[#10B981]"
                             }`}
                           >
-                            {itemOverBudget ? "+" : "-"}
+                            {item.variance === 0 ? "" : itemOverBudget ? "+" : "-"}
                             {formatCurrency(Math.abs(item.variance))}
-                            <span className="text-[11px] font-normal ml-1 opacity-80">
-                              ({variancePct}%)
-                            </span>
                           </td>
                           <td className="py-3.5 px-4">
                             {itemOverBudget ? (
@@ -770,7 +768,7 @@ export default function ProjectBudgetDetailsPage() {
                               deptOverBudget ? "text-[#EF4444]" : "text-[#10B981]"
                             }`}
                           >
-                            {deptOverBudget ? "+" : "-"}
+                            {dept.variance === 0 ? "" : deptOverBudget ? "+" : "-"}
                             {formatCurrency(Math.abs(dept.variance))}
                           </td>
                           <td className="py-3.5 px-4">
@@ -790,7 +788,7 @@ export default function ProjectBudgetDetailsPage() {
                   )
                 )}
 
-                {/* Total Row */}
+                {/* Total Row (Direct from Server Summary Stats) */}
                 <tr
                   className={`font-semibold border-t ${
                     isOverBudget
@@ -798,7 +796,11 @@ export default function ProjectBudgetDetailsPage() {
                       : "bg-[#ECFDF5]/50 border-emerald-100"
                   }`}
                 >
-                  <td className="py-3.5 px-4 text-gray-900 font-bold">Total</td>
+                  <td className="py-3.5 px-4 text-gray-900 font-bold">
+                    {costCategory !== "All" && groupBy === "Cost Head"
+                      ? "Project Total (All Categories)"
+                      : "Total"}
+                  </td>
                   <td className="py-3.5 px-4 text-gray-900">
                     {formatCurrency(summary.totalBudget)}
                   </td>
@@ -810,7 +812,7 @@ export default function ProjectBudgetDetailsPage() {
                       isOverBudget ? "text-[#EF4444]" : "text-[#10B981]"
                     }`}
                   >
-                    {isOverBudget ? "+" : "-"}
+                    {summary.totalVariance === 0 ? "" : isOverBudget ? "+" : "-"}
                     {formatCurrency(Math.abs(summary.totalVariance))}
                     <span className="text-xs font-normal ml-1">
                       ({summary.budgetUsedPct}%)
@@ -841,71 +843,63 @@ export default function ProjectBudgetDetailsPage() {
               Budget VS Actual Overview
             </h2>
 
-            <div className="flex items-center justify-between gap-4">
-              {/* Donut Chart */}
-              <div className="w-36 h-36 relative shrink-0">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Tooltip
-                      formatter={(val: number | string | undefined) => [
-                        formatCurrency(Number(val) || 0),
-                      ]}
-                    />
-                    <Pie
-                      data={donutData}
-                      dataKey="value"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={46}
-                      outerRadius={66}
-                      startAngle={90}
-                      endAngle={-270}
-                      stroke="none"
-                    >
-                      {donutData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
+            {donutData.length === 0 ? (
+              <div className="py-10 text-center text-gray-400 text-xs">
+                No budget or expense data recorded for this project.
               </div>
-
-              {/* Legend List */}
-              <div className="space-y-3 flex-1 text-xs">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#EA580C] shrink-0" />
-                    <span className="font-bold text-gray-900">Actual (USD)</span>
-                  </div>
-                  <p className="text-gray-500 pl-4 mt-0.5 font-medium">
-                    {formatCurrency(summary.totalActualExpenses)} ({summary.budgetUsedPct}%)
-                  </p>
+            ) : (
+              <div className="flex items-center justify-between gap-4">
+                {/* Donut Chart */}
+                <div className="w-36 h-36 relative shrink-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Tooltip
+                        formatter={(val: number | string | undefined) => [
+                          formatCurrency(Number(val) || 0),
+                        ]}
+                      />
+                      <Pie
+                        data={donutData}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={46}
+                        outerRadius={66}
+                        startAngle={90}
+                        endAngle={-270}
+                        stroke="none"
+                      >
+                        {donutData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
                 </div>
 
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`w-2.5 h-2.5 rounded-full shrink-0 ${
-                        isOverBudget ? "bg-[#EF4444]" : "bg-[#0E4A60]"
-                      }`}
-                    />
-                    <span className="font-bold text-gray-900">
-                      {isOverBudget ? "Overrun (USD)" : "Remaining (USD)"}
-                    </span>
-                  </div>
-                  <p className="text-gray-500 pl-4 mt-0.5 font-medium">
-                    {isOverBudget
-                      ? `+${formatCurrency(
-                          summary.totalActualExpenses - summary.totalBudget
-                        )}`
-                      : formatCurrency(
-                          Math.max(0, summary.totalBudget - summary.totalActualExpenses)
+                {/* Legend List - dynamic, strictly matching donutData slices */}
+                <div className="space-y-3 flex-1 text-xs">
+                  {donutData.map((item) => (
+                    <div key={item.name}>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="w-2.5 h-2.5 rounded-full shrink-0"
+                          style={{ backgroundColor: item.color }}
+                        />
+                        <span className="font-bold text-gray-900">{item.name}</span>
+                      </div>
+                      <p className="text-gray-500 pl-4 mt-0.5 font-medium">
+                        {formatCurrency(item.value)}
+                        {item.name === "Actual (USD)" && summary.budgetUsedPct !== undefined && (
+                          <span className="ml-1 text-gray-400">({summary.budgetUsedPct}%)</span>
                         )}
-                  </p>
+                      </p>
+                    </div>
+                  ))}
                 </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Card 2: Project Budget Summary */}
@@ -936,8 +930,8 @@ export default function ProjectBudgetDetailsPage() {
                     isOverBudget ? "text-[#EF4444]" : "text-[#10B981]"
                   }`}
                 >
-                  {isOverBudget ? "+" : ""}
-                  {formatCurrency(summary.totalVariance)}
+                  {summary.totalVariance === 0 ? "" : isOverBudget ? "+" : "-"}
+                  {formatCurrency(Math.abs(summary.totalVariance))}
                 </span>
               </div>
 

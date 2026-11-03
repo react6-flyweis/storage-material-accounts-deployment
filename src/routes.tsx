@@ -11,7 +11,7 @@ import SettingsView from "./components/settings/SettingsView";
 import ProfileView from "./components/profile/ProfileView";
 import PaymentOverview from "./pages/PaymentOverview";
 import PaymentApprovalsPage from "./pages/PaymentApprovalsPage";
-import UpdatePaymentPage from "./pages/UpdatePaymentPage";
+import AddPaymentPage from "./pages/AddPaymentPage";
 import OrdersAndPaymentsPage from "./pages/OrdersAndPaymentsPage";
 import MarginAnalysisPage from "./pages/MarginAnalysisPage";
 import ProjectBudgetDetailsPage from "./pages/ProjectBudgetDetailsPage";
@@ -74,6 +74,9 @@ const ProjectPaymentsPage = lazy(
 const ProjectBomPage = lazy(
   () => import("@/pages/customers/customer-detail/project-bom")
 );
+const MaterialDeliveryPage = lazy(
+  () => import("@/pages/customers/customer-detail/material-delivery")
+);
 const SalaryCostPage = lazy(() => import("@/pages/SalaryCostPage"));
 const AddSalaryPage = lazy(() => import("@/pages/cost/AddSalaryPage"));
 const ManpowerCostPage = lazy(() => import("@/pages/ManpowerCostPage"));
@@ -130,16 +133,36 @@ export const routes: RouteObject[] = [
             element: <PaymentOverview />,
           },
           {
+            path: "/payment-overview",
+            element: <PaymentOverview />,
+          },
+          {
             path: "/payment_approvals",
             element: <PaymentApprovalsPage />,
           },
           {
-            path: "/payment_overview/update",
-            element: <UpdatePaymentPage />,
+            path: "/payment_overview/add",
+            element: <AddPaymentPage />,
           },
           {
-            path: "/payment_overview/add",
-            element: <UpdatePaymentPage title="Add Payment" />,
+            path: "/payment-overview/add",
+            element: <AddPaymentPage />,
+          },
+          {
+            path: "/payment_overview/edit/:id?",
+            element: <AddPaymentPage />,
+          },
+          {
+            path: "/payment-overview/edit/:id?",
+            element: <AddPaymentPage />,
+          },
+          {
+            path: "/payment_overview/update/:id?",
+            element: <AddPaymentPage />,
+          },
+          {
+            path: "/payment-overview/update/:id?",
+            element: <AddPaymentPage />,
           },
           {
             path: "/payments/new-invoice",
@@ -190,6 +213,10 @@ export const routes: RouteObject[] = [
             element: <ProjectQuotationPage />,
           },
           {
+            path: "/customers/projects/:id/project-quotation/:quotationId",
+            element: <ProjectQuotationPage />,
+          },
+          {
             path: "/customers/projects/:id/contracts",
             element: <ContractDetailPage />,
           },
@@ -198,12 +225,24 @@ export const routes: RouteObject[] = [
             element: <ProjectInvoicesPage />,
           },
           {
+            path: "/customers/projects/:id/project-invoices/:invoiceId",
+            element: <InvoicePreview />,
+          },
+          {
+            path: "/customers/projects/:id/project-invoices/:id",
+            element: <InvoicePreview />,
+          },
+          {
             path: "/customers/projects/:id/project-payments",
             element: <ProjectPaymentsPage />,
           },
           {
             path: "/customers/projects/:id/bom",
             element: <ProjectBomPage />,
+          },
+          {
+            path: "/customers/projects/:id/material-delivery",
+            element: <MaterialDeliveryPage />,
           },
           {
             path: "/customers/:customerId",
@@ -222,7 +261,15 @@ export const routes: RouteObject[] = [
             element: <ProjectQuotationPage />,
           },
           {
+            path: "/customers/:customerId/projects/:projectId/project-quotation/:quotationId",
+            element: <ProjectQuotationPage />,
+          },
+          {
             path: "/customers/:customerId/project-quotation",
+            element: <ProjectQuotationPage />,
+          },
+          {
+            path: "/customers/:customerId/project-quotation/:quotationId",
             element: <ProjectQuotationPage />,
           },
           {
@@ -238,8 +285,16 @@ export const routes: RouteObject[] = [
             element: <ProjectInvoicesPage />,
           },
           {
+            path: "/customers/:customerId/projects/:projectId/project-invoices/:invoiceId",
+            element: <InvoicePreview />,
+          },
+          {
             path: "/customers/:customerId/project-invoices",
             element: <ProjectInvoicesPage />,
+          },
+          {
+            path: "/customers/:customerId/project-invoices/:invoiceId",
+            element: <InvoicePreview />,
           },
           {
             path: "/customers/:customerId/projects/:projectId/project-payments",
@@ -252,6 +307,14 @@ export const routes: RouteObject[] = [
           {
             path: "/customers/:customerId/bom",
             element: <ProjectBomPage />,
+          },
+          {
+            path: "/customers/:customerId/projects/:projectId/material-delivery",
+            element: <MaterialDeliveryPage />,
+          },
+          {
+            path: "/customers/:customerId/material-delivery",
+            element: <MaterialDeliveryPage />,
           },
           {
             path: "/customers/:customerId/project-payments",
@@ -562,8 +625,20 @@ export const routes: RouteObject[] = [
             element: <InvoiceManagementPage />,
           },
           {
+            path: "/invoices/project-invoices/:id",
+            element: <InvoicePreview />,
+          },
+          {
             path: "/project-invoices",
             element: <InvoiceManagementPage />,
+          },
+          {
+            path: "/project-invoices/:id",
+            element: <InvoicePreview />,
+          },
+          {
+            path: "/invoices/:id",
+            element: <InvoicePreview />,
           },
           {
             path: "/invoices/vendor-invoices",

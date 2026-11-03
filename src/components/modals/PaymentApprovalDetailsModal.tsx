@@ -10,7 +10,15 @@ import {
 } from "@/redux/api/paymentApprovalsApi";
 
 export type ApprovalStatus = "Pending" | "Under Review" | "Approved" | "Disputed" | "Paid";
-export type InvoiceType = "Carrier" | "Delivery Company" | "Vendor";
+export type InvoiceType =
+  | "Carrier"
+  | "Delivery Company"
+  | "Vendor"
+  | "Vendor Payment"
+  | "Shipper Payment"
+  | "Equipment"
+  | "Other Expenses"
+  | string;
 
 export interface PaymentApprovalItem {
   id: string;

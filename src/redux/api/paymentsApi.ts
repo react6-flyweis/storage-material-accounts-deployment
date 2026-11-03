@@ -98,13 +98,14 @@ export type PaymentStatusEnum =
   | "on_hold";
 
 export interface CreatePaymentOrderRequest {
-  quoteOrderId: string;
-  orderValue: number;
+  leadId?: string;
+  quoteOrderId?: string;
+  orderValue?: number;
   currentCost?: number;
-  depositPaid: number;
-  progressPaid: number;
+  depositPaid?: number;
+  progressPaid?: number;
   finalPaid?: number;
-  status: PaymentStatusEnum;
+  status?: PaymentStatusEnum;
   notes?: string;
 }
 
@@ -115,6 +116,7 @@ export interface UpdatePaymentOrderRequest {
   progressPaid: number;
   finalPaid?: number;
   status: PaymentStatusEnum;
+  notes?: string;
 }
 
 export interface PaymentOrderOptionItem {
@@ -273,7 +275,7 @@ export const paymentsApi = createApi({
         }
         return response.data;
       },
-      invalidatesTags: ["PaymentStats", "PaymentOrders"],
+      invalidatesTags: ["PaymentStats", "PaymentOrders", "PaymentOrderOptions"],
     }),
 
     // A4. Update (Update Payment screen)

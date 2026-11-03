@@ -1,6 +1,9 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import type { OrderVsPlantCosts, DeliveryFinance } from "@/redux/api/dashboardApi";
+import type {
+  OrderVsPlantCosts,
+  DeliveryFinance,
+} from "@/redux/api/dashboardApi";
 import { formatCurrency } from "@/lib/dashboardFormatters";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMemo } from "react";
@@ -106,7 +109,7 @@ export function CostBreakdown({
                 <span className="text-xs sm:text-sm font-semibold text-gray-800">
                   Total Cost
                 </span>
-                <span className="text-xl sm:text-2xl font-bold text-gray-900">
+                <span className="text-lg font-bold text-gray-900">
                   {formatCurrency(totalCost)}
                 </span>
               </div>

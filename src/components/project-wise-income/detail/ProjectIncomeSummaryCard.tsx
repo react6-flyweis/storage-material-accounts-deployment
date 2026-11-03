@@ -1,25 +1,73 @@
 import React from "react";
+import type { ProjectWiseIncomeSummarySidebar } from "@/redux/api/reportsApi";
+import { formatCurrency } from "@/lib/dashboardFormatters";
 
-interface SummaryItem {
-  label: string;
-  value: string;
+interface ProjectIncomeSummaryCardProps {
+  sidebar?: ProjectWiseIncomeSummarySidebar;
+  isLoading?: boolean;
 }
 
-const mainItems: SummaryItem[] = [
-  { label: "Total Contract Value", value: "$2,45,00,000" },
-  { label: "Billed to Date", value: "$1,60,00,000" },
-  { label: "Total Income", value: "$1,37,50,000" },
-  { label: "Received Income", value: "$1,05,50,000" },
-  { label: "Pending Income", value: "$25,00,000" },
-  { label: "Overdue Income", value: "$7,00,000" },
-];
+export const ProjectIncomeSummaryCard: React.FC<ProjectIncomeSummaryCardProps> = ({
+  sidebar,
+  isLoading = false,
+}) => {
+  const mainItems = [
+    {
+      label: "Total Contract Value",
+      value: formatCurrency(sidebar?.totalContractValue),
+    },
+    {
+      label: "Billed to Date",
+      value: formatCurrency(sidebar?.billedToDate),
+    },
+    {
+      label: "Total Income",
+      value: formatCurrency(sidebar?.totalIncome),
+    },
+    {
+      label: "Received Income",
+      value: formatCurrency(sidebar?.receivedIncome),
+    },
+    {
+      label: "Pending Income",
+      value: formatCurrency(sidebar?.pendingIncome),
+    },
+    {
+      label: "Overdue Income",
+      value: formatCurrency(sidebar?.overdueIncome),
+    },
+  ];
 
-const retentionItems: SummaryItem[] = [
-  { label: "Retention Amount", value: "$6,50,000" },
-  { label: "Retention Released", value: "$3,20,000" },
-];
+  const retentionItems = [
+    {
+      label: "Retention Amount",
+      value: formatCurrency(sidebar?.retentionAmount),
+    },
+    {
+      label: "Retention Released",
+      value: formatCurrency(sidebar?.retentionReleased),
+    },
+  ];
 
-export const ProjectIncomeSummaryCard: React.FC = () => {
+  const balanceToBeReceived = formatCurrency(sidebar?.balanceToBeReceived);
+
+  if (isLoading) {
+    return (
+      <div className="bg-white rounded-xl shadow-xs border border-slate-100 flex flex-col justify-between overflow-hidden h-full animate-pulse p-5 space-y-4">
+        <div className="w-36 h-5 bg-slate-100 rounded" />
+        <div className="space-y-3 pt-2">
+          {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+            <div key={i} className="flex justify-between items-center">
+              <div className="w-28 h-3.5 bg-slate-100 rounded" />
+              <div className="w-20 h-3.5 bg-slate-100 rounded" />
+            </div>
+          ))}
+        </div>
+        <div className="w-full h-12 bg-slate-100 rounded-lg mt-4" />
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white rounded-xl shadow-xs border border-slate-100 flex flex-col justify-between overflow-hidden h-full">
       <div>
@@ -63,7 +111,7 @@ export const ProjectIncomeSummaryCard: React.FC = () => {
           Balance to be Received
         </span>
         <span className="font-bold text-slate-900 text-sm sm:text-base">
-          $31,80,000
+          {balanceToBeReceived}
         </span>
       </div>
     </div>

@@ -70,7 +70,7 @@ export function AlertNotification({
   alerts,
   isLoading,
 }: AlertNotificationProps) {
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
 
   const items: AlertItemProps[] = alerts
     ? alerts.map((a) => {
@@ -92,10 +92,10 @@ export function AlertNotification({
       <div>
         <SectionHeaderWithAction
           title="Alert & Notification"
-          actionLabel="View All"
           showIcon={true}
           subtitle="Important Financial reminders"
-          onActionClick={() => navigate("/notification")}
+          // actionLabel="View All"
+          // onActionClick={() => navigate("/notification")}
         />
         <div className="space-y-4 pt-3 border-t border-gray-300">
           {isLoading ? (

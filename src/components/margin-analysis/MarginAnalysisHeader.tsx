@@ -15,7 +15,11 @@ import {
   useGetMarginAnalysisFiltersQuery,
   useExportProfitLossMutation,
 } from "@/redux/api/marginAnalysisApi";
-import { DATE_PRESETS, type MarginFilters } from "./types";
+import { DATE_PRESETS, formatCompanyEnum, type MarginFilters } from "./types";
+import ProjectSelectorDropdownModal, {
+  type ProjectOptionItem,
+} from "@/components/common_components/ProjectSelectorDropdownModal";
+import { getProjectDisplayName } from "@/lib/projectUtils";
 
 export interface MarginAnalysisHeaderProps {
   filters: MarginFilters;
@@ -45,21 +49,49 @@ export const MarginAnalysisHeader: React.FC<MarginAnalysisHeaderProps> = ({
     }
   }, [exportNotification]);
 
-  const companyOptions = useMemo(
-    () => filtersData?.companies || [],
-    [filtersData],
-  );
+  const companyOptions = useMemo(() => {
+    if (!filtersData?.companies) return [];
+    return filtersData.companies.map(
+      (c: string | { id?: string; code?: string; value?: string; name?: string; label?: string }) => {
+        if (typeof c === "string") {
+          return {
+            id: c,
+            label: formatCompanyEnum(c),
+          };
+        }
+        const id = c.id || c.code || c.value || c.name || "";
+        const rawLabel = c.label || c.name || id;
+        return {
+          id,
+          label: formatCompanyEnum(rawLabel),
+        };
+      },
+    );
+  }, [filtersData]);
 
-  const projectOptions = useMemo(() => {
+  const filteredProjects = useMemo(() => {
     if (!filtersData?.projects) return [];
-    if (filters.companyId !== "all") {
-      return filtersData.projects.filter(
-        (p) =>
-          p.businessUnit?.toLowerCase() === filters.companyId.toLowerCase(),
-      );
+    if (filters.companyId && filters.companyId !== "all") {
+      const targetCompany = filters.companyId.toLowerCase().replace(/[_-]+/g, " ").trim();
+      return filtersData.projects.filter((p) => {
+        if (!p.businessUnit) return false;
+        const pUnit = p.businessUnit.toLowerCase().replace(/[_-]+/g, " ").trim();
+        return (
+          pUnit === targetCompany ||
+          p.businessUnit.toLowerCase() === filters.companyId.toLowerCase()
+        );
+      });
     }
     return filtersData.projects;
   }, [filtersData, filters.companyId]);
+
+  const projectSelectorItems: ProjectOptionItem[] = useMemo(() => {
+    return filteredProjects.map((p) => ({
+      id: p.leadId,
+      name: getProjectDisplayName(p),
+      code: p.jobId || "",
+    }));
+  }, [filteredProjects]);
 
   const currencyOptions = useMemo(
     () => filtersData?.currencies || [{ code: "USD", label: "USD" }],
@@ -114,7 +146,18 @@ export const MarginAnalysisHeader: React.FC<MarginAnalysisHeaderProps> = ({
   const selectedPresetLabel = filters.presetLabel || "All Time";
 
   const onSelectCompany = (id: string) => {
-    onFilterChange({ ...filters, companyId: id });
+    let nextProjectId = filters.projectId;
+    if (id !== "all" && nextProjectId !== "all") {
+      const proj = filtersData?.projects?.find((p) => p.leadId === nextProjectId);
+      if (proj?.businessUnit) {
+        const pUnit = proj.businessUnit.toLowerCase().replace(/[_-]+/g, " ").trim();
+        const target = id.toLowerCase().replace(/[_-]+/g, " ").trim();
+        if (pUnit !== target && proj.businessUnit.toLowerCase() !== id.toLowerCase()) {
+          nextProjectId = "all";
+        }
+      }
+    }
+    onFilterChange({ ...filters, companyId: id, projectId: nextProjectId });
   };
   const onSelectProject = (id: string) => {
     onFilterChange({ ...filters, projectId: id });
@@ -133,7 +176,6 @@ export const MarginAnalysisHeader: React.FC<MarginAnalysisHeaderProps> = ({
 
   const isExporting = isExportingInternal;
   const [isCompanyOpen, setIsCompanyOpen] = useState(false);
-  const [isProjectOpen, setIsProjectOpen] = useState(false);
   const [isCurrencyOpen, setIsCurrencyOpen] = useState(false);
   const [isDateRangeOpen, setIsDateRangeOpen] = useState(false);
 
@@ -149,7 +191,6 @@ export const MarginAnalysisHeader: React.FC<MarginAnalysisHeaderProps> = ({
         !dropdownRef.current.contains(event.target as Node)
       ) {
         setIsCompanyOpen(false);
-        setIsProjectOpen(false);
         setIsCurrencyOpen(false);
         setIsDateRangeOpen(false);
       }
@@ -158,17 +199,31 @@ export const MarginAnalysisHeader: React.FC<MarginAnalysisHeaderProps> = ({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const selectedCompanyLabel =
-    selectedCompanyId === "all"
-      ? "All Companies"
-      : companyOptions.find((c) => c.id === selectedCompanyId)?.label ||
-        selectedCompanyId;
+  const selectedCompanyLabel = useMemo(() => {
+    if (!selectedCompanyId || selectedCompanyId === "all") {
+      return "All Companies";
+    }
+    const matched = companyOptions.find(
+      (c) => c.id.toLowerCase() === selectedCompanyId.toLowerCase()
+    );
+    return matched ? matched.label : formatCompanyEnum(selectedCompanyId);
+  }, [selectedCompanyId, companyOptions]);
 
-  const selectedProjectLabel =
-    selectedProjectId === "all"
-      ? "All Projects"
-      : projectOptions.find((p) => p.leadId === selectedProjectId)
-          ?.projectName || selectedProjectId;
+  const selectedProjectLabel = useMemo(() => {
+    if (!selectedProjectId || selectedProjectId === "all") {
+      return "All Projects";
+    }
+    const matched = filtersData?.projects?.find(
+      (p) => p.leadId === selectedProjectId
+    );
+    if (matched) {
+      const pName = getProjectDisplayName(matched);
+      return matched.jobId
+        ? `${pName} (${matched.jobId})`
+        : pName;
+    }
+    return "Selected Project";
+  }, [selectedProjectId, filtersData?.projects]);
 
   return (
     <div>
@@ -232,7 +287,6 @@ export const MarginAnalysisHeader: React.FC<MarginAnalysisHeaderProps> = ({
           <button
             onClick={() => {
               setIsCompanyOpen(!isCompanyOpen);
-              setIsProjectOpen(false);
               setIsCurrencyOpen(false);
               setIsDateRangeOpen(false);
             }}
@@ -247,7 +301,7 @@ export const MarginAnalysisHeader: React.FC<MarginAnalysisHeaderProps> = ({
             <ChevronDown className="w-3.5 h-3.5 text-gray-400 shrink-0" />
           </button>
           {isCompanyOpen && (
-            <div className="absolute left-0 mt-1 w-52 bg-white border border-gray-100 rounded-lg shadow-lg py-1 z-40 text-xs max-h-60 overflow-y-auto">
+            <div className="absolute left-0 mt-1 w-56 bg-white border border-gray-100 rounded-lg shadow-lg py-1 z-40 text-xs max-h-60 overflow-y-auto">
               <button
                 onClick={() => {
                   onSelectCompany("all");
@@ -273,7 +327,7 @@ export const MarginAnalysisHeader: React.FC<MarginAnalysisHeaderProps> = ({
                     onSelectCompany(c.id);
                     setIsCompanyOpen(false);
                   }}
-                  className={`w-full text-left px-3 py-2 hover:bg-gray-50 cursor-pointer capitalize ${
+                  className={`w-full text-left px-3 py-2 hover:bg-gray-50 cursor-pointer ${
                     selectedCompanyId === c.id
                       ? "text-blue-600 font-semibold bg-blue-50/40"
                       : "text-gray-700"
@@ -286,69 +340,35 @@ export const MarginAnalysisHeader: React.FC<MarginAnalysisHeaderProps> = ({
           )}
         </div>
 
-        {/* 2. All Projects Dropdown */}
-        <div className="relative">
-          <button
-            onClick={() => {
-              setIsProjectOpen(!isProjectOpen);
-              setIsCompanyOpen(false);
-              setIsCurrencyOpen(false);
-              setIsDateRangeOpen(false);
-            }}
-            className="bg-white border border-gray-200/90 rounded-lg px-3.5 py-2 text-xs md:text-sm font-medium text-gray-700 shadow-2xs hover:bg-gray-50/80 flex items-center gap-2 cursor-pointer transition-colors max-w-xs truncate"
-          >
-            <ListFilter className="w-4 h-4 text-gray-500 shrink-0" />
-            {isLoadingFilters ? (
-              <Skeleton className="h-4 w-24 bg-gray-200" />
-            ) : (
-              <span className="truncate">{selectedProjectLabel}</span>
-            )}
-            <ChevronDown className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-          </button>
-          {isProjectOpen && (
-            <div className="absolute left-0 mt-1 w-64 bg-white border border-gray-100 rounded-lg shadow-lg py-1 z-40 text-xs max-h-64 overflow-y-auto">
-              <button
-                onClick={() => {
-                  onSelectProject("all");
-                  setIsProjectOpen(false);
-                }}
-                className={`w-full text-left px-3 py-2 hover:bg-gray-50 cursor-pointer ${
-                  selectedProjectId === "all"
-                    ? "text-blue-600 font-semibold bg-blue-50/40"
-                    : "text-gray-700"
-                }`}
-              >
-                All Projects
-              </button>
-              {isLoadingFilters && (
-                <div className="px-3 py-2 text-gray-400 flex items-center gap-1.5">
-                  <Loader2 className="w-3 h-3 animate-spin" /> Loading projects...
-                </div>
-              )}
-              {projectOptions.map((p) => (
-                <button
-                  key={p.leadId}
-                  onClick={() => {
-                    onSelectProject(p.leadId);
-                    setIsProjectOpen(false);
-                  }}
-                  className={`w-full text-left px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center justify-between gap-2 ${
-                    selectedProjectId === p.leadId
-                      ? "text-blue-600 font-semibold bg-blue-50/40"
-                      : "text-gray-700"
-                  }`}
-                >
-                  <span className="truncate">{p.projectName}</span>
-                  {p.jobId && (
-                    <span className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
-                      #{p.jobId}
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        {/* 2. All Projects Dropdown & Project Selector Modal */}
+        <ProjectSelectorDropdownModal
+          trigger={
+            <button
+              type="button"
+              className="bg-white border border-gray-200/90 rounded-lg px-3.5 py-2 text-xs md:text-sm font-medium text-gray-700 shadow-2xs hover:bg-gray-50/80 flex items-center gap-2 cursor-pointer transition-colors max-w-70 justify-between"
+            >
+              <div className="flex items-center gap-2 truncate">
+                <ListFilter className="w-4 h-4 text-gray-500 shrink-0" />
+                {isLoadingFilters ? (
+                  <Skeleton className="h-4 w-24 bg-gray-200" />
+                ) : (
+                  <span className="truncate">{selectedProjectLabel}</span>
+                )}
+              </div>
+              <ChevronDown className="w-3.5 h-3.5 text-gray-400 shrink-0 ml-1" />
+            </button>
+          }
+          selectedProject={selectedProjectLabel}
+          projects={projectSelectorItems}
+          onSelectProject={(label, leadId) => {
+            if (!leadId || label === "All Projects") {
+              onSelectProject("all");
+            } else {
+              onSelectProject(leadId);
+            }
+          }}
+          align="left"
+        />
 
         {/* 3. All Currencies Dropdown */}
         <div className="relative">
@@ -356,7 +376,6 @@ export const MarginAnalysisHeader: React.FC<MarginAnalysisHeaderProps> = ({
             onClick={() => {
               setIsCurrencyOpen(!isCurrencyOpen);
               setIsCompanyOpen(false);
-              setIsProjectOpen(false);
               setIsDateRangeOpen(false);
             }}
             className="bg-white border border-gray-200/90 rounded-lg px-3.5 py-2 text-xs md:text-sm font-medium text-gray-700 shadow-2xs hover:bg-gray-50/80 flex items-center gap-2 cursor-pointer transition-colors"
@@ -397,7 +416,6 @@ export const MarginAnalysisHeader: React.FC<MarginAnalysisHeaderProps> = ({
             onClick={() => {
               setIsDateRangeOpen(!isDateRangeOpen);
               setIsCompanyOpen(false);
-              setIsProjectOpen(false);
               setIsCurrencyOpen(false);
             }}
             className="bg-white border border-gray-200/90 rounded-lg px-3.5 py-2 text-xs md:text-sm font-medium text-gray-700 shadow-2xs hover:bg-gray-50/80 flex items-center gap-2 cursor-pointer transition-colors"

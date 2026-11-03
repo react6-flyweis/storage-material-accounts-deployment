@@ -1,12 +1,14 @@
 import type { ReactNode } from "react";
 import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type StatCardV2Props = {
   title: string;
   value: ReactNode;
-  subtitle: ReactNode;
+  subtitle?: ReactNode;
   icon: ReactNode;
   color: "purple" | "green" | "yellow" | "red";
+  isLoading?: boolean;
 };
 
 const colorStyles = {
@@ -38,6 +40,7 @@ export default function StatCardV2({
   subtitle,
   icon,
   color,
+  isLoading = false,
 }: StatCardV2Props) {
   const style = colorStyles[color];
 
@@ -54,8 +57,17 @@ export default function StatCardV2({
         </div>
       </div>
       <div className="mt-4">
-        <h3 className="text-lg font-bold text-gray-900">{value}</h3>
-        <p className="text-sm text-gray-400 mt-1">{subtitle}</p>
+        {isLoading ? (
+          <div className="space-y-2 py-0.5">
+            <Skeleton className="h-6 w-28 rounded" />
+            <Skeleton className="h-4 w-36 rounded" />
+          </div>
+        ) : (
+          <>
+            <h3 className="text-lg font-bold text-gray-900">{value}</h3>
+            {subtitle ? <p className="text-sm text-gray-400 mt-1">{subtitle}</p> : null}
+          </>
+        )}
       </div>
       <div className="absolute -bottom-2 -right-2 w-16 h-16 pointer-events-none opacity-40">
         <svg

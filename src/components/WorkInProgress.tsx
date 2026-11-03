@@ -54,7 +54,11 @@ function ProjectItem({
       <div className="flex justify-between items-start mb-6">
         <div className="flex items-center gap-3">
           <div className="md:w-10 w-8 md:h-10 h-8 flex items-center justify-center bg-blue-50/50 rounded-xl">
-            <img src={BuildingOneIcon} className="md:w-5 md:h-5 w-4 h-4" alt="project" />
+            <img
+              src={BuildingOneIcon}
+              className="md:w-5 md:h-5 w-4 h-4"
+              alt="project"
+            />
           </div>
           <div className="flex flex-col gap-1">
             <h4 className="font-semibold text-gray-800 text-sm md:text-base leading-tight">
@@ -64,7 +68,7 @@ function ProjectItem({
               variant="outline"
               className={cn(
                 "font-normal md:text-[10px] text-[9px] px-2 py-0 border w-fit h-5",
-                statusColors[status] || statusColors["In Progress"]
+                statusColors[status] || statusColors["In Progress"],
               )}
             >
               {status}
@@ -117,7 +121,7 @@ export function WorkInProgress({ projects, isLoading }: WorkInProgressProps) {
         <SectionHeaderWithAction
           title="Work in progress - Profit Analysis"
           subtitle="Real time profitability tracking for active projects"
-          onActionClick={() => navigate("/wip_profit")}
+          onActionClick={() => navigate("/profit-loss")}
           showIcon={true}
         />
 
@@ -169,7 +173,9 @@ export function WorkInProgress({ projects, isLoading }: WorkInProgressProps) {
                   ? Math.round((profit / project.estimated) * 100)
                   : 0;
               const status: "In Progress" | "Execution" =
-                project.varianceDirection === "over" ? "Execution" : "In Progress";
+                project.varianceDirection === "over"
+                  ? "Execution"
+                  : "In Progress";
 
               return (
                 <ProjectItem

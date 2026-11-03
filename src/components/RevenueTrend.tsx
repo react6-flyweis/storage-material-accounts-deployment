@@ -47,14 +47,32 @@ const CustomLegend = () => {
   );
 };
 
-const formatValueLabel = (val: any) => {
+const formatValueLabel = (val: unknown) => {
   if (val === undefined || val === null) return "";
   const num = Number(val);
-  if (isNaN(num)) return String(val);
-  if (Math.abs(num) >= 1000) {
+  if (isNaN(num) || num <= 0) return ""; // Suppress 0 and negative labels to eliminate cluster clutter
+  if (num >= 1_000_000) {
+    return `${(num / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+  }
+  if (num >= 1000) {
     return `${Math.round(num / 1000)}k`;
   }
   return `${num}k`;
+};
+
+const formatXAxisTick = (tick: string) => {
+  if (!tick) return "";
+  const parts = tick.trim().split(/\s+/);
+  if (parts.length === 2 && parts[1].length === 4) {
+    return `${parts[0].slice(0, 3)} '${parts[1].slice(2)}`;
+  }
+  return tick;
+};
+
+const PERIOD_LIMITS: Record<"daily" | "weekly" | "monthly", number> = {
+  daily: 7,
+  weekly: 6,
+  monthly: 5,
 };
 
 export function RevenueTrend() {
@@ -63,20 +81,23 @@ export function RevenueTrend() {
 
   const chartData = useMemo(() => {
     if (apiData?.points && apiData.points.length > 0) {
-      return apiData.points.map((pt) => {
-        const inc = pt.income > 10000 ? Math.round(pt.income / 1000) : pt.income;
-        const exp = pt.expense > 10000 ? Math.round(pt.expense / 1000) : pt.expense;
-        const rev = Math.max(0, inc - exp);
+      const limit = PERIOD_LIMITS[activePeriod] || 5;
+      const recentPoints = apiData.points.slice(-limit);
+
+      return recentPoints.map((pt) => {
+        const rawInc = Number(pt.income) || 0;
+        const rawExp = Number(pt.expense) || 0;
+        const rev = Math.max(0, rawInc - rawExp);
         return {
           label: pt.label,
-          income: inc,
-          expenses: exp,
+          income: rawInc,
+          expenses: rawExp,
           revenue: rev,
         };
       });
     }
     return [];
-  }, [apiData]);
+  }, [apiData, activePeriod]);
 
   const showSkeleton = isLoading || isFetching;
 
@@ -127,66 +148,63 @@ export function RevenueTrend() {
             <ChartContainer config={chartConfig} className="h-full w-full">
               <BarChart
                 data={chartData}
-                margin={{ top: 30, right: 10, left: 0, bottom: 20 }}
-                barGap={0}
-                barCategoryGap="15%"
+                margin={{ top: 25, right: 10, left: 0, bottom: 20 }}
+                barGap={3}
+                barCategoryGap="22%"
               >
                 <XAxis
-                  xAxisId="bars"
                   dataKey="label"
                   tickLine={false}
                   tickMargin={10}
                   axisLine={false}
-                  tick={{ fill: "#6b7280", fontSize: 13, fontWeight: 500 }}
+                  tickFormatter={formatXAxisTick}
+                  tick={{ fill: "#6b7280", fontSize: 12, fontWeight: 500 }}
                 />
-                <XAxis xAxisId="revenue" dataKey="label" hide />
                 <YAxis hide />
                 <ChartTooltip
-                  cursor={{ fill: "transparent" }}
+                  cursor={{ fill: "rgba(0, 0, 0, 0.04)" }}
                   content={<ChartTooltipContent indicator="dot" />}
                 />
                 <Bar
-                  xAxisId="bars"
                   dataKey="income"
                   fill="#3B82F6"
-                  radius={[8, 8, 0, 0]}
-                  barSize={40}
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={18}
                 >
                   <LabelList
                     dataKey="income"
                     position="top"
-                    offset={10}
+                    offset={6}
                     formatter={formatValueLabel}
-                    style={{ fill: "#3B82F6", fontSize: 12, fontWeight: 500 }}
+                    style={{ fill: "#3B82F6", fontSize: 11, fontWeight: 600 }}
                   />
                 </Bar>
                 <Bar
-                  xAxisId="bars"
                   dataKey="expenses"
                   fill="#F97316"
-                  radius={[8, 8, 0, 0]}
-                  barSize={40}
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={18}
                 >
                   <LabelList
                     dataKey="expenses"
                     position="top"
-                    offset={10}
+                    offset={6}
                     formatter={formatValueLabel}
-                    style={{ fill: "#F97316", fontSize: 12, fontWeight: 500 }}
+                    style={{ fill: "#F97316", fontSize: 11, fontWeight: 600 }}
                   />
                 </Bar>
                 <Bar
-                  xAxisId="revenue"
                   dataKey="revenue"
-                  fill="#22C55E"
-                  radius={[8, 8, 0, 0]}
-                  barSize={35}
+                  fill="#10B981"
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={18}
                 >
                   <LabelList
                     dataKey="revenue"
-                    position="center"
+                    position="top"
+                    offset={6}
                     formatter={formatValueLabel}
-                    style={{ fill: "#ffffff", fontSize: 11, fontWeight: 500 }}
+                    style={{ fill: "#10B981", fontSize: 11, fontWeight: 600 }}
                   />
                 </Bar>
               </BarChart>

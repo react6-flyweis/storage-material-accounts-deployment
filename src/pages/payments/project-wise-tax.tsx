@@ -34,6 +34,7 @@ import {
   MoreHorizontal,
   Loader2,
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import TaxDetailsSheet from "@/components/payments/tax-details-sheet";
 import StatCardV2 from "@/components/ui/stat-card-v2";
 import DateRangeFilter from "@/components/ui/date-range-filter";
@@ -41,12 +42,16 @@ import {
   useProjectWiseTaxQuery,
   useProjectWiseTaxStatsQuery,
   useExportProjectWiseTaxMutation,
+  useSyncProjectWiseTaxMutation,
 } from "@/modules/payments/payments.hooks";
 import {
   useBudgetVsActualProjectsQuery,
   useExpensesFiltersQuery,
 } from "@/modules/financials/financials.hooks";
-import type { ProjectWiseTaxItem, TaxFilingItem } from "@/modules/payments/payments.api";
+import {
+  type ProjectWiseTaxItem,
+  type TaxFilingItem,
+} from "@/modules/payments/payments.api";
 
 const AVATAR_COLORS = [
   "bg-blue-900",
@@ -122,6 +127,7 @@ export default function ProjectWiseTax() {
   const [lastSyncedTime, setLastSyncedTime] = useState<Date>(new Date());
 
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [isPrepareMode, setIsPrepareMode] = useState(false);
   const [selectedProject, setSelectedProject] = useState<{
     state: string;
     status: string;
@@ -140,7 +146,6 @@ export default function ProjectWiseTax() {
   const projectOptions = useMemo(() => {
     const map = new Map<string, { id: string; name: string; jobId?: string }>();
 
-    // From budget vs actual
     const bvaList = bvaProjectsData?.data?.projects || [];
     for (const p of bvaList) {
       if (p._id) {
@@ -152,7 +157,6 @@ export default function ProjectWiseTax() {
       }
     }
 
-    // From expense filters
     const filterProjects = filtersData?.data?.projects || [];
     for (const p of filterProjects) {
       if (p.leadId) {
@@ -201,16 +205,22 @@ export default function ProjectWiseTax() {
     endDate: endDateStr,
   };
 
+  // 7.2 Table query
   const { data, isLoading, isFetching, isError, refetch } =
     useProjectWiseTaxQuery(queryParams);
 
+  // 7.1 Stats query
   const {
     data: statsRes,
+    isLoading: isStatsLoading,
     isFetching: isStatsFetching,
     refetch: refetchStats,
   } = useProjectWiseTaxStatsQuery(statsParams);
 
+  // 7.3 Export mutation
   const exportMutation = useExportProjectWiseTaxMutation();
+  const syncMutation = useSyncProjectWiseTaxMutation();
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const projects = useMemo<ProjectWiseTaxItem[]>(
     () => data?.data?.projects || [],
@@ -221,64 +231,39 @@ export default function ProjectWiseTax() {
 
   const statsData = statsRes?.data;
 
-  // Fallback calculations if stats endpoint doesn't return or is loading
-  const fallbackTaxCollected = projects.reduce(
-    (acc, curr) => acc + (Number(curr.taxCollected) || 0),
-    0
-  );
-  const fallbackPaid = projects.reduce(
-    (acc, curr) => acc + (Number(curr.paidFiled) || 0),
-    0
-  );
-  const fallbackPayable = projects.reduce(
-    (acc, curr) => acc + (Number(curr.payable) || 0),
-    0
-  );
-  const fallbackPendingProjects = projects.filter(
-    (p) =>
-      Number(p.payable) > 0 ||
-      p.status?.toLowerCase().includes("due") ||
-      p.status?.toLowerCase().includes("pending")
-  );
-
   const finalTaxCollected =
-    statsData?.totalTaxCollected?.value !== undefined
-      ? statsData.totalTaxCollected.value
-      : fallbackTaxCollected;
+    statsData?.totalTaxCollected?.value ?? 0;
 
   const finalPaid =
-    statsData?.totalPaid?.value !== undefined
-      ? statsData.totalPaid.value
-      : fallbackPaid;
+    statsData?.totalPaid?.value ?? 0;
 
   const finalPayable =
-    statsData?.totalPayable?.value !== undefined
-      ? statsData.totalPayable.value
-      : fallbackPayable;
+    statsData?.totalPayable?.value ?? 0;
 
   const finalPendingCount =
-    statsData?.pendingFiling?.count !== undefined
-      ? statsData.pendingFiling.count
-      : fallbackPendingProjects.length;
+    statsData?.pendingFiling?.count ?? 0;
 
   const pendingLabel =
     statsData?.pendingFiling?.label || "Requires Filing";
 
   const nextDueDateDisplay = statsData?.nextFilingDue?.date
     ? formatDateDisplay(statsData.nextFilingDue.date)
-    : fallbackPendingProjects[0]?.dueDate
-    ? formatDateDisplay(fallbackPendingProjects[0].dueDate)
     : "-";
 
   const nextDueLocationDisplay =
-    statsData?.nextFilingDue?.location ||
-    fallbackPendingProjects[0]?.location ||
-    fallbackPendingProjects[0]?.projectName ||
-    "No Due";
+    statsData?.nextFilingDue?.location || "-";
 
   const handleSyncNow = async () => {
-    await Promise.all([refetch(), refetchStats()]);
-    setLastSyncedTime(new Date());
+    setIsSyncing(true);
+    try {
+      await syncMutation.mutateAsync();
+    } catch (err) {
+      console.warn("Sync project tax endpoint failed, refreshing local data:", err);
+    } finally {
+      await Promise.all([refetch(), refetchStats()]);
+      setLastSyncedTime(new Date());
+      setIsSyncing(false);
+    }
   };
 
   const handleExport = async () => {
@@ -291,97 +276,102 @@ export default function ProjectWiseTax() {
       const url = window.URL.createObjectURL(new Blob([blob]));
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `project-wise-tax-${Date.now()}.xlsx`);
+      link.setAttribute(
+        "download",
+        `Project_Wise_Tax_Report_${format(new Date(), "yyyyMMdd")}.xlsx`
+      );
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-    } catch {
-      // CSV fallback
-      if (projects.length > 0) {
-        const headers = [
-          "Project",
-          "Job ID",
-          "Customer",
-          "Location",
-          "Tax Collected",
-          "Taxable Sales",
-          "Paid/Filed",
-          "Payable",
-          "Due Date",
-          "Status",
-        ];
-        const rows = projects.map((p) => [
-          `"${p.projectName || ""}"`,
-          `"${p.jobId || ""}"`,
-          `"${p.customerName || ""}"`,
-          `"${p.location || ""}"`,
-          p.taxCollected ?? 0,
-          p.taxableSales ?? 0,
-          p.paidFiled ?? 0,
-          p.payable ?? 0,
-          `"${formatDateDisplay(p.dueDate)}"`,
-          `"${p.status || ""}"`,
-        ]);
-        const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join(
-          "\n"
-        );
-        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.setAttribute("download", `project-wise-tax-${Date.now()}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        URL.revokeObjectURL(url);
-      }
+    } catch (err) {
+      console.error("Export failed:", err);
     }
   };
 
-  const handleOpenSheet = (state: string, status: string, item?: ProjectWiseTaxItem) => {
-    const taxItem: TaxFilingItem | undefined = item
-      ? {
-          _id: item.leadId || "",
-          state: item.location || state,
-          filingFrequency: "monthly",
-          dueDate: item.dueDate || "",
-          amount: item.payable ?? item.taxCollected ?? 0,
-          status: item.status || status,
-          createdAt: "",
-          updatedAt: "",
-        }
-      : undefined;
-    setSelectedProject({ state, status, item: taxItem });
+  const handleOpenSheet = (
+    row: ProjectWiseTaxItem,
+    prepare: boolean = false
+  ) => {
+    const resolvedTaxId = row.taxRecordId || row.taxId;
+    if (!resolvedTaxId) return;
+
+    const statusLabel =
+      typeof row.status === "object"
+        ? row.status.label
+        : row.status || "Pending";
+    const stateName = row.location || "Texas";
+
+    const taxItem: TaxFilingItem = {
+      _id: resolvedTaxId,
+      taxRecordId: resolvedTaxId,
+      state: stateName,
+      stateLabel: stateName,
+      salesTaxRateLabel: row.salesTaxRateLabel,
+      filingFrequency: "monthly",
+      dueDate: row.dueDate || "",
+      amount: row.payable ?? row.taxCollected ?? 0,
+      payable: row.payable,
+      taxDue: row.payable ?? row.taxCollected ?? 0,
+      status: row.status,
+      leadId: row.leadId,
+      projectName: row.projectName,
+      jobId: row.jobId,
+      customerName: row.customerName,
+      createdAt: "",
+      updatedAt: "",
+    };
+
+    setSelectedProject({
+      state: stateName,
+      status: statusLabel,
+      item: taxItem,
+    });
+    setIsPrepareMode(prepare);
     setIsSheetOpen(true);
   };
 
-  const getStatusBadge = (status: string) => {
-    const normalized = (status || "").trim().toLowerCase();
-    switch (normalized) {
-      case "payment due":
-      case "due":
-        return (
-          <Badge className="bg-orange-400 hover:bg-orange-500 text-white font-normal rounded-sm">
-            Payment Due
-          </Badge>
-        );
-      case "filed":
-        return (
-          <Badge className="bg-cyan-500 hover:bg-cyan-600 text-white font-normal rounded-sm px-3">
-            Filed
-          </Badge>
-        );
-      case "no due":
-      case "paid":
-        return (
-          <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white font-normal rounded-sm">
-            {status || "No Due"}
-          </Badge>
-        );
-      default:
-        return <Badge className="font-normal rounded-sm">{status}</Badge>;
+  const handleSheetOpenChange = (open: boolean) => {
+    setIsSheetOpen(open);
+    if (!open) {
+      setSelectedProject(null);
     }
+  };
+
+  const getStatusBadge = (
+    status?: string | { code: string; label: string; tone?: string }
+  ) => {
+    if (!status) return <span className="text-gray-400 text-sm">-</span>;
+    const label = typeof status === "object" ? status.label : status;
+    const tone = typeof status === "object" ? status.tone : undefined;
+    const s = label?.toLowerCase().trim() || "";
+
+    if (
+      tone === "warning" ||
+      s.includes("due") ||
+      s.includes("pending")
+    ) {
+      return (
+        <Badge className="bg-orange-400 hover:bg-orange-500 text-white font-normal rounded-sm">
+          {label}
+        </Badge>
+      );
+    }
+    if (tone === "success" || s.includes("filed") || s.includes("paid")) {
+      return (
+        <Badge className="bg-cyan-500 hover:bg-cyan-600 text-white font-normal rounded-sm px-3">
+          {label}
+        </Badge>
+      );
+    }
+    if (s.includes("no due") || s.includes("none")) {
+      return (
+        <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white font-normal rounded-sm">
+          {label}
+        </Badge>
+      );
+    }
+    return <Badge>{label}</Badge>;
   };
 
   const getPageNumbers = () => {
@@ -402,10 +392,10 @@ export default function ProjectWiseTax() {
 
   const startRecordIndex = totalItems === 0 ? 0 : (page - 1) * limit + 1;
   const endRecordIndex = Math.min(page * limit, totalItems);
-  const isSyncing = isFetching || isStatsFetching;
 
   return (
     <div className="p-5 space-y-6">
+      {/* Header */}
       <div className="flex justify-between items-start">
         <div>
           <h1 className="text-2xl font-bold text-[#1e1b4b]">
@@ -427,10 +417,11 @@ export default function ProjectWiseTax() {
           ) : (
             <Upload className="w-4 h-4 mr-2" />
           )}
-          Export
+          {exportMutation.isPending ? "Exporting..." : "Export"}
         </Button>
       </div>
 
+      {/* Filters and Sync Header */}
       <Card className="p-4 flex flex-col md:flex-row md:items-end justify-between gap-4 border-none shadow-sm">
         <div className="flex flex-wrap gap-4">
           <div className="space-y-1.5 w-64">
@@ -473,26 +464,33 @@ export default function ProjectWiseTax() {
 
         <div className="flex items-center gap-4">
           <div className="text-sm text-gray-500 flex items-center gap-2">
-            Last Synced: {format(lastSyncedTime, "MMM dd, yyyy HH:mm")}{" "}
-            <span className="text-emerald-500">Synced</span>
+            Last Synced:{" "}
+            {data?.data?.lastSynced
+              ? format(new Date(data.data.lastSynced), "MMM dd, yyyy HH:mm")
+              : format(lastSyncedTime, "MMM dd, yyyy HH:mm")}{" "}
+            <span className="text-emerald-500 font-medium capitalize">
+              {data?.data?.meta?.syncState || "Synced"}
+            </span>
           </div>
           <Button
             variant="outline"
             className="bg-white border-gray-200 text-gray-700 cursor-pointer"
             onClick={handleSyncNow}
-            disabled={isSyncing}
+            disabled={isSyncing || isFetching || isStatsFetching}
           >
-            Sync Now
+            {isSyncing ? "Syncing..." : "Sync Now"}
             <RefreshCcw
-              className={`w-4 h-4 ml-2 ${isSyncing ? "animate-spin" : ""}`}
+              className={`w-4 h-4 ml-2 ${isSyncing || isFetching || isStatsFetching ? "animate-spin text-blue-600" : ""}`}
             />
           </Button>
         </div>
       </Card>
 
+      {/* 7.1 Stats Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCardV2
           title="Total Tax Collected"
+          isLoading={isStatsLoading}
           value={formatCurrency(finalTaxCollected)}
           subtitle={
             <ChangeText
@@ -508,6 +506,7 @@ export default function ProjectWiseTax() {
         />
         <StatCardV2
           title="Total Paid"
+          isLoading={isStatsLoading}
           value={formatCurrency(finalPaid)}
           subtitle={
             <ChangeText value={statsData?.totalPaid?.pctChangeFromLastMonth} />
@@ -521,6 +520,7 @@ export default function ProjectWiseTax() {
         />
         <StatCardV2
           title="Total Payable"
+          isLoading={isStatsLoading}
           value={formatCurrency(finalPayable)}
           subtitle={
             <ChangeText
@@ -536,6 +536,7 @@ export default function ProjectWiseTax() {
         />
         <StatCardV2
           title="Pending Filing"
+          isLoading={isStatsLoading}
           value={
             <span className="text-xl font-bold">
               {finalPendingCount}{" "}
@@ -554,11 +555,14 @@ export default function ProjectWiseTax() {
         />
         <StatCardV2
           title="Next Filing Due"
+          isLoading={isStatsLoading}
           value={<span className="text-xl font-bold">{nextDueDateDisplay}</span>}
           subtitle={
-            <span className="text-emerald-500 text-sm flex items-center gap-1">
-              <TrendingUp className="w-3 h-3" /> {nextDueLocationDisplay}
-            </span>
+            nextDueLocationDisplay && nextDueLocationDisplay !== "-" ? (
+              <span className="text-emerald-500 text-sm flex items-center gap-1">
+                <TrendingUp className="w-3 h-3" /> {nextDueLocationDisplay}
+              </span>
+            ) : undefined
           }
           icon={
             <div className="flex items-center justify-center p-1.5 rounded-md border border-purple-200 text-purple-600">
@@ -569,6 +573,7 @@ export default function ProjectWiseTax() {
         />
       </div>
 
+      {/* 7.2 Main Table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-4 border-b">
           <h3 className="font-semibold text-gray-900 text-lg">
@@ -606,14 +611,40 @@ export default function ProjectWiseTax() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={8} className="h-36 text-center">
-                  <div className="flex flex-col items-center justify-center gap-2 text-gray-500">
-                    <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-                    <span>Loading project tax data...</span>
-                  </div>
-                </TableCell>
-              </TableRow>
+              Array.from({ length: 5 }).map((_, idx) => (
+                <TableRow key={`project-skel-${idx}`} className="border-b">
+                  <TableCell className="py-4">
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="w-8 h-8 rounded-full shrink-0" />
+                      <div className="space-y-1.5">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-3 w-20" />
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="py-4">
+                    <Skeleton className="h-4 w-20" />
+                  </TableCell>
+                  <TableCell className="py-4">
+                    <Skeleton className="h-4 w-20" />
+                  </TableCell>
+                  <TableCell className="py-4">
+                    <Skeleton className="h-4 w-20" />
+                  </TableCell>
+                  <TableCell className="py-4">
+                    <Skeleton className="h-4 w-20" />
+                  </TableCell>
+                  <TableCell className="py-4">
+                    <Skeleton className="h-4 w-24" />
+                  </TableCell>
+                  <TableCell className="py-4">
+                    <Skeleton className="h-6 w-20 rounded-md" />
+                  </TableCell>
+                  <TableCell className="py-4">
+                    <Skeleton className="h-8 w-20 rounded-md" />
+                  </TableCell>
+                </TableRow>
+              ))
             ) : isError ? (
               <TableRow>
                 <TableCell
@@ -649,9 +680,25 @@ export default function ProjectWiseTax() {
                   .filter(Boolean)
                   .join(" • ");
 
+                const isPayablePositive = (row.payable || 0) > 0;
+                const statusStr =
+                  typeof row.status === "object"
+                    ? (row.status.label || row.status.code || "").toLowerCase()
+                    : (row.status?.toLowerCase() || "");
+                const isPendingOrDue =
+                  statusStr.includes("due") ||
+                  statusStr.includes("pending") ||
+                  isPayablePositive;
+
+                const canPay = row.showPayTax ?? isPendingOrDue;
+
+                const hasTaxRecordId = Boolean(
+                  row.taxRecordId || row.taxId
+                );
+
                 return (
                   <TableRow
-                    key={row.leadId || idx}
+                    key={row.taxRecordId || row.leadId || idx}
                     className="border-b last:border-none hover:bg-gray-50/50"
                   >
                     <TableCell className="py-4">
@@ -659,7 +706,7 @@ export default function ProjectWiseTax() {
                         <div
                           className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${getAvatarColor(
                             displayName,
-                            idx
+                            (page - 1) * limit + idx
                           )}`}
                         >
                           <span className="text-xs font-bold">
@@ -687,7 +734,7 @@ export default function ProjectWiseTax() {
                     </TableCell>
                     <TableCell
                       className={`py-4 font-medium ${
-                        (row.payable || 0) > 0
+                        isPayablePositive
                           ? "text-red-500"
                           : "text-emerald-500"
                       }`}
@@ -701,17 +748,12 @@ export default function ProjectWiseTax() {
                       {getStatusBadge(row.status)}
                     </TableCell>
                     <TableCell className="py-4">
-                      {row.status?.toLowerCase().includes("due") ||
-                      (row.payable || 0) > 0 ? (
+                      {!hasTaxRecordId ? (
+                        <span className="text-xs text-slate-400 font-medium">-</span>
+                      ) : canPay ? (
                         <Button
-                          className="bg-blue-600 hover:bg-blue-700 text-white h-8 text-xs font-medium px-6 cursor-pointer"
-                          onClick={() =>
-                            handleOpenSheet(
-                              row.location || displayName,
-                              row.status,
-                              row
-                            )
-                          }
+                          className="bg-blue-600 hover:bg-blue-700 text-white h-8 text-xs font-medium px-4 cursor-pointer"
+                          onClick={() => handleOpenSheet(row, true)}
                         >
                           Pay Tax
                         </Button>
@@ -719,13 +761,7 @@ export default function ProjectWiseTax() {
                         <button
                           type="button"
                           className="text-sm font-medium text-blue-600 hover:text-blue-800 px-2 cursor-pointer"
-                          onClick={() =>
-                            handleOpenSheet(
-                              row.location || displayName,
-                              row.status,
-                              row
-                            )
-                          }
+                          onClick={() => handleOpenSheet(row, false)}
                         >
                           View Details
                         </button>
@@ -738,16 +774,7 @@ export default function ProjectWiseTax() {
           </TableBody>
         </Table>
 
-        {selectedProject && (
-          <TaxDetailsSheet
-            state={selectedProject.state}
-            status={selectedProject.status}
-            isOpen={isSheetOpen}
-            onOpenChange={setIsSheetOpen}
-            item={selectedProject.item}
-          />
-        )}
-
+        {/* Pagination Footer */}
         <div className="flex flex-col sm:flex-row items-center justify-between px-4 py-3 border-t gap-3">
           <div className="flex items-center text-sm text-gray-500">
             Showing
@@ -817,6 +844,20 @@ export default function ProjectWiseTax() {
           </div>
         </div>
       </div>
+
+      {/* Controlled Tax Details Sheet (Action: View Details / Pay Tax) */}
+      {selectedProject && (
+        <TaxDetailsSheet
+          key={selectedProject.item?.taxRecordId || selectedProject.item?._id || "project-tax-sheet"}
+          state={selectedProject.state}
+          status={selectedProject.status}
+          isOpen={isSheetOpen}
+          onOpenChange={handleSheetOpenChange}
+          item={selectedProject.item}
+          isPrepareMode={isPrepareMode}
+          onSuccess={handleSyncNow}
+        />
+      )}
     </div>
   );
 }

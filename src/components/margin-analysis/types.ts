@@ -45,3 +45,40 @@ export const DATE_PRESETS: DateRangeOption[] = [
     endDate: "",
   },
 ];
+
+/**
+ * Formats company / business unit enum values into human-readable Title Case.
+ * Handles snake_case, UPPER_CASE, kebab-case, camelCase, and preserves known corporate acronyms.
+ *
+ * e.g.
+ * - "MR_STORAGE" -> "MR Storage"
+ * - "COMMERCIAL_STORAGE" -> "Commercial Storage"
+ * - "MATERIAL_RACKING" -> "Material Racking"
+ * - "STORAGE_SOLUTIONS" -> "Storage Solutions"
+ * - "all" -> "All Companies"
+ */
+export function formatCompanyEnum(val?: string | null): string {
+  if (!val) return "";
+  if (val === "all" || val.toLowerCase() === "all") return "All Companies";
+
+  // Separate camelCase words
+  const separated = val.replace(/([a-z])([A-Z])/g, "$1 $2");
+
+  // Replace underscores and hyphens with spaces
+  const words = separated.replace(/[_-]+/g, " ").trim().split(/\s+/);
+
+  return words
+    .map((word) => {
+      const upper = word.toUpperCase();
+      if (
+        ["MR", "LLC", "USA", "UK", "UAE", "BOM", "PL", "INC", "CORP", "LTD"].includes(
+          upper
+        )
+      ) {
+        return upper;
+      }
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
+    .join(" ");
+}
+

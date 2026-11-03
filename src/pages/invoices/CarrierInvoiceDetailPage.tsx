@@ -11,6 +11,7 @@ import {
 import SuccessModal from "@/components/common_components/SuccessModal";
 import logo from "@/assets/logo.svg";
 import type { CarrierInvoiceItem } from "./CarrierInvoicesPage";
+import { useMarkPayablePaidMutation } from "@/redux/api/invoiceManagementApi";
 
 interface CarrierInvoiceData {
   id: string;
@@ -36,19 +37,20 @@ export default function CarrierInvoiceDetailPage() {
   // Retrieve invoice either from route state or local storage or fallback defaults
   const [invoice, setInvoice] = useState<CarrierInvoiceData>(() => {
     if (location.state && location.state.invoice) {
-      const inv = location.state.invoice as CarrierInvoiceItem;
+      const inv = location.state.invoice as CarrierInvoiceItem & { id?: string; deliveryId?: string; amountFormatted?: string };
+      const rawAmt = Number(inv.amount || 0);
       return {
-        id: inv.id || "1",
+        id: inv.invoiceId || inv.id || "1",
         invoiceNumber: inv.invoiceNumber || "INC00025",
-        carrierName: inv.carrierName || "Fast Freight Logistics",
-        project: inv.project || "ABC Warehouse",
+        carrierName: inv.carrierName || inv.vendorName || "Fast Freight Logistics",
+        project: inv.projectName || inv.project || "ABC Warehouse",
         deliveryId: inv.deliveryId || "FR-2026-001",
-        amount: inv.amount || 10000,
-        amountFormatted: inv.amountFormatted || "$10,000",
+        amount: rawAmt || 10000,
+        amountFormatted: inv.amountFormatted || `$${rawAmt.toLocaleString()}`,
         dueDate: inv.dueDate || "22 Feb 2025",
         invoiceDate: "2025-01-22",
-        paymentStatus: inv.paymentStatus || "Pending",
-        verificationStatus: inv.verificationStatus || "Verified",
+        paymentStatus: (inv.paymentStatus || inv.payment || "Pending") as "Pending" | "Completed" | "Paid",
+        verificationStatus: (inv.verificationStatus || inv.verification || "Verified") as "Verified" | "Pending",
         uploadedBy: "John Smith",
         uploadedAt: "2025-01-23",
       };
@@ -57,23 +59,24 @@ export default function CarrierInvoiceDetailPage() {
     try {
       const stored = localStorage.getItem("carrier_invoices_table_data");
       if (stored) {
-        const parsed = JSON.parse(stored) as CarrierInvoiceItem[];
+        const parsed = JSON.parse(stored) as (CarrierInvoiceItem & { id?: string; deliveryId?: string; amountFormatted?: string })[];
         const found = parsed.find(
-          (item) => item.id === id || item.invoiceNumber === id,
+          (item) => (item.invoiceId || item.id) === id || item.invoiceNumber === id,
         );
         if (found) {
+          const rawAmt = Number(found.amount || 0);
           return {
-            id: found.id,
+            id: found.invoiceId || found.id || "1",
             invoiceNumber: found.invoiceNumber,
-            carrierName: found.carrierName,
-            project: found.project,
-            deliveryId: found.deliveryId,
-            amount: found.amount,
-            amountFormatted: found.amountFormatted,
+            carrierName: found.carrierName || found.vendorName || "Fast Freight Logistics",
+            project: found.projectName || found.project || "ABC Warehouse",
+            deliveryId: found.deliveryId || "FR-2026-001",
+            amount: rawAmt,
+            amountFormatted: found.amountFormatted || `$${rawAmt.toLocaleString()}`,
             dueDate: found.dueDate || "22 Feb 2025",
             invoiceDate: "2025-01-22",
-            paymentStatus: found.paymentStatus,
-            verificationStatus: found.verificationStatus,
+            paymentStatus: (found.paymentStatus || found.payment || "Pending") as "Pending" | "Completed" | "Paid",
+            verificationStatus: (found.verificationStatus || found.verification || "Verified") as "Verified" | "Pending",
             uploadedBy: "John Smith",
             uploadedAt: "2025-01-23",
           };
@@ -106,41 +109,51 @@ export default function CarrierInvoiceDetailPage() {
     subTitle: `Invoice ${invoice.invoiceNumber} has been successfully marked as Paid.`,
   });
 
-  const handleMarkPaid = () => {
+  const [markPayablePaid, { isLoading: isMarkingPaid }] = useMarkPayablePaidMutation();
+
+  const handleMarkPaid = async () => {
     const nextStatus: "Completed" | "Pending" =
       invoice.paymentStatus === "Completed" || invoice.paymentStatus === "Paid"
         ? "Pending"
         : "Completed";
 
-    setInvoice((prev) => ({
-      ...prev,
-      paymentStatus: nextStatus,
-    }));
-
     try {
-      const stored = localStorage.getItem("carrier_invoices_table_data");
-      if (stored) {
-        const parsed = JSON.parse(stored) as CarrierInvoiceItem[];
-        const updated = parsed.map((item) =>
-          item.id === invoice.id || item.invoiceNumber === invoice.invoiceNumber
-            ? { ...item, paymentStatus: nextStatus }
-            : item,
-        );
-        localStorage.setItem(
-          "carrier_invoices_table_data",
-          JSON.stringify(updated),
-        );
+      if (nextStatus === "Completed") {
+        await markPayablePaid({ invoiceId: invoice.id || invoice.invoiceNumber, paymentMethod: "ACH" }).unwrap();
+      }
+
+      setInvoice((prev) => ({
+        ...prev,
+        paymentStatus: nextStatus,
+      }));
+
+      try {
+        const stored = localStorage.getItem("carrier_invoices_table_data");
+        if (stored) {
+          const parsed = JSON.parse(stored) as (CarrierInvoiceItem & { id?: string })[];
+          const updated = parsed.map((item) =>
+            (item.invoiceId || item.id) === invoice.id || item.invoiceNumber === invoice.invoiceNumber
+              ? { ...item, paymentStatus: nextStatus }
+              : item,
+          );
+          localStorage.setItem(
+            "carrier_invoices_table_data",
+            JSON.stringify(updated),
+          );
+        }
+      } catch {
+        // ignore
+      }
+
+      if (nextStatus === "Completed") {
+        setSuccessMessage({
+          title: "Payment Recorded",
+          subTitle: `Invoice ${invoice.invoiceNumber} has been successfully marked as Paid.`,
+        });
+        setIsSuccessOpen(true);
       }
     } catch {
-      // ignore
-    }
-
-    if (nextStatus === "Completed") {
-      setSuccessMessage({
-        title: "Payment Recorded",
-        subTitle: `Invoice ${invoice.invoiceNumber} has been successfully marked as Paid.`,
-      });
-      setIsSuccessOpen(true);
+      alert("Failed to update payment status on backend. Please ensure the invoice is approved for payment.");
     }
   };
 
@@ -335,14 +348,15 @@ export default function CarrierInvoiceDetailPage() {
           <div>
             <button
               type="button"
+              disabled={isMarkingPaid}
               onClick={handleMarkPaid}
-              className={`px-4 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+              className={`px-4 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50 ${
                 isPaid
                   ? "bg-[#00A859] hover:bg-[#008f4c] text-white"
                   : "bg-[#2563EB] hover:bg-[#1D4ED8] text-white shadow-xs"
               }`}
             >
-              {isPaid ? "✓ Paid" : "Mark Paid"}
+              {isMarkingPaid ? "Updating..." : isPaid ? "✓ Paid" : "Mark Paid"}
             </button>
           </div>
         </div>

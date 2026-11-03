@@ -1,14 +1,24 @@
-import React, { useState, useRef, useEffect } from "react";
-import {
-  ArrowLeft,
-  Calendar as CalendarIcon,
-  ChevronDown,
-  Upload,
-} from "lucide-react";
+import React, { useRef, useMemo } from "react";
+import { ArrowLeft, Upload, AlertCircle, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
 import SuccessModal from "@/components/common_components/SuccessModal";
-import CalendarRangePickerModal from "@/components/common_components/CalendarRangePickerModal";
-import type { MiscExpenseRecord } from "@/components/cost/miscellaneousCostData";
+import { getApiErrorMessage } from "@/redux/utils/apiError";
+import {
+  useGetCostFiltersQuery,
+  useCreateMiscRecordMutation,
+} from "@/redux/api/costsApi";
 
 const CATEGORIES = [
   "Maintenance",
@@ -21,118 +31,117 @@ const CATEGORIES = [
   "Others",
 ];
 
-const PROJECTS = [
-  "ABC Logistic Warehouse",
-  "SMDT Warehouse",
-  "Steel Unit",
-  "Industrial Shed",
-  "Warehouse Expansion",
-  "HQ Operations",
-];
-
-const VENDORS = [
-  "XYZ Services",
-  "ABC Tools",
-  "Office Mart",
-  "Airtel",
-  "Safety Pro",
-  "Local Repairs",
-  "Power Grid Corp",
-];
+interface MiscFormValues {
+  expenseCategory: string;
+  expenseDate: string;
+  expenseName: string;
+  project: string;
+  amount: number | "";
+  vendor: string;
+  attachmentName: string;
+  paymentStatus: "paid" | "pending" | "";
+}
 
 export const AddMiscellaneousCostPage: React.FC = () => {
   const navigate = useNavigate();
-
-  // Form states matching screenshot exactly:
-  // Expense Category: Maintenance
-  // Expense Date Date: 12 Aug 2026
-  // Expense Name: Machine Repair
-  // Project: ABC Logistic Warehouse
-  // Amount: 8 (or custom amount)
-  // Vendor/Paybee: XYZ Services
-  // Attachments: Receipt
-  // Payment Status: Paid
-  const [expenseCategory, setExpenseCategory] = useState("Maintenance");
-  const [expenseDate, setExpenseDate] = useState("12 Aug 2026");
-  const [expenseName, setExpenseName] = useState("Machine Repair");
-  const [project, setProject] = useState("ABC Logistic Warehouse");
-  const [amount, setAmount] = useState<string>("8");
-  const [vendor, setVendor] = useState("XYZ Services");
-  const [attachmentName, setAttachmentName] = useState("Receipt");
-  const [paymentStatus, setPaymentStatus] = useState<"Paid" | "Unpaid">("Paid");
-
-  // Dropdown open states
-  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
-  const [isProjectOpen, setIsProjectOpen] = useState(false);
-  const [isVendorOpen, setIsVendorOpen] = useState(false);
-  const [isPaymentStatusOpen, setIsPaymentStatusOpen] = useState(false);
-  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-
-  // File input ref
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const { data: filtersData } = useGetCostFiltersQuery();
+  const [createMiscRecordApi, { isLoading: isMutationLoading }] = useCreateMiscRecordMutation();
+
+  const dynamicProjects = useMemo(() => {
+    if (!filtersData?.projects) return [];
+    const list = filtersData.projects
+      .map((p) => (typeof p.projectName === "string" ? p.projectName.trim() : ""))
+      .filter((p): p is string => Boolean(p));
+    return Array.from(new Set(list));
+  }, [filtersData?.projects]);
+
+  const dynamicVendors = useMemo(() => {
+    if (!filtersData?.vendors) return [];
+    const list = filtersData.vendors
+      .map((v) => {
+        if (typeof v === "string") return v.trim();
+        return (v?.name || v?.vendorName || "").trim();
+      })
+      .filter((v): v is string => Boolean(v));
+    return Array.from(new Set(list));
+  }, [filtersData?.vendors]);
+
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    setError,
+    clearErrors,
+    formState: { errors, isSubmitting },
+  } = useForm<MiscFormValues>({
+    defaultValues: {
+      expenseCategory: "",
+      expenseDate: "",
+      expenseName: "",
+      project: "",
+      amount: "",
+      vendor: "",
+      attachmentName: "",
+      paymentStatus: "",
+    },
+  });
+
+  const expenseCategory = watch("expenseCategory");
+  const project = watch("project");
+  const vendor = watch("vendor");
+  const attachmentName = watch("attachmentName");
+  const paymentStatus = watch("paymentStatus");
+
   // Success dialog state
-  const [isSuccessOpen, setIsSuccessOpen] = useState(false);
-
-  // Refs for closing outside
-  const categoryRef = useRef<HTMLDivElement>(null);
-  const projectRef = useRef<HTMLDivElement>(null);
-  const vendorRef = useRef<HTMLDivElement>(null);
-  const paymentStatusRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (categoryRef.current && !categoryRef.current.contains(event.target as Node)) {
-        setIsCategoryOpen(false);
-      }
-      if (projectRef.current && !projectRef.current.contains(event.target as Node)) {
-        setIsProjectOpen(false);
-      }
-      if (vendorRef.current && !vendorRef.current.contains(event.target as Node)) {
-        setIsVendorOpen(false);
-      }
-      if (paymentStatusRef.current && !paymentStatusRef.current.contains(event.target as Node)) {
-        setIsPaymentStatusOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  const [isSuccessOpen, setIsSuccessOpen] = React.useState(false);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setAttachmentName(file.name);
+      setValue("attachmentName", file.name, { shouldValidate: true });
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!expenseName.trim() || !amount) return;
+  const onSubmit = async (values: MiscFormValues) => {
+    clearErrors("root");
+    if (!values.expenseCategory) {
+      setError("expenseCategory", { message: "Please select an expense category" });
+      return;
+    }
+    if (!values.expenseDate) {
+      setError("expenseDate", { message: "Please select an expense date" });
+      return;
+    }
+    if (!values.paymentStatus) {
+      setError("paymentStatus", { message: "Please select a payment status" });
+      return;
+    }
 
-    const numAmount = Number(amount) || 0;
-    const newEntry: MiscExpenseRecord = {
-      id: `exp-${Date.now()}`,
-      date: expenseDate,
-      expense: expenseName.trim(),
-      category: expenseCategory,
-      project,
-      vendor,
-      amount: numAmount,
-      amountFormatted: `$${numAmount.toLocaleString()}`,
-      approvalStatus: "Approved",
-    };
+    const numAmount = Number(values.amount) || 0;
+    const selectedProj = filtersData?.projects?.find((p) => p.projectName === values.project);
 
     try {
-      const stored = localStorage.getItem("custom_misc_records");
-      const currentList: MiscExpenseRecord[] = stored ? JSON.parse(stored) : [];
-      localStorage.setItem("custom_misc_records", JSON.stringify([newEntry, ...currentList]));
-    } catch {
-      // ignore
+      await createMiscRecordApi({
+        expenseCategory: values.expenseCategory,
+        expenseDate: values.expenseDate,
+        expenseName: values.expenseName.trim(),
+        leadId: selectedProj?._id,
+        vendorPayee: values.vendor,
+        amount: numAmount,
+        paymentStatus: values.paymentStatus,
+        receiptFile: values.attachmentName || undefined,
+      }).unwrap();
+      setIsSuccessOpen(true);
+    } catch (err) {
+      const errorMsg = getApiErrorMessage(err, "Failed to record miscellaneous cost. Please try again.");
+      setError("root", { message: errorMsg });
     }
-
-    setIsSuccessOpen(true);
   };
+
+  const isPending = isSubmitting || isMutationLoading;
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -154,173 +163,191 @@ export const AddMiscellaneousCostPage: React.FC = () => {
           Basic Details
         </h2>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Row 1: Expense Category & Expense Date Date */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
-            {/* Expense Category */}
-            <div className="relative" ref={categoryRef}>
-              <label className="block text-xs sm:text-sm font-semibold text-slate-900 mb-2">
-                Expense Category <span className="text-rose-500">*</span>
-              </label>
-              <button
-                type="button"
-                onClick={() => setIsCategoryOpen(!isCategoryOpen)}
-                className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg border border-slate-200 bg-white text-xs sm:text-sm font-medium text-slate-800 hover:border-slate-300 focus:outline-none focus:border-blue-500 transition-colors cursor-pointer"
-              >
-                <span>{expenseCategory}</span>
-                <ChevronDown className="w-4 h-4 text-slate-400" />
-              </button>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          {/* Submission Error Banner */}
+          {errors.root?.message && (
+            <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs sm:text-sm flex items-start gap-3 animate-in fade-in">
+              <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="font-semibold text-rose-900">Submission Error</p>
+                <p className="text-rose-700 leading-relaxed">{errors.root.message}</p>
+              </div>
+            </div>
+          )}
 
-              {isCategoryOpen && (
-                <div className="absolute left-0 right-0 top-full mt-1.5 bg-white rounded-xl shadow-lg border border-slate-100 py-1.5 z-30 animate-in fade-in zoom-in-95">
-                  {CATEGORIES.map((cat) => (
-                    <button
-                      key={cat}
-                      type="button"
-                      onClick={() => {
-                        setExpenseCategory(cat);
-                        setIsCategoryOpen(false);
-                      }}
-                      className="w-full px-4 py-2 text-left text-xs sm:text-sm text-slate-700 hover:bg-slate-50 transition-colors font-medium flex items-center justify-between cursor-pointer"
-                    >
-                      <span>{cat}</span>
-                    </button>
+          {/* Row 1: Expense Category & Expense Date */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
+            <div className="space-y-2">
+              <Label className="text-xs sm:text-sm font-semibold text-slate-900">
+                Expense Category <span className="text-rose-500">*</span>
+              </Label>
+              <Select
+                value={expenseCategory}
+                onValueChange={(val) => {
+                  setValue("expenseCategory", val, { shouldValidate: true });
+                  clearErrors("expenseCategory");
+                  clearErrors("root");
+                }}
+              >
+                <SelectTrigger className="w-full bg-white border-slate-200 h-10">
+                  <SelectValue placeholder="Select Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CATEGORIES.filter((cat) => Boolean(cat && cat.trim())).map((cat) => (
+                    <SelectItem key={cat} value={cat}>
+                      {cat}
+                    </SelectItem>
                   ))}
-                </div>
+                </SelectContent>
+              </Select>
+              {errors.expenseCategory && (
+                <p className="text-xs text-rose-500">{errors.expenseCategory.message}</p>
               )}
             </div>
 
-            {/* Expense Date Date */}
-            <div>
-              <label className="block text-xs sm:text-sm font-semibold text-slate-900 mb-2">
-                Expense Date Date <span className="text-rose-500">*</span>
-              </label>
-              <button
-                type="button"
-                onClick={() => setIsDatePickerOpen(true)}
-                className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg border border-slate-200 bg-white text-xs sm:text-sm font-medium text-slate-800 hover:border-slate-300 focus:outline-none focus:border-blue-500 transition-colors cursor-pointer"
-              >
-                <span>{expenseDate}</span>
-                <CalendarIcon className="w-4 h-4 text-slate-600" />
-              </button>
+            <div className="space-y-2">
+              <Label className="text-xs sm:text-sm font-semibold text-slate-900">
+                Expense Date <span className="text-rose-500">*</span>
+              </Label>
+              <DatePicker
+                value={watch("expenseDate")}
+                onChange={(val) => {
+                  setValue("expenseDate", val, { shouldValidate: true });
+                  clearErrors("expenseDate");
+                  clearErrors("root");
+                }}
+                placeholder="Select Date"
+              />
+              {errors.expenseDate && (
+                <p className="text-xs text-rose-500">{errors.expenseDate.message}</p>
+              )}
             </div>
           </div>
 
           {/* Row 2: Expense Name & Project */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
-            {/* Expense Name */}
-            <div>
-              <label className="block text-xs sm:text-sm font-semibold text-slate-900 mb-2">
+            <div className="space-y-2">
+              <Label className="text-xs sm:text-sm font-semibold text-slate-900">
                 Expense Name <span className="text-rose-500">*</span>
-              </label>
-              <input
+              </Label>
+              <Input
                 type="text"
-                required
-                value={expenseName}
-                onChange={(e) => setExpenseName(e.target.value)}
                 placeholder="e.g. Machine Repair"
-                className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 transition-colors"
+                {...register("expenseName", {
+                  required: "Expense name is required",
+                  onChange: () => clearErrors("root"),
+                })}
+                className="bg-white border-slate-200 h-10"
               />
+              {errors.expenseName && (
+                <p className="text-xs text-rose-500">{errors.expenseName.message}</p>
+              )}
             </div>
 
-            {/* Project */}
-            <div className="relative" ref={projectRef}>
-              <label className="block text-xs sm:text-sm font-semibold text-slate-900 mb-2">
+            <div className="space-y-2">
+              <Label className="text-xs sm:text-sm font-semibold text-slate-900">
                 Project
-              </label>
-              <button
-                type="button"
-                onClick={() => setIsProjectOpen(!isProjectOpen)}
-                className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg border border-slate-200 bg-white text-xs sm:text-sm font-medium text-slate-800 hover:border-slate-300 focus:outline-none focus:border-blue-500 transition-colors cursor-pointer"
+              </Label>
+              <Select
+                value={project}
+                onValueChange={(val) => {
+                  setValue("project", val, { shouldValidate: true });
+                  clearErrors("root");
+                }}
               >
-                <span>{project}</span>
-                <ChevronDown className="w-4 h-4 text-slate-400" />
-              </button>
-
-              {isProjectOpen && (
-                <div className="absolute left-0 right-0 top-full mt-1.5 bg-white rounded-xl shadow-lg border border-slate-100 py-1.5 z-30 animate-in fade-in zoom-in-95">
-                  {PROJECTS.map((proj) => (
-                    <button
-                      key={proj}
-                      type="button"
-                      onClick={() => {
-                        setProject(proj);
-                        setIsProjectOpen(false);
-                      }}
-                      className="w-full px-4 py-2 text-left text-xs sm:text-sm text-slate-700 hover:bg-slate-50 transition-colors font-medium flex items-center justify-between cursor-pointer"
-                    >
-                      <span>{proj}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
+                <SelectTrigger className="w-full bg-white border-slate-200 h-10">
+                  <SelectValue placeholder="Select Project (Optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {dynamicProjects.length === 0 ? (
+                    <div className="p-2 text-xs text-slate-400">No projects available</div>
+                  ) : (
+                    dynamicProjects
+                      .filter((p) => Boolean(p && p.trim()))
+                      .map((p) => (
+                        <SelectItem key={p} value={p}>
+                          {p}
+                        </SelectItem>
+                      ))
+                  )}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
-          {/* Row 3: Amount & Vendor/Paybee */}
+          {/* Row 3: Amount & Vendor/Payee */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
-            {/* Amount */}
-            <div>
-              <label className="block text-xs sm:text-sm font-semibold text-slate-900 mb-2">
+            <div className="space-y-2">
+              <Label className="text-xs sm:text-sm font-semibold text-slate-900">
                 Amount <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="Amount"
-                className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 transition-colors"
+              </Label>
+              <Input
+                type="number"
+                step="any"
+                placeholder="0.00"
+                {...register("amount", {
+                  required: "Amount is required",
+                  valueAsNumber: true,
+                  min: { value: 0, message: "Amount must be >= 0" },
+                  onChange: () => clearErrors("root"),
+                })}
+                className="bg-white border-slate-200 h-10"
               />
+              {errors.amount && (
+                <p className="text-xs text-rose-500">{errors.amount.message}</p>
+              )}
             </div>
 
-            {/* Vendor/Paybee */}
-            <div className="relative" ref={vendorRef}>
-              <label className="block text-xs sm:text-sm font-semibold text-slate-900 mb-2">
-                Vendor/Paybee <span className="text-rose-500">*</span>
-              </label>
-              <button
-                type="button"
-                onClick={() => setIsVendorOpen(!isVendorOpen)}
-                className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg border border-slate-200 bg-white text-xs sm:text-sm font-medium text-slate-800 hover:border-slate-300 focus:outline-none focus:border-blue-500 transition-colors cursor-pointer"
-              >
-                <span>{vendor}</span>
-                <ChevronDown className="w-4 h-4 text-slate-400" />
-              </button>
-
-              {isVendorOpen && (
-                <div className="absolute left-0 right-0 top-full mt-1.5 bg-white rounded-xl shadow-lg border border-slate-100 py-1.5 z-30 animate-in fade-in zoom-in-95">
-                  {VENDORS.map((v) => (
-                    <button
-                      key={v}
-                      type="button"
-                      onClick={() => {
-                        setVendor(v);
-                        setIsVendorOpen(false);
-                      }}
-                      className="w-full px-4 py-2 text-left text-xs sm:text-sm text-slate-700 hover:bg-slate-50 transition-colors font-medium flex items-center justify-between cursor-pointer"
-                    >
-                      <span>{v}</span>
-                    </button>
-                  ))}
-                </div>
+            <div className="space-y-2">
+              <Label className="text-xs sm:text-sm font-semibold text-slate-900">
+                Vendor / Payee
+              </Label>
+              {dynamicVendors.length > 0 ? (
+                <Select
+                  value={vendor}
+                  onValueChange={(val) => {
+                    setValue("vendor", val, { shouldValidate: true });
+                    clearErrors("root");
+                  }}
+                >
+                  <SelectTrigger className="w-full bg-white border-slate-200 h-10">
+                    <SelectValue placeholder="Select Vendor (Optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {dynamicVendors
+                      .filter((v) => Boolean(v && v.trim()))
+                      .map((v) => (
+                        <SelectItem key={v} value={v}>
+                          {v}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  type="text"
+                  placeholder="e.g. XYZ Services"
+                  {...register("vendor")}
+                  className="bg-white border-slate-200 h-10"
+                />
               )}
             </div>
           </div>
 
           {/* Row 4: Attachments & Payment Status */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
-            {/* Attachments */}
-            <div>
-              <label className="block text-xs sm:text-sm font-semibold text-slate-900 mb-2">
+            <div className="space-y-2">
+              <Label className="text-xs sm:text-sm font-semibold text-slate-900">
                 Attachments
-              </label>
+              </Label>
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg border border-slate-200 bg-white text-xs sm:text-sm font-medium text-slate-800 hover:border-slate-300 transition-colors cursor-pointer"
+                className="w-full h-10 px-3 rounded-md border border-slate-200 bg-white flex items-center justify-between text-xs sm:text-sm font-medium text-slate-800 hover:border-slate-300 transition-colors cursor-pointer"
               >
-                <span>{attachmentName}</span>
-                <Upload className="w-4 h-4 text-slate-600" />
+                <span className={attachmentName ? "text-slate-900" : "text-slate-400"}>
+                  {attachmentName || "Upload File (Optional)"}
+                </span>
+                <Upload className="w-4 h-4 text-slate-500" />
               </div>
               <input
                 ref={fileInputRef}
@@ -330,83 +357,60 @@ export const AddMiscellaneousCostPage: React.FC = () => {
               />
             </div>
 
-            {/* Payment Status */}
-            <div className="relative" ref={paymentStatusRef}>
-              <label className="block text-xs sm:text-sm font-semibold text-slate-900 mb-2">
+            <div className="space-y-2">
+              <Label className="text-xs sm:text-sm font-semibold text-slate-900">
                 Payment Status <span className="text-rose-500">*</span>
-              </label>
-              <button
-                type="button"
-                onClick={() => setIsPaymentStatusOpen(!isPaymentStatusOpen)}
-                className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg border border-slate-200 bg-white text-xs sm:text-sm font-medium text-slate-800 hover:border-slate-300 focus:outline-none focus:border-blue-500 transition-colors cursor-pointer"
+              </Label>
+              <Select
+                value={paymentStatus}
+                onValueChange={(val) => {
+                  setValue("paymentStatus", val as "paid" | "pending", { shouldValidate: true });
+                  clearErrors("paymentStatus");
+                  clearErrors("root");
+                }}
               >
-                <span>{paymentStatus}</span>
-                <ChevronDown className="w-4 h-4 text-slate-400" />
-              </button>
-
-              {isPaymentStatusOpen && (
-                <div className="absolute left-0 right-0 top-full mt-1.5 bg-white rounded-xl shadow-lg border border-slate-100 py-1.5 z-30 animate-in fade-in zoom-in-95">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPaymentStatus("Paid");
-                      setIsPaymentStatusOpen(false);
-                    }}
-                    className="w-full px-4 py-2 text-left text-xs sm:text-sm text-slate-700 hover:bg-slate-50 transition-colors font-medium cursor-pointer"
-                  >
-                    Paid
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPaymentStatus("Unpaid");
-                      setIsPaymentStatusOpen(false);
-                    }}
-                    className="w-full px-4 py-2 text-left text-xs sm:text-sm text-slate-700 hover:bg-slate-50 transition-colors font-medium cursor-pointer"
-                  >
-                    Unpaid
-                  </button>
-                </div>
+                <SelectTrigger className="w-full bg-white border-slate-200 h-10">
+                  <SelectValue placeholder="Select Payment Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="paid">Paid</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.paymentStatus && (
+                <p className="text-xs text-rose-500">{errors.paymentStatus.message}</p>
               )}
             </div>
           </div>
 
           {/* Bottom Buttons: Cancel & Submit for Approval */}
           <div className="flex items-center justify-between pt-6 border-t border-slate-100">
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={() => navigate("/cost/miscellaneous-cost")}
-              className="px-5 py-2.5 rounded-lg border border-slate-200 text-xs sm:text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer bg-white"
+              className="bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
             >
               Cancel
-            </button>
+            </Button>
 
-            <button
+            <Button
               type="submit"
-              className="px-6 py-2.5 rounded-lg bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-xs sm:text-sm font-semibold shadow-xs transition-colors cursor-pointer"
+              disabled={isPending}
+              className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white px-6"
             >
-              Submit for Approval
-            </button>
+              {isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  <span>Submitting...</span>
+                </>
+              ) : (
+                <span>Submit for Approval</span>
+              )}
+            </Button>
           </div>
         </form>
       </div>
-
-      {/* Date Picker Modal */}
-      <CalendarRangePickerModal
-        isOpen={isDatePickerOpen}
-        onClose={() => setIsDatePickerOpen(false)}
-        onApply={(range) => {
-          if (range?.from) {
-            const d = range.from;
-            const months = [
-              "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-              "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-            ];
-            setExpenseDate(`${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`);
-          }
-          setIsDatePickerOpen(false);
-        }}
-      />
 
       {/* Success Modal */}
       <SuccessModal

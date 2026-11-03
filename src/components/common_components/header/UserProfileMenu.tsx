@@ -47,7 +47,7 @@ export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
     if (onProfileClick) {
       onProfileClick();
     } else {
-      // navigate("/profile");
+      navigate("/profile");
     }
   };
 

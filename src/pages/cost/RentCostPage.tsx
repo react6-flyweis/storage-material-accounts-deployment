@@ -9,9 +9,18 @@ import {
   Plus,
   Coins,
   CheckCircle2,
+  Loader2,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import CalendarRangePickerModal from "@/components/common_components/CalendarRangePickerModal";
+import SuccessModal from "@/components/common_components/SuccessModal";
+import {
+  useGetRentSummaryQuery,
+  useGetRentRecordsQuery,
+  useMarkRentPaidMutation,
+} from "@/redux/api/costsApi";
+import { formatDisplayDate } from "@/lib/dashboardFormatters";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // Top upcoming rent payment record interface
 export interface UpcomingRentPayment {
@@ -36,127 +45,84 @@ export interface ActiveRentalProperty {
   paymentStatus: "Pending" | "Paid";
 }
 
-const INITIAL_UPCOMING_PAYMENTS: UpcomingRentPayment[] = [
-  {
-    id: "up-1",
-    property: "Main Plant",
-    dueDate: "01 Jul 2026",
-    rentPeriod: "Jul 2026",
-    amount: "$68,000",
-    paymentStatus: "Upcoming",
-    daysRemaining: "5 Days",
-  },
-  {
-    id: "up-2",
-    property: "Surat Warehouse",
-    dueDate: "01 Jul 2026",
-    rentPeriod: "Jul 2026",
-    amount: "$68,000",
-    paymentStatus: "Upcoming",
-    daysRemaining: "5 Days",
-  },
-  {
-    id: "up-3",
-    property: "Mumbai Office",
-    dueDate: "01 Jul 2026",
-    rentPeriod: "Jul 2026",
-    amount: "$68,000",
-    paymentStatus: "Upcoming",
-    daysRemaining: "5 Days",
-  },
-  {
-    id: "up-4",
-    property: "Pune Warehouse",
-    dueDate: "01 Jul 2026",
-    rentPeriod: "Jul 2026",
-    amount: "$68,000",
-    paymentStatus: "Upcoming",
-    daysRemaining: "5 Days",
-  },
-];
-
-const INITIAL_ACTIVE_PROPERTIES: ActiveRentalProperty[] = [
-  {
-    id: "prop-1",
-    property: "Main Plant",
-    type: "Plant",
-    location: "Ahmedabad",
-    landlord: "Rajesh Properties",
-    monthlyRent: "$1,440",
-    leaseEnd: "31 Dec 2027",
-    paymentStatus: "Pending",
-  },
-  {
-    id: "prop-2",
-    property: "Storage Warehouse",
-    type: "Warehouse",
-    location: "Surat",
-    landlord: "Shree Estate",
-    monthlyRent: "$1,440",
-    leaseEnd: "30 Sep 2027",
-    paymentStatus: "Paid",
-  },
-  {
-    id: "prop-3",
-    property: "Corporate Office",
-    type: "Office",
-    location: "Mumbai",
-    landlord: "Prime Realty",
-    monthlyRent: "$1,440",
-    leaseEnd: "31 Mar 2027",
-    paymentStatus: "Paid",
-  },
-  {
-    id: "prop-4",
-    property: "Material Yard",
-    type: "Land",
-    location: "Vadodara",
-    landlord: "Patel Estate",
-    monthlyRent: "$1,440",
-    leaseEnd: "30 Jun 2028",
-    paymentStatus: "Paid",
-  },
-  {
-    id: "prop-5",
-    property: "Equipment Storage",
-    type: "Warehouse",
-    location: "Pune",
-    landlord: "Metro Properties",
-    monthlyRent: "$1,440",
-    leaseEnd: "31 Jan 2027",
-    paymentStatus: "Paid",
-  },
-];
-
 export const RentCostPage: React.FC = () => {
   const navigate = useNavigate();
+
+  // RTK Query endpoints
+  const { data: summaryData, isLoading: isSummaryLoading } = useGetRentSummaryQuery();
+  const { data: recordsData, isLoading: isRecordsLoading } = useGetRentRecordsQuery();
+  const [markRentPaidApi] = useMarkRentPaidMutation();
+
+  // Local paid tracking & action state
+  const [localPaidIds, setLocalPaidIds] = useState<string[]>([]);
+  const [markingPaidId, setMarkingPaidId] = useState<string | null>(null);
+  const [successDialogConfig, setSuccessDialogConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    message?: string;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+  });
+
+  // Normalized upcoming payments from API
+  const upcomingPayments: UpcomingRentPayment[] = useMemo(() => {
+    const list = recordsData?.upcomingPayments || [];
+    return list.map((item, idx) => {
+      const id = item.id || (item as { _id?: string })._id || `up-${idx}`;
+      const isPaid = localPaidIds.includes(id) || String(item.paymentStatus).toLowerCase() === "paid";
+      return {
+        id,
+        property: item.property || item.propertyName || "-",
+        dueDate: formatDisplayDate(item.dueDate || item.date),
+        rentPeriod: item.rentPeriod || "-",
+        amount:
+          typeof item.monthlyRent === "number"
+            ? `$${item.monthlyRent.toLocaleString()}`
+            : String(item.monthlyRent || "$0"),
+        paymentStatus: (isPaid ? "Paid" : item.paymentStatus || "Upcoming") as
+          | "Upcoming"
+          | "Paid"
+          | "Pending",
+        daysRemaining: item.daysRemaining || "-",
+      };
+    });
+  }, [recordsData, localPaidIds]);
+
+  // Normalized active rental properties from API
+  const activeProperties: ActiveRentalProperty[] = useMemo(() => {
+    const list = recordsData?.activeProperties || recordsData?.rows || [];
+    return list.map((item, idx) => {
+      const id = item.id || (item as { _id?: string })._id || `prop-${idx}`;
+      const isPaid = localPaidIds.includes(id) || String(item.paymentStatus).toLowerCase() === "paid";
+      return {
+        id,
+        property: item.property || item.propertyName || "-",
+        type: item.type || item.propertyType || "Warehouse",
+        location: item.location || "-",
+        landlord: item.landlord || "-",
+        monthlyRent:
+          typeof item.monthlyRent === "number"
+            ? `$${item.monthlyRent.toLocaleString()}`
+            : String(item.monthlyRent || "$0"),
+        leaseEnd: formatDisplayDate(item.leaseEnd || item.leaseEndDate),
+        paymentStatus: (isPaid ? "Paid" : item.paymentStatus || "Pending") as "Pending" | "Paid",
+      };
+    });
+  }, [recordsData, localPaidIds]);
 
   // Export dropdown
   const [isExportOpen, setIsExportOpen] = useState(false);
   const exportRef = useRef<HTMLDivElement>(null);
 
   // Upcoming Payments table states
-  const [upcomingPayments, setUpcomingPayments] = useState<UpcomingRentPayment[]>(INITIAL_UPCOMING_PAYMENTS);
   const [upcomingDateRangeText, setUpcomingDateRangeText] = useState("dd/mm/yyyy - dd/mm/yyyy");
   const [isUpcomingDatePickerOpen, setIsUpcomingDatePickerOpen] = useState(false);
   const [, setUpcomingAmountFilter] = useState("All");
   const [isUpcomingAmountOpen, setIsUpcomingAmountOpen] = useState(false);
   const [upcomingSort, setUpcomingSort] = useState("Last 7 Days");
   const [isUpcomingSortOpen, setIsUpcomingSortOpen] = useState(false);
-
-  // Active Rental Properties table states
-  const [activeProperties] = useState<ActiveRentalProperty[]>(() => {
-    try {
-      const stored = localStorage.getItem("custom_rent_properties");
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        return [...parsed, ...INITIAL_ACTIVE_PROPERTIES];
-      }
-    } catch {
-      // ignore
-    }
-    return INITIAL_ACTIVE_PROPERTIES;
-  });
 
   const [activeDateRangeText, setActiveDateRangeText] = useState("dd/mm/yyyy - dd/mm/yyyy");
   const [isActiveDatePickerOpen, setIsActiveDatePickerOpen] = useState(false);
@@ -211,13 +177,28 @@ export const RentCostPage: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  // Mark an upcoming payment as Paid
-  const handleMarkPaid = (id: string) => {
-    setUpcomingPayments((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, paymentStatus: "Paid" } : item
-      )
-    );
+  // Mark an upcoming or active rent payment as Paid
+  const handleMarkPaid = async (id: string) => {
+    if (!id) return;
+    try {
+      setMarkingPaidId(id);
+      const res = await markRentPaidApi(id).unwrap();
+      setLocalPaidIds((prev) => [...prev, id]);
+      setSuccessDialogConfig({
+        isOpen: true,
+        title: "Rent Marked as Paid",
+        message: res.message || "Rent expense has been successfully marked as paid.",
+      });
+    } catch (err: unknown) {
+      console.error("Failed to mark rent as paid", err);
+      const errorMsg =
+        (err as { data?: { message?: string }; message?: string })?.data?.message ||
+        (err as { message?: string })?.message ||
+        "Failed to mark rent as paid.";
+      alert(errorMsg);
+    } finally {
+      setMarkingPaidId(null);
+    }
   };
 
   // Filtered & sorted active properties
@@ -236,7 +217,7 @@ export const RentCostPage: React.FC = () => {
     });
   }, [activeProperties, searchTerm]);
 
-  const totalEntries = 16; // As in screenshot: "Showing 1 to 10 of 16 entries"
+  const totalEntries = filteredActiveProperties.length;
 
   const sortedActiveProperties = useMemo(() => {
     const sorted = [...filteredActiveProperties];
@@ -317,7 +298,7 @@ export const RentCostPage: React.FC = () => {
             className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-semibold text-white bg-[#1D51A4] hover:bg-[#163e7c] rounded-lg shadow-sm transition-all cursor-pointer active:scale-95"
           >
             <div className="w-4 h-4 rounded-full border border-white/70 flex items-center justify-center">
-              <Plus className="w-2.5 h-2.5 text-white stroke-[3]" />
+              <Plus className="w-2.5 h-2.5 text-white stroke-3" />
             </div>
             <span>Add Rent</span>
           </button>
@@ -337,9 +318,15 @@ export const RentCostPage: React.FC = () => {
             </div>
           </div>
           <div className="mt-3 relative z-10">
-            <div className="text-2xl sm:text-[26px] font-extrabold text-slate-900 tracking-tight">
-              $25.68L
-            </div>
+            {isSummaryLoading ? (
+              <Skeleton className="h-7 w-24" />
+            ) : (
+              <div className="text-2xl sm:text-[26px] font-extrabold text-slate-900 tracking-tight">
+                {summaryData?.totalRentCost != null
+                  ? `$${Number(summaryData.totalRentCost).toLocaleString()}`
+                  : "$0"}
+              </div>
+            )}
             <p className="text-xs text-slate-400 font-medium mt-1">
               Yearly
             </p>
@@ -362,9 +349,15 @@ export const RentCostPage: React.FC = () => {
             </span>
           </div>
           <div className="mt-4 relative z-10">
-            <div className="text-2xl sm:text-[26px] font-extrabold text-slate-900 tracking-tight">
-              $2.14L
-            </div>
+            {isSummaryLoading ? (
+              <Skeleton className="h-7 w-20" />
+            ) : (
+              <div className="text-2xl sm:text-[26px] font-extrabold text-slate-900 tracking-tight">
+                {summaryData?.totalMonthlyRent != null
+                  ? `$${Number(summaryData.totalMonthlyRent).toLocaleString()}`
+                  : "$0"}
+              </div>
+            )}
           </div>
           {/* Blue diagonal stripes in bottom-right */}
           <svg className="absolute bottom-0 right-0 w-16 h-16 pointer-events-none opacity-80" viewBox="0 0 70 70" fill="none">
@@ -384,9 +377,15 @@ export const RentCostPage: React.FC = () => {
             </span>
           </div>
           <div className="mt-4 relative z-10">
-            <div className="text-2xl sm:text-[26px] font-extrabold text-slate-900 tracking-tight">
-              $21.42L
-            </div>
+            {isSummaryLoading ? (
+              <Skeleton className="h-7 w-20" />
+            ) : (
+              <div className="text-2xl sm:text-[26px] font-extrabold text-slate-900 tracking-tight">
+                {summaryData?.paidRent != null
+                  ? `$${Number(summaryData.paidRent).toLocaleString()}`
+                  : "$0"}
+              </div>
+            )}
           </div>
           {/* Blue diagonal stripes in bottom-right */}
           <svg className="absolute bottom-0 right-0 w-16 h-16 pointer-events-none opacity-80" viewBox="0 0 70 70" fill="none">
@@ -406,9 +405,15 @@ export const RentCostPage: React.FC = () => {
             </span>
           </div>
           <div className="mt-4 relative z-10">
-            <div className="text-2xl sm:text-[26px] font-extrabold text-slate-900 tracking-tight">
-              $38,500
-            </div>
+            {isSummaryLoading ? (
+              <Skeleton className="h-7 w-20" />
+            ) : (
+              <div className="text-2xl sm:text-[26px] font-extrabold text-slate-900 tracking-tight">
+                {summaryData?.pendingRent != null
+                  ? `$${Number(summaryData.pendingRent).toLocaleString()}`
+                  : "$0"}
+              </div>
+            )}
           </div>
           {/* Blue diagonal stripes in bottom-right */}
           <svg className="absolute bottom-0 right-0 w-16 h-16 pointer-events-none opacity-80" viewBox="0 0 70 70" fill="none">
@@ -428,9 +433,15 @@ export const RentCostPage: React.FC = () => {
             </span>
           </div>
           <div className="mt-4 relative z-10">
-            <div className="text-2xl sm:text-[26px] font-extrabold text-slate-900 tracking-tight">
-              $2.14L
-            </div>
+            {isSummaryLoading ? (
+              <Skeleton className="h-7 w-20" />
+            ) : (
+              <div className="text-2xl sm:text-[26px] font-extrabold text-slate-900 tracking-tight">
+                {summaryData?.upcomingRentDue != null
+                  ? `$${Number(summaryData.upcomingRentDue).toLocaleString()}`
+                  : "$0"}
+              </div>
+            )}
           </div>
           {/* Blue diagonal stripes in bottom-right */}
           <svg className="absolute bottom-0 right-0 w-16 h-16 pointer-events-none opacity-80" viewBox="0 0 70 70" fill="none">
@@ -539,7 +550,26 @@ export const RentCostPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs">
-              {upcomingPayments.map((row) => (
+              {isRecordsLoading ? (
+                Array.from({ length: 4 }).map((_, idx) => (
+                  <tr key={`up-skel-${idx}`}>
+                    <td className="py-4 px-6"><Skeleton className="h-4 w-32" /></td>
+                    <td className="py-4 px-6"><Skeleton className="h-4 w-24" /></td>
+                    <td className="py-4 px-6"><Skeleton className="h-4 w-20" /></td>
+                    <td className="py-4 px-6"><Skeleton className="h-4 w-20" /></td>
+                    <td className="py-4 px-6"><Skeleton className="h-4 w-16" /></td>
+                    <td className="py-4 px-6"><Skeleton className="h-4 w-16" /></td>
+                    <td className="py-4 px-6 text-right"><Skeleton className="h-7 w-20 ml-auto rounded-lg" /></td>
+                  </tr>
+                ))
+              ) : upcomingPayments.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-8 text-center text-slate-400">
+                    No upcoming rent payments found.
+                  </td>
+                </tr>
+              ) : (
+                upcomingPayments.map((row) => (
                 <tr key={row.id} className="hover:bg-slate-50/80 transition-colors">
                   <td className="py-4 px-6 font-bold text-slate-900 whitespace-nowrap">
                     {row.property}
@@ -570,14 +600,18 @@ export const RentCostPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleMarkPaid(row.id)}
-                        className="px-4 py-1.5 rounded-lg bg-[#0066FF] hover:bg-[#0052cc] text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                        disabled={markingPaidId === row.id}
+                        className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#0066FF] hover:bg-[#0052cc] text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-50"
                       >
+                        {markingPaidId === row.id && (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        )}
                         Mark Paid
                       </button>
                     )}
                   </td>
                 </tr>
-              ))}
+              )))}
             </tbody>
           </table>
         </div>
@@ -739,10 +773,31 @@ export const RentCostPage: React.FC = () => {
                   </div>
                 </th>
                 <th className="py-3 px-6 whitespace-nowrap">Payment Status</th>
+                <th className="py-3 px-6 whitespace-nowrap text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs">
-              {sortedActiveProperties.map((row) => (
+              {isRecordsLoading ? (
+                Array.from({ length: 6 }).map((_, idx) => (
+                  <tr key={`prop-skel-${idx}`}>
+                    <td className="py-4 px-6"><Skeleton className="h-4 w-32" /></td>
+                    <td className="py-4 px-6"><Skeleton className="h-4 w-20" /></td>
+                    <td className="py-4 px-6"><Skeleton className="h-4 w-24" /></td>
+                    <td className="py-4 px-6"><Skeleton className="h-4 w-28" /></td>
+                    <td className="py-4 px-6"><Skeleton className="h-4 w-20" /></td>
+                    <td className="py-4 px-6"><Skeleton className="h-4 w-24" /></td>
+                    <td className="py-4 px-6"><Skeleton className="h-6 w-16 rounded-md" /></td>
+                    <td className="py-4 px-6 text-right"><Skeleton className="h-7 w-20 ml-auto rounded-lg" /></td>
+                  </tr>
+                ))
+              ) : sortedActiveProperties.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-12 text-center text-slate-400">
+                    No active rental properties found.
+                  </td>
+                </tr>
+              ) : (
+                sortedActiveProperties.map((row) => (
                 <tr key={row.id} className="hover:bg-slate-50/80 transition-colors">
                   <td className="py-4 px-6 font-bold text-slate-900 whitespace-nowrap">
                     {row.property}
@@ -773,8 +828,27 @@ export const RentCostPage: React.FC = () => {
                       {row.paymentStatus}
                     </span>
                   </td>
+                  <td className="py-4 px-6 text-right whitespace-nowrap">
+                    {row.paymentStatus === "Paid" ? (
+                      <span className="inline-flex items-center gap-1 text-emerald-600 font-semibold text-xs">
+                        <CheckCircle2 className="w-4 h-4" /> Paid
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleMarkPaid(row.id)}
+                        disabled={markingPaidId === row.id}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#0066FF] hover:bg-[#0052cc] text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        {markingPaidId === row.id && (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        )}
+                        Mark Paid
+                      </button>
+                    )}
+                  </td>
                 </tr>
-              ))}
+              )))}
             </tbody>
           </table>
         </div>
@@ -865,6 +939,16 @@ export const RentCostPage: React.FC = () => {
           setActiveDateRangeText(`${range.startDate} - ${range.endDate}`);
           setIsActiveDatePickerOpen(false);
         }}
+      />
+
+      {/* Success Modal */}
+      <SuccessModal
+        isOpen={successDialogConfig.isOpen}
+        onClose={() =>
+          setSuccessDialogConfig((prev) => ({ ...prev, isOpen: false }))
+        }
+        title={successDialogConfig.title}
+        message={successDialogConfig.message}
       />
     </div>
   );
