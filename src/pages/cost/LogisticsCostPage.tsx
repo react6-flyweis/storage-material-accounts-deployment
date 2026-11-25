@@ -302,6 +302,7 @@ export const LogisticsCostPage: React.FC = () => {
 
           {/* Add Logistic Cost Button */}
           <button
+            data-tour="logistics-add"
             onClick={() => navigate("/cost/logistics-cost/add")}
             className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] rounded-lg shadow-sm transition-all shadow-blue-500/20 active:scale-95"
           >
@@ -312,7 +313,7 @@ export const LogisticsCostPage: React.FC = () => {
       </div>
 
       {/* 4 Solid Colored KPI Stat Cards Matching Reference Screenshot Exactly */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+      <div data-tour="logistics-stats" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
         {/* Card 1: Total Logistics Cost (Blue #2E5BFF) */}
         <div className="bg-[#2E5BFF] text-white rounded-2xl p-5 shadow-sm relative overflow-hidden flex items-center justify-between min-h-[105px]">
           <div>
@@ -387,7 +388,7 @@ export const LogisticsCostPage: React.FC = () => {
       </div>
 
       {/* Top Filter Bar: Search + 5 Dropdowns */}
-      <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] space-y-3.5">
+      <div data-tour="logistics-filters" className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] space-y-3.5">
         {/* Search Bar */}
         <div className="relative">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -550,7 +551,7 @@ export const LogisticsCostPage: React.FC = () => {
       </div>
 
       {/* Main Table Card */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+      <div data-tour="logistics-table" className="bg-white rounded-2xl border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
         {/* Table Header Row: Title & Secondary Filter Pills */}
         <div className="p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100">
           <h3 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
@@ -813,6 +814,7 @@ export const LogisticsCostPage: React.FC = () => {
                     </td>
                     <td className="py-3.5 px-4 sm:px-5 text-right whitespace-nowrap">
                       <button
+                        data-tour="logistics-row-view"
                         onClick={() => handleOpenDetail(row)}
                         title="View Details"
                         className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
