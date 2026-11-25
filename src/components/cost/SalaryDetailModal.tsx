@@ -48,6 +48,7 @@ export const SalaryDetailModal: React.FC<SalaryDetailModalProps> = ({
       onClick={handleBackdropClick}
     >
       <div
+        data-tour="salary-modal"
         ref={modalRef}
         className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200"
       >
@@ -68,6 +69,7 @@ export const SalaryDetailModal: React.FC<SalaryDetailModalProps> = ({
             </span>
           </div>
           <button
+            data-tour="salary-modal-close"
             type="button"
             onClick={onClose}
             className="w-8 h-8 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center transition-colors cursor-pointer"
