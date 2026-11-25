@@ -452,6 +452,7 @@ export const RecentExpenseTransactionsCard: React.FC<
 
                     <td className="px-5 py-4 text-right">
                       <button
+                        data-tour="expense-transaction-view"
                         type="button"
                         onClick={() => handleViewRecord(tx)}
                         aria-label={`View record ${tx.reference || tx.recordId}`}
