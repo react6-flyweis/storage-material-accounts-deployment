@@ -40,6 +40,7 @@ export function ProjectQuickActions({
   const quickActions = [
     {
       label: "View Invoices",
+      tourId: "project-action-invoices",
       onClick: () =>
         navigate(`${basePath}/project-invoices`, {
           state: {
@@ -50,6 +51,7 @@ export function ProjectQuickActions({
     },
     {
       label: "View BOM",
+      tourId: "project-action-bom",
       onClick: () =>
         navigate(`${basePath}/bom`, {
           state: {
@@ -60,6 +62,7 @@ export function ProjectQuickActions({
     },
     {
       label: "View Payments",
+      tourId: "project-action-payments",
       onClick: () =>
         navigate(`${basePath}/project-payments`, {
           state: {
@@ -70,6 +73,7 @@ export function ProjectQuickActions({
     },
     {
       label: "Material Delivery",
+      tourId: "project-action-delivery",
       onClick: () => {
         if (onOpenMaterialDelivery) {
           onOpenMaterialDelivery();
@@ -84,6 +88,7 @@ export function ProjectQuickActions({
     },
     {
       label: "View Quotation",
+      tourId: "project-action-quotation",
       onClick: () =>
         navigate(`${basePath}/project-quotation`, {
           state: {
@@ -94,6 +99,7 @@ export function ProjectQuickActions({
     },
     {
       label: "View Agreement",
+      tourId: "project-action-agreement",
       onClick: () => {
         if (agreement?.url) {
           window.open(agreement.url, "_blank");
@@ -114,6 +120,7 @@ export function ProjectQuickActions({
       {quickActions.map((btn) => (
         <button
           key={btn.label}
+          data-tour={btn.tourId}
           type="button"
           onClick={btn.onClick}
           className="w-full bg-[#1D51A4] hover:bg-[#153E7E] text-white rounded-lg shadow-xs font-medium text-sm h-11 flex items-center justify-center transition-all cursor-pointer hover:shadow-sm"
