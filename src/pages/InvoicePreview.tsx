@@ -143,7 +143,7 @@ export default function InvoicePreview() {
           Back
         </button>
 
-        <div className="flex items-center gap-3">
+        <div data-tour="invoice-preview-actions" className="flex items-center gap-3">
           <Button
             variant="outline"
             onClick={handleDownloadPdf}
@@ -159,6 +159,7 @@ export default function InvoicePreview() {
           </Button>
 
           <Button
+            data-tour="invoice-email"
             variant="outline"
             onClick={() => setIsSendModalOpen(true)}
             disabled={!activeInvoiceId}
@@ -195,7 +196,9 @@ export default function InvoicePreview() {
 
       {/* Embedded Presentation Template */}
       {invoice && (
-        <InvoiceTemplate invoice={invoice as any} paymentSchedule={paymentSchedule} />
+        <div data-tour="invoice-preview">
+          <InvoiceTemplate invoice={invoice as any} paymentSchedule={paymentSchedule} />
+        </div>
       )}
 
       {/* Email Modal */}
