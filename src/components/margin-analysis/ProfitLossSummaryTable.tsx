@@ -150,6 +150,7 @@ export const ProfitLossSummaryTable: React.FC<ProfitLossSummaryTableProps> = ({
 
           {/* View P&L Analysis Modal Button */}
           <button
+            data-tour="margin-analysis-open"
             onClick={() => handleOpenAnalysisModal()}
             className="border border-purple-200 bg-purple-50/40 hover:bg-purple-100/60 text-purple-700 font-medium text-xs md:text-sm px-3.5 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
           >
