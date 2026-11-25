@@ -310,7 +310,7 @@ export default function ProjectInvoicesPage({
       )}
 
       {/* 3. Main Invoices Table Card */}
-      <div className="bg-white rounded-2xl shadow-xs border border-slate-100 p-5 sm:p-6 space-y-5">
+      <div data-tour="invoice-table" className="bg-white rounded-2xl shadow-xs border border-slate-100 p-5 sm:p-6 space-y-5">
         {/* Table Card Header Toolbar */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-center gap-2">
@@ -322,7 +322,7 @@ export default function ProjectInvoicesPage({
             )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+          <div data-tour="invoice-filters" className="flex flex-wrap items-center gap-2.5 sm:gap-3">
             {/* Search */}
             <div className="relative">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -543,7 +543,7 @@ export default function ProjectInvoicesPage({
                         </span>
                       </td>
                       <td className="px-5 py-3.5 text-right whitespace-nowrap">
-                        <div className="inline-flex items-center justify-end gap-1.5">
+                        <div data-tour="invoice-row-actions" className="inline-flex items-center justify-end gap-1.5">
                           {/* Mark as paid button */}
                           {!isPaid && (
                             <button
@@ -593,6 +593,7 @@ export default function ProjectInvoicesPage({
 
                           {/* View details */}
                           <button
+                            data-tour="invoice-row-view"
                             type="button"
                             onClick={() => {
                               navigate(`/invoices/project-invoices/${inv.invoiceId}`, {
