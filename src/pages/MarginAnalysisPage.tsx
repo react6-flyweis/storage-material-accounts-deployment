@@ -24,13 +24,17 @@ export default function MarginAnalysisPage() {
   return (
     <div className="space-y-6 px-2 sm:px-4 xl:px-0 pb-10">
       {/* 1. Header & Filters Section */}
-      <MarginAnalysisHeader
-        filters={filters}
-        onFilterChange={setFilters}
-      />
+      <div data-tour="margin-filters">
+        <MarginAnalysisHeader
+          filters={filters}
+          onFilterChange={setFilters}
+        />
+      </div>
 
       {/* 2. Top 5 Stat Cards */}
-      <MarginKpiCards filters={filters} />
+      <div data-tour="margin-kpis">
+        <MarginKpiCards filters={filters} />
+      </div>
 
       {/* 3. Middle Section: Two Charts Side-by-Side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -39,16 +43,18 @@ export default function MarginAnalysisPage() {
       </div>
 
       {/* 4. Bottom Section: Profit & Loss Summary */}
-      <ProfitLossSummaryTable
-        filters={filters}
-        onOpenAnalysisModal={(leadId) =>
-          setModalProjectId(
-            leadId ||
-              (filters.projectId !== "all" ? filters.projectId : undefined) ||
-              "all",
-          )
-        }
-      />
+      <div data-tour="margin-table">
+        <ProfitLossSummaryTable
+          filters={filters}
+          onOpenAnalysisModal={(leadId) =>
+            setModalProjectId(
+              leadId ||
+                (filters.projectId !== "all" ? filters.projectId : undefined) ||
+                "all",
+            )
+          }
+        />
+      </div>
 
       {/* 5. View Profit & Loss Analysis Modal */}
       <ProfitLossDetailModal
