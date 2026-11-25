@@ -334,6 +334,7 @@ export default function MiscellaneousInvoicesPage() {
           </button>
 
           <button
+            data-tour="misc-invoice-upload"
             type="button"
             onClick={() => setIsUploadOpen(true)}
             className="inline-flex items-center gap-2 px-4 py-2 bg-[#3B66BD] hover:bg-[#2F54A0] text-white rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
@@ -356,7 +357,7 @@ export default function MiscellaneousInvoicesPage() {
       )}
 
       {/* 3. Main Invoices Table Card */}
-      <div className="bg-white rounded-2xl shadow-xs border border-slate-100 p-5 sm:p-6 space-y-5">
+      <div data-tour="misc-invoice-table" className="bg-white rounded-2xl shadow-xs border border-slate-100 p-5 sm:p-6 space-y-5">
         {/* Table Toolbar */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-center gap-2">
@@ -667,6 +668,7 @@ export default function MiscellaneousInvoicesPage() {
                           )}
 
                           <button
+                            data-tour="misc-invoice-view"
                             onClick={() => {
                               setSelectedInvoice({
                                 id: inv.invoiceId || inv.id || inv.invoiceNumber,
