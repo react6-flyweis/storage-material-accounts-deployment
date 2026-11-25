@@ -83,27 +83,31 @@ export default function ProjectDetailsPage() {
   return (
     <div className="space-y-5">
       {/* 1. Header: Back button, Title, Loading & Error alerts */}
-      <ProjectDetailsHeader
-        projectName={
-          projectDetail?.overview?.projectName || passedState?.projectName
-        }
-        projectId={actualProjectId}
-        isLoading={isProjectLoading}
-        isError={isProjectError}
-        onBack={handleBack}
-        onRetry={refetchProject}
-      />
+      <div data-tour="project-header">
+        <ProjectDetailsHeader
+          projectName={
+            projectDetail?.overview?.projectName || passedState?.projectName
+          }
+          projectId={actualProjectId}
+          isLoading={isProjectLoading}
+          isError={isProjectError}
+          onBack={handleBack}
+          onRetry={refetchProject}
+        />
+      </div>
 
       {/* 2. 6 Quick Action Buttons */}
-      <ProjectQuickActions
-        basePath={basePath}
-        projectId={actualProjectId}
-        customerId={actualCustomerId}
-        overview={projectDetail?.overview}
-        contact={projectDetail?.contact}
-        agreement={projectDetail?.agreement}
-        actionLinks={projectDetail?.actionLinks}
-      />
+      <div data-tour="project-quick-actions">
+        <ProjectQuickActions
+          basePath={basePath}
+          projectId={actualProjectId}
+          customerId={actualCustomerId}
+          overview={projectDetail?.overview}
+          contact={projectDetail?.contact}
+          agreement={projectDetail?.agreement}
+          actionLinks={projectDetail?.actionLinks}
+        />
+      </div>
 
       {/* Section Title */}
       <div>
@@ -113,28 +117,36 @@ export default function ProjectDetailsPage() {
       </div>
 
       {/* 3. Project Overview Card */}
-      <ProjectOverviewCard
-        overview={projectDetail?.overview}
-        contact={projectDetail?.contact}
-        assignment={projectDetail?.assignment}
-        agreement={projectDetail?.agreement}
-      />
+      <div data-tour="project-overview">
+        <ProjectOverviewCard
+          overview={projectDetail?.overview}
+          contact={projectDetail?.contact}
+          assignment={projectDetail?.assignment}
+          agreement={projectDetail?.agreement}
+        />
+      </div>
 
       {/* 4. Financial KPI Cards Grid (4 Dark Blue + 4 White) */}
-      <ProjectFinancialKpiGrid
-        financialSummary={projectDetail?.financialSummary}
-      />
+      <div data-tour="project-financials">
+        <ProjectFinancialKpiGrid
+          financialSummary={projectDetail?.financialSummary}
+        />
+      </div>
 
       {/* 5. Progress Step Card */}
-      <ProjectProgressStepper
-        progressStep={projectDetail?.progressStep}
-        assignmentName={projectDetail?.assignment?.name}
-      />
+      <div data-tour="project-progress">
+        <ProjectProgressStepper
+          progressStep={projectDetail?.progressStep}
+          assignmentName={projectDetail?.assignment?.name}
+        />
+      </div>
 
       {/* 6. Project Financial Performance Table */}
-      <ProjectFinancialPerformanceTable
-        profitabilityOverview={projectDetail?.profitabilityOverview}
-      />
+      <div data-tour="project-performance">
+        <ProjectFinancialPerformanceTable
+          profitabilityOverview={projectDetail?.profitabilityOverview}
+        />
+      </div>
     </div>
   );
 }
