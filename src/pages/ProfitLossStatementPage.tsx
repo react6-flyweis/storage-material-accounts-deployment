@@ -115,7 +115,7 @@ export const ProfitLossStatementPage: React.FC = () => {
         </div>
 
         {/* Action Controls */}
-        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+        <div data-tour="pl-filters" className="flex flex-wrap items-center gap-2.5 sm:gap-3">
           {/* Date Range Selector & Calendar Modal */}
           <div className="relative">
             <button
@@ -178,7 +178,9 @@ export const ProfitLossStatementPage: React.FC = () => {
       </div>
 
       {/* Top Summary Metric Cards */}
-      <ProfitLossMetrics summary={data?.summary} isLoading={isLoading} />
+      <div data-tour="pl-metrics">
+        <ProfitLossMetrics summary={data?.summary} isLoading={isLoading} />
+      </div>
 
       {/* Middle Analytics Grid: 6-Month Trend & Expense by Category */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
@@ -197,21 +199,23 @@ export const ProfitLossStatementPage: React.FC = () => {
       </div>
 
       {/* Profit & Loss Invoice Breakdown Table Card */}
-      <ProfitLossSummaryTable
-        rows={data?.rows}
-        total={data?.total}
-        currentPage={page}
-        onPageChange={setPage}
-        rowsPerPage={limit}
-        onRowsPerPageChange={(newLimit) => {
-          setLimit(newLimit);
-          setPage(1);
-        }}
-        isLoading={isLoading}
-        isFetching={isFetching}
-        isError={isError}
-        onRetry={refetch}
-      />
+      <div data-tour="pl-table">
+        <ProfitLossSummaryTable
+          rows={data?.rows}
+          total={data?.total}
+          currentPage={page}
+          onPageChange={setPage}
+          rowsPerPage={limit}
+          onRowsPerPageChange={(newLimit) => {
+            setLimit(newLimit);
+            setPage(1);
+          }}
+          isLoading={isLoading}
+          isFetching={isFetching}
+          isError={isError}
+          onRetry={refetch}
+        />
+      </div>
     </div>
   );
 };
