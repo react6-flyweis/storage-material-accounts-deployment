@@ -292,7 +292,7 @@ export default function CarrierInvoicesPage() {
       )}
 
       {/* 3. Main Invoices Table Card */}
-      <div className="bg-white rounded-2xl shadow-xs border border-slate-100 p-5 sm:p-6 space-y-5">
+      <div data-tour="carrier-invoice-table" className="bg-white rounded-2xl shadow-xs border border-slate-100 p-5 sm:p-6 space-y-5">
         {/* Toolbar */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-center gap-2">
@@ -608,6 +608,7 @@ export default function CarrierInvoicesPage() {
 
                           {/* Detail page navigation */}
                           <button
+                            data-tour="carrier-invoice-view"
                             onClick={() =>
                               navigate(`/invoices/carrier-invoices/${inv.invoiceId}`, {
                                 state: { invoice: inv },
