@@ -202,7 +202,7 @@ export default function VendorInvoiceDetailPage() {
       </div>
 
       {/* 2. Metadata / Summary Cards Banner */}
-      <div className="bg-white rounded-2xl shadow-xs border border-slate-100 p-6 space-y-6">
+      <div data-tour="vendor-invoice-summary" className="bg-white rounded-2xl shadow-xs border border-slate-100 p-6 space-y-6">
         {/* Banner Top Row: Invoice Number, Badge, and Amount Box */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
           <div>
@@ -315,7 +315,7 @@ export default function VendorInvoiceDetailPage() {
       </div>
 
       {/* 3. Formal Invoice Document Paper Sheet */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-8 sm:p-12 max-w-4xl mx-auto space-y-10">
+      <div data-tour="vendor-invoice-document" className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-8 sm:p-12 max-w-4xl mx-auto space-y-10">
         {/* Invoice Paper Header */}
         <div className="flex items-start justify-between">
           <div className="flex items-center">
