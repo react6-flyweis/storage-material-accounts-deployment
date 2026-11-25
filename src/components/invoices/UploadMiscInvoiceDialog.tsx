@@ -137,13 +137,14 @@ export const UploadMiscInvoiceDialog: React.FC<UploadMiscInvoiceDialogProps> = (
         if (e.target === e.currentTarget) handleClose();
       }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-120 p-6 relative animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
+      <div data-tour="misc-upload-modal" className="bg-white rounded-2xl shadow-2xl w-full max-w-120 p-6 relative animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between pb-4">
           <h2 className="text-lg font-bold text-slate-900 tracking-tight">
             Upload Miscellaneous Invoice
           </h2>
           <button
+            data-tour="misc-upload-close"
             type="button"
             onClick={handleClose}
             className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
