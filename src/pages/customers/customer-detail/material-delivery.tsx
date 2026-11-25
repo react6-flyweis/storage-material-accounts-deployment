@@ -42,15 +42,17 @@ export default function MaterialDeliveryPage() {
   };
 
   return (
-    <DeliveryDetails
-      delivery={delivery}
-      isLoading={isLoading}
-      isError={isError}
-      error={error}
-      onRetry={refetch}
-      deliveryId={deliveryId}
-      projectId={currentProjectId}
-      onBack={handleBack}
-    />
+    <div data-tour="project-delivery">
+      <DeliveryDetails
+        delivery={delivery}
+        isLoading={isLoading}
+        isError={isError}
+        error={error}
+        onRetry={refetch}
+        deliveryId={deliveryId}
+        projectId={currentProjectId}
+        onBack={handleBack}
+      />
+    </div>
   );
 }
