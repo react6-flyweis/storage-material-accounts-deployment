@@ -619,7 +619,7 @@ export const AddPaymentPage: React.FC = () => {
       )}
 
       {/* Main Card */}
-      <Card className="bg-white rounded-2xl p-6 sm:p-8 shadow-xs border border-gray-100 gap-0">
+      <Card data-tour="payment-form" className="bg-white rounded-2xl p-6 sm:p-8 shadow-xs border border-gray-100 gap-0">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           {/* Card Title */}
           <div>
