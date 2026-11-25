@@ -143,6 +143,7 @@ export const OrderPaymentDetailsModal: React.FC<OrderPaymentDetailsModalProps> =
 
   return (
     <Modal
+      tourId="order-payment-modal"
       isOpen={isOpen}
       onClose={onClose}
       hideHeader={true}
