@@ -178,64 +178,66 @@ const FinancePage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="-mt-4 -mx-4">
-        <FilterTabs
-          initialPeriod={undefined}
-          selectedPeriod={activePeriod}
-          onPeriodChange={(period: Period, range: DateRange) => {
-            setActivePeriod(period);
-            setSelectedRange(range);
-          }}
-        />
-      </div>
-
-      {/* Header Row: Title & Subtitle on Left, Date Range Filter & Export Button on Right */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <TitleSubtitle
-          title="Financial Overview"
-          subtitle="Monitor your business financial performance and key metrics"
-        />
-
-        <div className="flex flex-wrap items-center gap-3">
-          <DateRangeFilter
-            value={{
-              from: selectedRange.startDate || undefined,
-              to: selectedRange.endDate || undefined,
+      <div data-tour="dashboard-controls" className="space-y-6">
+        <div className="-mt-4 -mx-4">
+          <FilterTabs
+            initialPeriod={undefined}
+            selectedPeriod={activePeriod}
+            onPeriodChange={(period: Period, range: DateRange) => {
+              setActivePeriod(period);
+              setSelectedRange(range);
             }}
-            onChange={(range) => {
-              if (range?.from) {
-                setActivePeriod(null);
-                setSelectedRange({
-                  startDate: range.from,
-                  endDate: range.to || range.from,
-                });
-              } else {
-                setActivePeriod(undefined);
-                setSelectedRange({
-                  startDate: null,
-                  endDate: null,
-                });
-              }
-            }}
-            className="w-full sm:w-60 md:w-65 bg-white shadow-2xs"
-            placeholder="Select Date Range"
+          />
+        </div>
+
+        {/* Header Row: Title & Subtitle on Left, Date Range Filter & Export Button on Right */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <TitleSubtitle
+            title="Financial Overview"
+            subtitle="Monitor your business financial performance and key metrics"
           />
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExport}
-            disabled={isExporting}
-            className="h-9 px-3.5 bg-white border-gray-200 hover:bg-gray-50 text-gray-700 font-medium text-xs sm:text-sm gap-2 cursor-pointer shadow-2xs shrink-0"
-            title="Export Dashboard Data"
-          >
-            {isExporting ? (
-              <RefreshCcw className="w-4 h-4 animate-spin text-gray-500" />
-            ) : (
-              <Download className="w-4 h-4 text-gray-600" />
-            )}
-            <span>{isExporting ? "Exporting..." : "Export"}</span>
-          </Button>
+          <div className="flex flex-wrap items-center gap-3">
+            <DateRangeFilter
+              value={{
+                from: selectedRange.startDate || undefined,
+                to: selectedRange.endDate || undefined,
+              }}
+              onChange={(range) => {
+                if (range?.from) {
+                  setActivePeriod(null);
+                  setSelectedRange({
+                    startDate: range.from,
+                    endDate: range.to || range.from,
+                  });
+                } else {
+                  setActivePeriod(undefined);
+                  setSelectedRange({
+                    startDate: null,
+                    endDate: null,
+                  });
+                }
+              }}
+              className="w-full sm:w-60 md:w-65 bg-white shadow-2xs"
+              placeholder="Select Date Range"
+            />
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExport}
+              disabled={isExporting}
+              className="h-9 px-3.5 bg-white border-gray-200 hover:bg-gray-50 text-gray-700 font-medium text-xs sm:text-sm gap-2 cursor-pointer shadow-2xs shrink-0"
+              title="Export Dashboard Data"
+            >
+              {isExporting ? (
+                <RefreshCcw className="w-4 h-4 animate-spin text-gray-500" />
+              ) : (
+                <Download className="w-4 h-4 text-gray-600" />
+              )}
+              <span>{isExporting ? "Exporting..." : "Export"}</span>
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -266,7 +268,7 @@ const FinancePage = () => {
       )}
 
       {/* Top 4 Stat Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
+      <div data-tour="dashboard-stats" className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
         {isLoading
           ? Array.from({ length: 4 }).map((_, idx) => (
               <Card
@@ -295,49 +297,51 @@ const FinancePage = () => {
       </div>
 
       {/* Invoice Report Section */}
-      <div className="flex justify-between items-center mb-4 pt-2">
-        <h1 className="md:text-xl font-medium text-gray-800 tracking-tight">
-          Invoice Report
-        </h1>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-8 w-8 bg-white border-gray-200 cursor-pointer"
-            onClick={() => refetch()}
-            title="Refresh Dashboard"
-          >
-            <RefreshCcw
-              className={cn(
-                "h-4 w-4 text-gray-500",
-                isFetching && "animate-spin",
+      <div data-tour="dashboard-invoice-report" className="space-y-6">
+        <div className="flex justify-between items-center mb-4 pt-2">
+          <h1 className="md:text-xl font-medium text-gray-800 tracking-tight">
+            Invoice Report
+          </h1>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 bg-white border-gray-200 cursor-pointer"
+              onClick={() => refetch()}
+              title="Refresh Dashboard"
+            >
+              <RefreshCcw
+                className={cn(
+                  "h-4 w-4 text-gray-500",
+                  isFetching && "animate-spin",
+                )}
+              />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 bg-white border-gray-200 cursor-pointer"
+              onClick={() => setIsInvoiceOpen(!isInvoiceOpen)}
+            >
+              {isInvoiceOpen ? (
+                <ChevronUp className="h-4 w-4 text-gray-500" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-gray-500" />
               )}
-            />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-8 w-8 bg-white border-gray-200 cursor-pointer"
-            onClick={() => setIsInvoiceOpen(!isInvoiceOpen)}
-          >
-            {isInvoiceOpen ? (
-              <ChevronUp className="h-4 w-4 text-gray-500" />
-            ) : (
-              <ChevronDown className="h-4 w-4 text-gray-500" />
-            )}
-          </Button>
+            </Button>
+          </div>
         </div>
+
+        {isInvoiceOpen && (
+          <FinanceStatsGrid
+            data={overview?.invoiceReport}
+            isLoading={isLoading}
+          />
+        )}
       </div>
 
-      {isInvoiceOpen && (
-        <FinanceStatsGrid
-          data={overview?.invoiceReport}
-          isLoading={isLoading}
-        />
-      )}
-
       {/* Delivery Finance Row */}
-      <div className="pt-2">
+      <div data-tour="dashboard-delivery-finance" className="pt-2">
         <DeliveryFinanceGrid
           data={overview?.deliveryFinance}
           isLoading={isLoading}
@@ -345,7 +349,7 @@ const FinancePage = () => {
       </div>
 
       {/* Order Value vs Plant Costs Analysis */}
-      <div className="pt-2">
+      <div data-tour="dashboard-analysis" className="pt-2">
         <AnalysisSection
           data={overview?.orderVsPlantCosts}
           isLoading={isLoading}
@@ -353,25 +357,25 @@ const FinancePage = () => {
       </div>
 
       {/* Middle Grid: Work In Progress & Revenue Trend */}
-      <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-5 xl:gap-6 gap-4">
-        <div className="lg:col-span-3 md:col-span-1 col-span-1">
+      <div data-tour="dashboard-charts" className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-5 xl:gap-6 gap-4">
+        <div data-tour="dashboard-wip" className="lg:col-span-3 md:col-span-1 col-span-1">
           <WorkInProgress
             projects={overview?.projectBudgetVsActual}
             isLoading={isLoading}
           />
         </div>
 
-        <div className="lg:col-span-2 md:col-span-1 col-span-1">
+        <div data-tour="dashboard-revenue" className="lg:col-span-2 md:col-span-1 col-span-1">
           <RevenueTrend />
         </div>
       </div>
 
       {/* Profit Trend & Cost Breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 gap-6 mt-6 items-stretch">
-        <div className="lg:col-span-1 h-full">
+        <div data-tour="dashboard-profit-trend" className="lg:col-span-1 h-full">
           <WIPProfitTrend />
         </div>
-        <div className="lg:col-span-1 flex flex-col gap-6">
+        <div data-tour="dashboard-cost-breakdown" className="lg:col-span-1 flex flex-col gap-6">
           <CostBreakdown
             orderVsPlantCosts={overview?.orderVsPlantCosts}
             deliveryFinance={overview?.deliveryFinance}
@@ -382,7 +386,7 @@ const FinancePage = () => {
       </div>
 
       {/* Bottom Grid: Recent Transactions & Alerts */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+      <div data-tour="dashboard-activity" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
         <RecentTransactions
           transactions={overview?.recentTransactions}
           isLoading={isLoading}
@@ -391,23 +395,29 @@ const FinancePage = () => {
       </div>
 
       {/* Top Partners: Carriers & Vendors */}
-      <TopPartnersSection
-        carriers={overview?.topCarriers}
-        vendors={overview?.topVendors}
-        isLoading={isLoading}
-      />
+      <div data-tour="dashboard-partners">
+        <TopPartnersSection
+          carriers={overview?.topCarriers}
+          vendors={overview?.topVendors}
+          isLoading={isLoading}
+        />
+      </div>
 
       {/* Upcoming Payments */}
-      <UpcomingPayments
-        upcomingPayments={overview?.upcomingPayments}
-        isLoading={isLoading}
-      />
+      <div data-tour="dashboard-upcoming">
+        <UpcomingPayments
+          upcomingPayments={overview?.upcomingPayments}
+          isLoading={isLoading}
+        />
+      </div>
 
       {/* Project Details Table */}
-      <ProjectDetailsTable
-        projects={overview?.projectBudgetVsActual}
-        isLoading={isLoading}
-      />
+      <div data-tour="dashboard-projects">
+        <ProjectDetailsTable
+          projects={overview?.projectBudgetVsActual}
+          isLoading={isLoading}
+        />
+      </div>
     </div>
   );
 };
