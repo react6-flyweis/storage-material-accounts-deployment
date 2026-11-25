@@ -78,6 +78,7 @@ export default function SendInvoiceModal({
 
   return (
     <Modal
+      tourId="send-invoice-modal"
       isOpen={isOpen}
       onClose={onClose}
       title="Email Invoice"
