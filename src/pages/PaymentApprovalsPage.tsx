@@ -388,7 +388,7 @@ const PaymentApprovalsPage = () => {
       </div>
 
       {/* 4 Top Metric Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+      <div data-tour="approvals-stats" className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
         <StatCard
           title="Pending Approval"
           value={stats.pendingApproval}
@@ -552,7 +552,7 @@ const PaymentApprovalsPage = () => {
       </Card>
 
       {/* Workflow Process Banner */}
-      <div className="bg-white/80 border border-blue-100/70 rounded-2xl px-5 sm:px-6 py-3.5 shadow-2xs flex flex-wrap items-center justify-between gap-3 text-xs font-semibold text-gray-700">
+      <div data-tour="approvals-workflow" className="bg-white/80 border border-blue-100/70 rounded-2xl px-5 sm:px-6 py-3.5 shadow-2xs flex flex-wrap items-center justify-between gap-3 text-xs font-semibold text-gray-700">
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-[#FA541C] shrink-0" />
@@ -588,7 +588,7 @@ const PaymentApprovalsPage = () => {
       </div>
 
       {/* Payment Approval Queue Card */}
-      <Card className="rounded-2xl border border-gray-100 shadow-xs bg-white overflow-hidden py-0 gap-0">
+      <Card data-tour="approvals-table" className="rounded-2xl border border-gray-100 shadow-xs bg-white overflow-hidden py-0 gap-0">
         {/* Table header bar */}
         <div className="p-5 sm:px-6 flex items-center justify-between border-b border-gray-100/70">
           <h2 className="text-base sm:text-lg font-bold text-gray-900 tracking-tight">
@@ -696,6 +696,7 @@ const PaymentApprovalsPage = () => {
                     {/* Actions */}
                     <td className="py-4 px-6 align-middle text-center">
                       <button
+                        data-tour="approvals-row-view"
                         type="button"
                         onClick={() => handleOpenDetail(item)}
                         className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
