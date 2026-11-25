@@ -114,7 +114,7 @@ export const ProjectWiseExpenseDetailPage: React.FC = () => {
       )}
 
       {/* Top Grid: Left Side (Info Card + Metrics) & Right Side (Summary Card) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+      <div data-tour="expense-detail-summary" className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
         {/* Left Column (8 cols on lg/xl) */}
         <div className="lg:col-span-8 xl:col-span-8 space-y-4 flex flex-col justify-between">
           <ProjectExpenseInfoCard
@@ -139,25 +139,27 @@ export const ProjectWiseExpenseDetailPage: React.FC = () => {
       </div>
 
       {/* Bottom Section: Recent Expense Transactions Table Card */}
-      <RecentExpenseTransactionsCard
-        projectIdOrLeadId={data?.project?.leadId || effectiveProjectId}
-        transactions={data?.transactions}
-        pagination={data?.pagination}
-        activeTab={tab}
-        onTabChange={setTab}
-        searchTerm={search}
-        onSearchChange={setSearch}
-        startDate={startDate}
-        endDate={endDate}
-        dateRangeText={dateRangeText}
-        onDateRangeChange={handleDateRangeChange}
-        page={page}
-        onPageChange={setPage}
-        limit={limit}
-        onLimitChange={setLimit}
-        isLoading={isLoading}
-        isFetching={isFetching}
-      />
+      <div data-tour="expense-detail-transactions">
+        <RecentExpenseTransactionsCard
+          projectIdOrLeadId={data?.project?.leadId || effectiveProjectId}
+          transactions={data?.transactions}
+          pagination={data?.pagination}
+          activeTab={tab}
+          onTabChange={setTab}
+          searchTerm={search}
+          onSearchChange={setSearch}
+          startDate={startDate}
+          endDate={endDate}
+          dateRangeText={dateRangeText}
+          onDateRangeChange={handleDateRangeChange}
+          page={page}
+          onPageChange={setPage}
+          limit={limit}
+          onLimitChange={setLimit}
+          isLoading={isLoading}
+          isFetching={isFetching}
+        />
+      </div>
     </div>
   );
 };
