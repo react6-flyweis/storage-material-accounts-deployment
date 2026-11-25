@@ -3,6 +3,7 @@ import logo from "../../assets/logo.png";
 import { ChevronLeft, Menu } from "lucide-react";
 import { NotificationMenu } from "../notification-menu";
 import { HeaderSearch, UserProfileMenu } from "./header";
+import { TourHubMenu } from "@/modules/tour/components/tour-hub-menu";
 
 export interface HeaderProps {
   onMenuToggle: () => void;
@@ -60,6 +61,7 @@ const Header: React.FC<HeaderProps> = ({
 
       <div className="flex items-center gap-4 lg:gap-6">
         <NotificationMenu />
+        <TourHubMenu />
         <UserProfileMenu
           onProfileClick={onProfileClick}
           onSettingsClick={onSettingsClick}
