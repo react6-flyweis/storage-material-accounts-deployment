@@ -92,7 +92,7 @@ export default function CustomersPage() {
       </div>
 
       {/* Top 4 Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+      <div data-tour="customers-stats" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {statCards.map((card) => {
           const Icon = card.icon;
           return (
@@ -137,7 +137,7 @@ export default function CustomersPage() {
       </div>
 
       {/* Customers Table */}
-      <div className="bg-white rounded-xl shadow-xs border border-slate-100/90 overflow-hidden">
+      <div data-tour="customers-table" className="bg-white rounded-xl shadow-xs border border-slate-100/90 overflow-hidden">
         <div className="overflow-x-auto">
           <Table className="w-full">
             <TableHeader>
@@ -219,6 +219,7 @@ export default function CustomersPage() {
                       }}
                     >
                       <button
+                        data-tour="customer-row-view"
                         type="button"
                         aria-label={`View ${customer.customerName}`}
                         className="inline-flex items-center justify-center text-[#4F46E5] hover:text-[#4338CA] hover:scale-115 transition-all cursor-pointer p-1 rounded-md"
