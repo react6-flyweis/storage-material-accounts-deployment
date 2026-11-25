@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { keepOpenDuringTour } from "@/modules/tour/keep-open-during-tour";
 import {
   X,
   Package,
@@ -272,6 +273,8 @@ export const FreightDetailModal: React.FC<FreightDetailModalProps> = ({
         }}
       >
         <DialogContent
+          data-tour="freight-modal"
+          onInteractOutside={keepOpenDuringTour}
           className="sm:max-w-2xl max-h-[92vh] p-0 gap-0 overflow-y-auto rounded-3xl border-slate-100 shadow-2xl bg-white flex flex-col focus:outline-none"
           showCloseButton={false}
         >
@@ -304,6 +307,7 @@ export const FreightDetailModal: React.FC<FreightDetailModalProps> = ({
               </div>
             </div>
             <button
+              data-tour="freight-modal-close"
               type="button"
               onClick={handleClose}
               className="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:text-slate-600 hover:bg-slate-200 flex items-center justify-center transition-colors cursor-pointer"
