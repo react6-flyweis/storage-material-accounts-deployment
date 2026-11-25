@@ -275,6 +275,7 @@ export const RecentIncomeTransactionsCard: React.FC<
 
         {/* Action Button: single Plus icon, no duplicate plus in text */}
         <Button
+          data-tour="income-add"
           type="button"
           onClick={() => setIsAddModalOpen(true)}
           className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs sm:text-sm font-semibold h-9 px-4 rounded-lg shadow-xs cursor-pointer flex items-center gap-1.5"
@@ -477,6 +478,7 @@ export const RecentIncomeTransactionsCard: React.FC<
                     {/* Action: Eye Icon Button */}
                     <td className="px-5 py-4 text-right">
                       <button
+                        data-tour="income-transaction-view"
                         type="button"
                         onClick={() => {
                           setViewTxId(tx.transactionId);
