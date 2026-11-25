@@ -300,7 +300,7 @@ export const FreightCostPage: React.FC = () => {
       </div>
 
       {/* 2. Top 4 Solid Color KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5">
+      <div data-tour="freight-stats" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5">
         {/* Card 1: Total Freight Cost (Blue) */}
         <div className="bg-[#2E5BFF] text-white rounded-2xl p-5 shadow-sm relative overflow-hidden flex flex-col justify-between">
           <div className="flex items-start justify-between">
@@ -399,7 +399,7 @@ export const FreightCostPage: React.FC = () => {
       </div>
 
       {/* 3. Middle Section: Two Analytics Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <div data-tour="freight-charts" className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Left: Monthly Freight Cost Trend */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-xs p-6 flex flex-col justify-between">
           <div>
@@ -592,7 +592,7 @@ export const FreightCostPage: React.FC = () => {
       </div>
 
       {/* 4. Carrier Cost Analysis Cards */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-xs p-6 space-y-5">
+      <div data-tour="freight-carriers" className="bg-white rounded-2xl border border-slate-100 shadow-xs p-6 space-y-5">
         <div>
           <h2 className="text-base font-bold text-slate-900">
             Carrier Cost Analysis
@@ -666,7 +666,7 @@ export const FreightCostPage: React.FC = () => {
       </div>
 
       {/* 5. Table Section: Freight + Delivery Cost */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden">
+      <div data-tour="freight-table" className="bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden">
         {/* Table Header Filter Bar */}
         <div className="p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-slate-100">
           <h2 className="text-base sm:text-lg font-bold text-slate-900">
@@ -917,6 +917,7 @@ export const FreightCostPage: React.FC = () => {
                   {/* Eye Icon View Details Action */}
                   <td className="py-3.5 px-5 whitespace-nowrap text-right">
                     <button
+                      data-tour="freight-row-view"
                       type="button"
                       onClick={() => setSelectedRecord(row)}
                       className="p-1.5 rounded-md border border-slate-200 text-slate-500 hover:text-slate-800 hover:border-slate-300 hover:bg-slate-50 transition-colors cursor-pointer"
