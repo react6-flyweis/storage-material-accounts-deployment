@@ -206,7 +206,7 @@ export default function CarrierInvoiceDetailPage() {
       </div>
 
       {/* 2. Metadata / Summary Cards Banner */}
-      <div className="bg-white rounded-2xl shadow-xs border border-slate-100 p-6 space-y-6">
+      <div data-tour="carrier-invoice-summary" className="bg-white rounded-2xl shadow-xs border border-slate-100 p-6 space-y-6">
         {/* Banner Top Row: Invoice Number, Badge, and Amount Box */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
           <div>

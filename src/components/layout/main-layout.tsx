@@ -1,5 +1,9 @@
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useState, useMemo, useRef } from "react";
+import { Toaster } from "sonner";
+import { tourCoordinator } from "@/modules/tour/tour.service";
+import { useTourStore } from "@/modules/tour/tour.store";
+import { WelcomeTourDialog } from "@/modules/tour/components/welcome-tour-dialog";
 import Sidebar from "../common_components/Sidebar";
 import Header from "../common_components/Header";
 import SidePanel from "../common_components/SidePanel";
@@ -53,6 +57,18 @@ export function MainLayout() {
     }
     return true;
   });
+
+  useEffect(() => {
+    tourCoordinator.init(navigate);
+  }, [navigate]);
+
+  // The tour points at the sidebar, so open it when a tour starts
+  const activeTourId = useTourStore((s) => s.activeTourId);
+  const [prevTourId, setPrevTourId] = useState(activeTourId);
+  if (prevTourId !== activeTourId) {
+    setPrevTourId(activeTourId);
+    if (activeTourId) setIsSidebarOpen(true);
+  }
 
   const toggleSidebar = () => setIsSidebarOpen((prev) => !prev);
   const closeSidebar = () => setIsSidebarOpen(false);
@@ -110,6 +126,9 @@ export function MainLayout() {
 
   return (
     <div className="flex h-screen bg-[#E5ECFF] relative overflow-hidden">
+      <Toaster position="top-right" richColors />
+      <WelcomeTourDialog />
+
       {/* Mobile backdrop */}
       {isSidebarOpen && (
         <div
@@ -138,7 +157,7 @@ export function MainLayout() {
         }`}
       >
         <Header onMenuToggle={toggleSidebar} isSidebarOpen={isSidebarOpen} />
-        <main ref={mainRef} className="flex-1 overflow-y-auto p-4">
+        <main ref={mainRef} data-tour="page-content" className="flex-1 overflow-y-auto p-4">
           <Outlet />
         </main>
       </div>

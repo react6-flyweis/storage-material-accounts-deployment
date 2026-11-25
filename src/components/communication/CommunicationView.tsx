@@ -613,7 +613,7 @@ export const CommunicationView: React.FC = () => {
   }, [displayedMessages]);
 
   return (
-    <div className="flex h-[calc(100vh-100px)] bg-white rounded-xl shadow-xs border border-gray-200 overflow-hidden mt-3">
+    <div data-tour="communication-page" className="flex h-[calc(100vh-100px)] bg-white rounded-xl shadow-xs border border-gray-200 overflow-hidden mt-3">
       {/* 1. Left Contact Sidebar */}
       <div className={`w-full md:w-auto h-full ${activeChat ? "hidden md:flex" : "flex"}`}>
         <ChatSidebar

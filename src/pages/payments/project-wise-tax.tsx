@@ -487,7 +487,7 @@ export default function ProjectWiseTax() {
       </Card>
 
       {/* 7.1 Stats Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div data-tour="project-tax-stats" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCardV2
           title="Total Tax Collected"
           isLoading={isStatsLoading}
@@ -574,7 +574,7 @@ export default function ProjectWiseTax() {
       </div>
 
       {/* 7.2 Main Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+      <div data-tour="project-tax-table" className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-4 border-b">
           <h3 className="font-semibold text-gray-900 text-lg">
             Project wise tax overview

@@ -153,7 +153,7 @@ export const AddSalaryPage: React.FC = () => {
       </div>
 
       {/* Main Card */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-xs p-6 sm:p-8 max-w-5xl">
+      <div data-tour="salary-form" className="bg-white rounded-2xl border border-slate-100 shadow-xs p-6 sm:p-8 max-w-5xl">
         <h2 className="text-base sm:text-lg font-bold text-slate-900 mb-6">
           Basic Details
         </h2>

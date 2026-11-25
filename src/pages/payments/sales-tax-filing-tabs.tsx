@@ -417,9 +417,10 @@ export function PendingFilingTab({
                       </div>
                     </TableCell>
                     <TableCell className="py-4">
-                      <div className="flex items-center gap-2">
+                      <div data-tour="tax-row-actions" className="flex items-center gap-2">
                         {isNoTaxDue ? (
                           <button
+                            data-tour="tax-row-review"
                             type="button"
                             onClick={() => onReviewDetails?.(row)}
                             className="text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors whitespace-nowrap cursor-pointer"
@@ -429,6 +430,7 @@ export function PendingFilingTab({
                         ) : (
                           <>
                             <button
+                              data-tour="tax-row-review"
                               type="button"
                               onClick={() => onReviewDetails?.(row)}
                               className="text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors whitespace-nowrap cursor-pointer"

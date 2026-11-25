@@ -118,8 +118,9 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
       </div>
 
       {/* Top-Level Main Tabs: Customers vs Team */}
-      <div className="flex border-b border-gray-200 px-2 bg-slate-50/50">
+      <div data-tour="chat-tabs" className="flex border-b border-gray-200 px-2 bg-slate-50/50">
         <button
+          data-tour="chat-customers-tab"
           className={`flex-1 py-2.5 text-xs font-bold transition-all relative flex items-center justify-center gap-1.5 cursor-pointer ${
             activeMainTab === "Customers"
               ? "text-emerald-700 font-bold"
@@ -139,6 +140,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
         </button>
 
         <button
+          data-tour="chat-team-tab"
           className={`flex-1 py-2.5 text-xs font-bold transition-all relative flex items-center justify-center gap-1.5 cursor-pointer ${
             activeMainTab === "Team"
               ? "text-[#1D51A4] font-bold"
@@ -186,8 +188,9 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
 
       {/* Sub-Tabs for Team Mode: Groups vs Direct */}
       {activeMainTab === "Team" && (
-        <div className="flex border-b border-gray-100 mb-2 px-2">
+        <div data-tour="chat-team-tabs" className="flex border-b border-gray-100 mb-2 px-2">
           <button
+            data-tour="chat-groups-tab"
             className={`flex-1 py-2 text-xs font-semibold transition-all relative cursor-pointer ${
               activeTeamTab === "Departments"
                 ? "text-[#1D51A4]"
@@ -201,6 +204,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
             )}
           </button>
           <button
+            data-tour="chat-direct-tab"
             className={`flex-1 py-2 text-xs font-semibold transition-all relative cursor-pointer ${
               activeTeamTab === "Direct"
                 ? "text-[#1D51A4]"
@@ -484,6 +488,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
       {activeMainTab === "Team" && activeTeamTab === "Direct" && (
         <div className="p-3 border-t border-gray-100 flex flex-col gap-2">
           <button
+            data-tour="chat-new-direct"
             onClick={onOpenNewChat}
             className="w-full flex items-center justify-center gap-2 py-2 bg-[#1D51A4] hover:bg-blue-800 active:scale-[0.99] text-white rounded-xl text-xs font-semibold shadow-xs transition-all cursor-pointer"
           >

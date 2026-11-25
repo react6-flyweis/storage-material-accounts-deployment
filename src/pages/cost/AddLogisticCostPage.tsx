@@ -156,7 +156,7 @@ export const AddLogisticCostPage: React.FC = () => {
       </div>
 
       {/* Main Form Card */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-6 sm:p-8">
+      <div data-tour="logistics-form" className="bg-white rounded-2xl border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-6 sm:p-8">
         <h2 className="text-base sm:text-lg font-bold text-slate-900 mb-6">
           Basic Details
         </h2>

@@ -177,7 +177,7 @@ export const NotificationsView = () => {
       </div>
 
       {/* Filter Toolbar */}
-      <div className="bg-white rounded-xl shadow-xs p-4 mb-6 flex flex-col md:flex-row items-start md:items-center gap-4 border border-gray-100">
+      <div data-tour="notifications-filters" className="bg-white rounded-xl shadow-xs p-4 mb-6 flex flex-col md:flex-row items-start md:items-center gap-4 border border-gray-100">
         <span className="text-gray-700 font-medium md:text-sm text-xs mr-2 shrink-0">
           Filter by:
         </span>
@@ -202,7 +202,7 @@ export const NotificationsView = () => {
       </div>
 
       {/* Notifications List */}
-      <div className="bg-white rounded-xl shadow-xs border border-gray-100 overflow-hidden">
+      <div data-tour="notifications-list" className="bg-white rounded-xl shadow-xs border border-gray-100 overflow-hidden">
         {isLoading ? (
           <div className="p-12 text-center text-gray-400">
             <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />

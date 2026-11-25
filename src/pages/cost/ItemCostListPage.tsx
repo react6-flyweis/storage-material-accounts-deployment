@@ -233,7 +233,7 @@ export const ItemCostListPage: React.FC = () => {
       </div>
 
       {/* 2. Three Top Stat Cards precisely styled as in image */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      <div data-tour="item-cost-stats" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {/* Card 1: Total Item Cost (Vibrant Blue) */}
         <div className="bg-[#2563EB] text-white rounded-2xl p-5 shadow-sm flex items-center justify-between transition-transform hover:-translate-y-0.5">
           <div>
@@ -293,7 +293,7 @@ export const ItemCostListPage: React.FC = () => {
       </div>
 
       {/* 3. Search, Filter & Sort Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
+      <div data-tour="item-cost-filters" className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
         {/* Left side: Search input + Filter button */}
         <div className="flex items-center gap-2">
           <div className="relative">
@@ -399,7 +399,7 @@ export const ItemCostListPage: React.FC = () => {
       </div>
 
       {/* 5. Part Cost List Table Card */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden">
+      <div data-tour="item-cost-table" className="bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>

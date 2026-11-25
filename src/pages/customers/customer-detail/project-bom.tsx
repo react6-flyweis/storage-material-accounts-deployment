@@ -258,6 +258,7 @@ export default function ProjectBomPage() {
 
         <div className="flex items-center gap-3">
           <button
+            data-tour="project-bom-download"
             type="button"
             onClick={handleDownloadExcel}
             disabled={isDownloading}
@@ -275,7 +276,7 @@ export default function ProjectBomPage() {
       </div>
 
       {/* Main White BOM Card Container */}
-      <div className="bg-white rounded-2xl shadow-xs border border-slate-200/70 p-6 sm:p-8 lg:p-10 space-y-8">
+      <div data-tour="project-bom-page" className="bg-white rounded-2xl shadow-xs border border-slate-200/70 p-6 sm:p-8 lg:p-10 space-y-8">
         {/* Grey Header Banner */}
         <div className="bg-[#F8F9FA] rounded-xl p-6 space-y-2 border border-slate-100">
           <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
@@ -319,7 +320,7 @@ export default function ProjectBomPage() {
         )}
 
         {/* Summary & Missing Data Issues Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 lg:gap-24">
+        <div data-tour="project-bom-summary" className="grid grid-cols-1 md:grid-cols-2 gap-12 lg:gap-24">
           {/* Left Column: BOM Summary */}
           <div>
             <h3 className="text-base font-bold text-slate-900 mb-4">

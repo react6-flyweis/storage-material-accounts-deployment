@@ -1,4 +1,5 @@
 import React from "react";
+import { keepOpenDuringTour } from "@/modules/tour/keep-open-during-tour";
 import { Loader2, Receipt, Building } from "lucide-react";
 import {
   Dialog,
@@ -80,7 +81,7 @@ export const ExpenseTransactionDetailModal: React.FC<
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-xl p-0 gap-0 overflow-hidden bg-white border border-slate-200 shadow-2xl rounded-2xl max-h-[90vh] flex flex-col">
+      <DialogContent data-tour="expense-transaction-modal" onInteractOutside={keepOpenDuringTour} className="sm:max-w-xl p-0 gap-0 overflow-hidden bg-white border border-slate-200 shadow-2xl rounded-2xl max-h-[90vh] flex flex-col">
         {/* Header */}
         <DialogHeader className="px-6 py-4.5 border-b border-slate-100 flex flex-row items-center justify-between bg-slate-50/50 pr-12">
           <div className="flex items-center gap-3">

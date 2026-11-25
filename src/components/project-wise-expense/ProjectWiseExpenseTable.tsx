@@ -510,6 +510,7 @@ export const ProjectWiseExpenseTable: React.FC<ProjectWiseExpenseTableProps> = (
                     {/* Action */}
                     <td className="px-5 py-3.5 text-right">
                       <button
+                        data-tour="expense-row-view"
                         type="button"
                         onClick={() => handleRowClick(row)}
                         aria-label={`View details for ${row.projectName}`}

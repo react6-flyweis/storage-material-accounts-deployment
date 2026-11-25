@@ -114,7 +114,7 @@ export const ProjectWiseIncomeDetailPage: React.FC = () => {
       )}
 
       {/* Top Grid: Left Side (Info Card + 2x2 Metrics) & Right Side (Summary Card) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+      <div data-tour="income-detail-summary" className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
         {/* Left Column (8 cols on lg/xl) */}
         <div className="lg:col-span-8 xl:col-span-8 space-y-4 flex flex-col justify-between">
           <ProjectInfoCard
@@ -138,27 +138,29 @@ export const ProjectWiseIncomeDetailPage: React.FC = () => {
       </div>
 
       {/* Bottom Section: Recent Income Transactions Table Card */}
-      <RecentIncomeTransactionsCard
-        projectIdOrLeadId={data?.project?.leadId || effectiveProjectId}
-        transactions={data?.transactions}
-        pagination={data?.pagination}
-        incomeTypeOptions={data?.incomeTypeOptions}
-        activeTab={tab}
-        onTabChange={setTab}
-        searchTerm={search}
-        onSearchChange={setSearch}
-        startDate={startDate}
-        endDate={endDate}
-        dateRangeText={dateRangeText}
-        onDateRangeChange={handleDateRangeChange}
-        page={page}
-        onPageChange={setPage}
-        limit={limit}
-        onLimitChange={setLimit}
-        isLoading={isLoading}
-        isFetching={isFetching}
-        onRefresh={refetch}
-      />
+      <div data-tour="income-detail-transactions">
+        <RecentIncomeTransactionsCard
+          projectIdOrLeadId={data?.project?.leadId || effectiveProjectId}
+          transactions={data?.transactions}
+          pagination={data?.pagination}
+          incomeTypeOptions={data?.incomeTypeOptions}
+          activeTab={tab}
+          onTabChange={setTab}
+          searchTerm={search}
+          onSearchChange={setSearch}
+          startDate={startDate}
+          endDate={endDate}
+          dateRangeText={dateRangeText}
+          onDateRangeChange={handleDateRangeChange}
+          page={page}
+          onPageChange={setPage}
+          limit={limit}
+          onLimitChange={setLimit}
+          isLoading={isLoading}
+          isFetching={isFetching}
+          onRefresh={refetch}
+        />
+      </div>
     </div>
   );
 };

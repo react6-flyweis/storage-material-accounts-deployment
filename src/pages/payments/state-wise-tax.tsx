@@ -481,7 +481,7 @@ export default function StateWiseTax() {
       </Card>
 
       {/* 6.1 Stats Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div data-tour="state-tax-stats" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCardV2
           title="Total Tax Collected"
           isLoading={isStatsLoading}
@@ -576,7 +576,7 @@ export default function StateWiseTax() {
       </div>
 
       {/* 6.2 Main Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-slate-200">
+      <div data-tour="state-tax-table" className="bg-white rounded-lg shadow-sm border border-slate-200">
         <div className="p-4 border-b flex items-center justify-between">
           <h3 className="font-semibold text-gray-900 text-lg">
             State wise tax overview
@@ -845,20 +845,22 @@ export default function StateWiseTax() {
       </div>
 
       {/* 6.3 Upcoming Filing Deadlines */}
-      <UpcomingFilingDeadlines
-        projectId={activeProjectId}
-        limit={6}
-        onSelectDeadline={(taxRecordId, stateName, status) => {
-          handleOpenSheet(
-            stateName,
-            status || "Pending",
-            taxRecordId,
-            undefined,
-            undefined,
-            false
-          );
-        }}
-      />
+      <div data-tour="state-tax-deadlines">
+        <UpcomingFilingDeadlines
+          projectId={activeProjectId}
+          limit={6}
+          onSelectDeadline={(taxRecordId, stateName, status) => {
+            handleOpenSheet(
+              stateName,
+              status || "Pending",
+              taxRecordId,
+              undefined,
+              undefined,
+              false
+            );
+          }}
+        />
+      </div>
 
       {/* Controlled Tax Details Sheet (Action: View Details / Pay Tax) */}
       {selectedTaxItem && (

@@ -294,6 +294,7 @@ export const RentCostPage: React.FC = () => {
 
           {/* Add Rent Button */}
           <button
+            data-tour="rent-add"
             onClick={() => navigate("/cost/rent-cost/add")}
             className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-semibold text-white bg-[#1D51A4] hover:bg-[#163e7c] rounded-lg shadow-sm transition-all cursor-pointer active:scale-95"
           >
@@ -306,7 +307,7 @@ export const RentCostPage: React.FC = () => {
       </div>
 
       {/* 2. Top 5 KPI Cards matching screenshot precisely with hatched bottom-right corner */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div data-tour="rent-stats" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {/* Card 1: Total Rent Cost */}
         <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] relative overflow-hidden flex flex-col justify-between group hover:shadow-md transition-shadow">
           <div className="flex items-start justify-between gap-2">
@@ -455,7 +456,7 @@ export const RentCostPage: React.FC = () => {
       </div>
 
       {/* 3. Section: Upcoming Rent Payments */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+      <div data-tour="rent-upcoming" className="bg-white rounded-2xl border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
         {/* Section Header */}
         <div className="p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-slate-100">
           <h2 className="text-base sm:text-lg font-bold text-slate-900">
@@ -618,7 +619,7 @@ export const RentCostPage: React.FC = () => {
       </div>
 
       {/* 4. Section: Active Rental Properties */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+      <div data-tour="rent-properties" className="bg-white rounded-2xl border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
         {/* Section Header Top Row: Title & Right Filters */}
         <div className="p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-slate-100">
           <h2 className="text-base sm:text-lg font-bold text-slate-900">

@@ -223,7 +223,7 @@ export default function ProjectBudgetDetailsPage() {
   return (
     <div className="space-y-6 px-2 sm:px-4 xl:px-0 pb-10">
       {/* 1. Top Card: Project Details */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-xs p-5 md:p-6">
+      <div data-tour="budget-project" className="bg-white rounded-2xl border border-gray-100 shadow-xs p-5 md:p-6">
         {/* Card Header Row */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-5 border-b border-gray-100 gap-3">
           <div className="flex items-center gap-3">
@@ -248,6 +248,7 @@ export default function ProjectBudgetDetailsPage() {
           <div className="flex flex-wrap items-center gap-2.5">
             {/* Manage Budget Button (POST /api/admin/leads/:leadId/budget) */}
             <Button
+              data-tour="budget-configure"
               onClick={() => setIsManageBudgetOpen(true)}
               disabled={!selectedProjectId}
               variant="outline"
@@ -651,7 +652,7 @@ export default function ProjectBudgetDetailsPage() {
       {/* 3. Main Content: Left (Budget VS Actual Table) + Right (Overview & Summary) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column (Table) */}
-        <div className="lg:col-span-8 bg-white rounded-xl border border-gray-100 shadow-xs overflow-hidden flex flex-col">
+        <div data-tour="budget-table" className="lg:col-span-8 bg-white rounded-xl border border-gray-100 shadow-xs overflow-hidden flex flex-col">
           <div className="p-4 sm:p-5 flex items-center justify-between border-b border-gray-100">
             <div>
               <h2 className="text-base md:text-lg font-bold text-gray-900">
@@ -836,7 +837,7 @@ export default function ProjectBudgetDetailsPage() {
         </div>
 
         {/* Right Column (Stacked Cards) */}
-        <div className="lg:col-span-4 space-y-6">
+        <div data-tour="budget-overview" className="lg:col-span-4 space-y-6">
           {/* Card 1: Budget VS Actual Overview (Donut Chart) */}
           <div className="bg-white rounded-xl border border-gray-100 shadow-xs p-5">
             <h2 className="text-sm md:text-base font-bold text-gray-900 mb-4">

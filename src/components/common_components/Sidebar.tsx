@@ -22,6 +22,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   return (
     <>
       <div
+        data-tour="sidebar-nav"
         className={`
               w-14 md:w-16 lg:w-20
               h-screen
@@ -58,6 +59,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 )}
 
                 <button
+                  data-tour-nav={item.title}
                   onClick={() => setActiveTab(index)}
                   onMouseEnter={(e) => {
                     const rect = e.currentTarget.getBoundingClientRect();

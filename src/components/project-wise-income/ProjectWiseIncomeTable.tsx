@@ -452,6 +452,7 @@ export const ProjectWiseIncomeTable: React.FC<ProjectWiseIncomeTableProps> = ({
                     {/* Action */}
                     <td className="px-5 py-4">
                       <button
+                        data-tour="income-row-view"
                         type="button"
                         onClick={() => handleRowClick(row)}
                         aria-label={`View details for ${displayName}`}

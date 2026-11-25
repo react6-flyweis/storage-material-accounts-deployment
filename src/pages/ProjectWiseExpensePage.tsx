@@ -61,7 +61,9 @@ export const ProjectWiseExpensePage: React.FC = () => {
       </div>
 
       {/* Top 5 Stat Cards */}
-      <ProjectExpenseStatsGrid summary={data?.summary} isLoading={isLoading} />
+      <div data-tour="expense-stats">
+        <ProjectExpenseStatsGrid summary={data?.summary} isLoading={isLoading} />
+      </div>
 
       {/* Middle Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
@@ -82,22 +84,24 @@ export const ProjectWiseExpensePage: React.FC = () => {
       </div>
 
       {/* Project-wise Expense Table Card */}
-      <ProjectWiseExpenseTable
-        rows={data?.rows}
-        pagination={data?.pagination}
-        currentPage={page}
-        onPageChange={setPage}
-        rowsPerPage={limit}
-        onRowsPerPageChange={setLimit}
-        searchTerm={search}
-        onSearchChange={setSearch}
-        dateRangeText={dateRangeText}
-        onDateRangeChange={handleDateRangeChange}
-        isLoading={isLoading}
-        isFetching={isFetching}
-        isError={isError}
-        onRetry={refetch}
-      />
+      <div data-tour="expense-table">
+        <ProjectWiseExpenseTable
+          rows={data?.rows}
+          pagination={data?.pagination}
+          currentPage={page}
+          onPageChange={setPage}
+          rowsPerPage={limit}
+          onRowsPerPageChange={setLimit}
+          searchTerm={search}
+          onSearchChange={setSearch}
+          dateRangeText={dateRangeText}
+          onDateRangeChange={handleDateRangeChange}
+          isLoading={isLoading}
+          isFetching={isFetching}
+          isError={isError}
+          onRetry={refetch}
+        />
+      </div>
 
       {/* Bottom Section: Top Expense Categories (This Month) */}
       <TopExpenseCategoriesCard

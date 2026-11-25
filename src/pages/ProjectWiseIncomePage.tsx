@@ -65,10 +65,12 @@ export const ProjectWiseIncomePage: React.FC = () => {
       </div>
 
       {/* Top 4 Stat Cards */}
-      <ProjectIncomeStatsGrid
-        summary={data?.summary}
-        isLoading={isLoading}
-      />
+      <div data-tour="income-stats">
+        <ProjectIncomeStatsGrid
+          summary={data?.summary}
+          isLoading={isLoading}
+        />
+      </div>
 
       {/* Middle Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
@@ -89,22 +91,24 @@ export const ProjectWiseIncomePage: React.FC = () => {
       </div>
 
       {/* Bottom Table Card */}
-      <ProjectWiseIncomeTable
-        rows={data?.rows}
-        pagination={data?.pagination}
-        currentPage={page}
-        onPageChange={setPage}
-        rowsPerPage={limit}
-        onRowsPerPageChange={setLimit}
-        searchTerm={search}
-        onSearchChange={setSearch}
-        dateRangeText={dateRangeText}
-        onDateRangeChange={handleDateRangeChange}
-        isLoading={isLoading}
-        isFetching={isFetching}
-        isError={isError}
-        onRetry={refetch}
-      />
+      <div data-tour="income-table">
+        <ProjectWiseIncomeTable
+          rows={data?.rows}
+          pagination={data?.pagination}
+          currentPage={page}
+          onPageChange={setPage}
+          rowsPerPage={limit}
+          onRowsPerPageChange={setLimit}
+          searchTerm={search}
+          onSearchChange={setSearch}
+          dateRangeText={dateRangeText}
+          onDateRangeChange={handleDateRangeChange}
+          isLoading={isLoading}
+          isFetching={isFetching}
+          isError={isError}
+          onRetry={refetch}
+        />
+      </div>
     </div>
   );
 };

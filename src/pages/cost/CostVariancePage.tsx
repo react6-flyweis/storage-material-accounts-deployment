@@ -490,7 +490,7 @@ export default function CostVariancePage() {
       </div>
 
       {/* ----------------- KPI Cards Grid (4 Cards) ----------------- */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div data-tour="variance-stats" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Net Variance */}
         <div className="bg-white rounded-2xl border border-[#CBD5E1] p-5 shadow-xs flex items-center justify-between transition-all">
           <div className="space-y-1">
@@ -600,7 +600,7 @@ export default function CostVariancePage() {
       </div>
 
       {/* ----------------- High Variance Alerts Section ----------------- */}
-      <div className="bg-white rounded-2xl border border-[#FCA5A5] p-5 md:p-6 shadow-xs space-y-4">
+      <div data-tour="variance-alerts" className="bg-white rounded-2xl border border-[#FCA5A5] p-5 md:p-6 shadow-xs space-y-4">
         <div className="flex items-center gap-2 text-[#EF4444] font-semibold text-sm md:text-base">
           <AlertTriangle className="w-4 h-4 stroke-[2.5]" />
           <span>High Variance Alerts</span>
@@ -677,7 +677,7 @@ export default function CostVariancePage() {
       </div>
 
       {/* ----------------- Awarded vs Actual Cost Trend Chart ----------------- */}
-      <div className="bg-white rounded-2xl border border-[#E2E8F0] p-5 md:p-6 shadow-xs">
+      <div data-tour="variance-chart" className="bg-white rounded-2xl border border-[#E2E8F0] p-5 md:p-6 shadow-xs">
         <h3 className="text-sm md:text-base font-semibold text-[#1E293B] mb-6">
           Awarded vs Actual Cost Trend
         </h3>
@@ -771,7 +771,7 @@ export default function CostVariancePage() {
       </div>
 
       {/* ----------------- Top Controls (Search & Filters Above Table) ----------------- */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div data-tour="variance-filters" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {/* Unified Search Input */}
         <div className="relative">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8] pointer-events-none" />
@@ -903,7 +903,7 @@ export default function CostVariancePage() {
       </div>
 
       {/* ----------------- Table Container with Subheader & Filter Row ----------------- */}
-      <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-xs overflow-hidden">
+      <div data-tour="variance-table" className="bg-white rounded-2xl border border-[#E2E8F0] shadow-xs overflow-hidden">
         {/* Sub-header inside table box */}
         <div className="p-4 md:p-5 border-b border-[#F1F5F9] flex flex-wrap items-center justify-between gap-4">
           <h2 className="text-base md:text-lg font-bold text-[#1E293B]">

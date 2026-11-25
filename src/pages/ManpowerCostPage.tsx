@@ -374,6 +374,7 @@ export const ManpowerCostPage: React.FC = () => {
 
           {/* Add Manpower Cost Button */}
           <button
+            data-tour="manpower-add"
             type="button"
             onClick={() => navigate("/cost/manpower-cost/add")}
             className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#1D51A4] hover:bg-[#163e7c] text-white text-xs sm:text-sm font-semibold shadow-xs transition-colors cursor-pointer"
@@ -385,7 +386,7 @@ export const ManpowerCostPage: React.FC = () => {
       </div>
 
       {/* Top 4 KPI Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5">
+      <div data-tour="manpower-stats" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5">
         <CostStatCard
           title="Total Manpower Cost"
           value={
@@ -437,7 +438,7 @@ export const ManpowerCostPage: React.FC = () => {
       </div>
 
       {/* Main Card: Manpower Cost Records */}
-      <div className={`bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden transition-opacity ${isRecordsLoading ? "opacity-70" : "opacity-100"}`}>
+      <div data-tour="manpower-table" className={`bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden transition-opacity ${isRecordsLoading ? "opacity-70" : "opacity-100"}`}>
         {/* Table Header Filter Bar */}
         <div className="p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-slate-100">
           <h2 className="text-base sm:text-lg font-bold text-slate-900">
@@ -745,6 +746,7 @@ export const ManpowerCostPage: React.FC = () => {
 
                         {/* Edit Icon */}
                         <button
+                          data-tour="manpower-row-edit"
                           type="button"
                           onClick={() => {
                             navigate(`/cost/manpower-cost/edit/${row.id}`, {

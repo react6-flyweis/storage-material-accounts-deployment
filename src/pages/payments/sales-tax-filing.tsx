@@ -376,6 +376,7 @@ export default function SalesTaxFiling() {
         </div>
         <div className="flex items-center gap-2">
           <Button
+            data-tour="tax-actions-sync"
             variant="outline"
             size="sm"
             onClick={handleSyncNow}
@@ -401,7 +402,7 @@ export default function SalesTaxFiling() {
       </div>
 
       {/* Filters */}
-      <Card className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 bg-white shadow-xs">
+      <Card data-tour="tax-filters" className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 bg-white shadow-xs">
         <div className="space-y-1.5">
           <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
             State
@@ -480,7 +481,7 @@ export default function SalesTaxFiling() {
       </Card>
 
       {/* 4.1 Stats Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div data-tour="tax-stats" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCardV2
           title="Total Sales (Taxable)"
           isLoading={isStatsLoading}
@@ -567,7 +568,7 @@ export default function SalesTaxFiling() {
       </div>
 
       {/* 4.3 Tabs and Content */}
-      <div className="space-y-4">
+      <div data-tour="tax-records" className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b pb-0 gap-4">
           <div className="flex space-x-8">
             {(["Pending Filing", "Filing History"] as const).map((tab) => (

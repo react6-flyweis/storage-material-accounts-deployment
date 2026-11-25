@@ -56,7 +56,7 @@ export const MiscInvoiceDetailsModal: React.FC<
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-122 max-h-[90vh] overflow-y-auto p-6 relative animate-in zoom-in-95 duration-150 my-6">
+      <div data-tour="misc-details-modal" className="bg-white rounded-2xl shadow-2xl w-full max-w-122 max-h-[90vh] overflow-y-auto p-6 relative animate-in zoom-in-95 duration-150 my-6">
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-100">
           <div className="flex items-center gap-2.5">
@@ -68,6 +68,7 @@ export const MiscInvoiceDetailsModal: React.FC<
             </h2>
           </div>
           <button
+            data-tour="misc-details-close"
             type="button"
             onClick={onClose}
             className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"

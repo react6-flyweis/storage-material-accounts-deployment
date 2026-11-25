@@ -341,6 +341,7 @@ const PaymentOverview = () => {
 
           {/* Add Order Payment button */}
           <Button
+            data-tour="payment-add"
             type="button"
             onClick={handleAddNew}
             className="bg-[#2563EB] hover:bg-blue-700 text-white rounded-lg h-9 px-4 gap-1.5 text-sm font-medium shadow-xs"
@@ -369,7 +370,7 @@ const PaymentOverview = () => {
       )}
 
       {/* 4 Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div data-tour="payment-stats" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Order Value */}
         <Card className="rounded-2xl p-5 shadow-xs border border-gray-100 bg-white flex flex-row items-center justify-between gap-0">
           <div>
@@ -448,7 +449,7 @@ const PaymentOverview = () => {
       </div>
 
       {/* Orders & Payment Summary Card */}
-      <Card className="rounded-2xl border border-gray-100 shadow-xs bg-white overflow-hidden py-0 gap-0">
+      <Card data-tour="payment-table" className="rounded-2xl border border-gray-100 shadow-xs bg-white overflow-hidden py-0 gap-0">
         {/* Table header bar */}
         <div className="p-5 sm:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2">
@@ -677,6 +678,7 @@ const PaymentOverview = () => {
                     <td className="py-4 px-6 align-middle text-center">
                       <div className="flex items-center justify-center gap-1">
                         <Button
+                          data-tour="payment-row-view"
                           type="button"
                           variant="ghost"
                           size="icon-xs"
@@ -687,6 +689,7 @@ const PaymentOverview = () => {
                           <Eye className="w-4 h-4 stroke-[1.8]" />
                         </Button>
                         <Button
+                          data-tour="payment-row-edit"
                           type="button"
                           variant="ghost"
                           size="icon-xs"

@@ -10,6 +10,8 @@ interface ModalProps {
   height?: string;
   className?: string;
   hideHeader?: boolean;
+  /** Lets the product tour find this modal. */
+  tourId?: string;
 }
 
 const Modal: React.FC<ModalProps> = ({
@@ -21,6 +23,7 @@ const Modal: React.FC<ModalProps> = ({
   height = "max-h-[90vh]",
   className = "p-6 overflow-y-auto",
   hideHeader = false,
+  tourId,
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -52,11 +55,13 @@ const Modal: React.FC<ModalProps> = ({
 
   return ReactDOM.createPortal(
     <div
+      data-modal-backdrop
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 transition-opacity"
       onClick={handleBackdropClick}
     >
       <div
         ref={modalRef}
+        data-tour={tourId}
         className={`bg-white rounded-xl shadow-2xl w-full ${width} ${height} m-4 relative flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200`}
       >
         {/* Header */}

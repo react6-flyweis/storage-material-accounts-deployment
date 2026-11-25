@@ -525,7 +525,7 @@ export default function NewInvoice() {
       )}
 
       {/* Main Form Card */}
-      <div className="bg-white rounded-md p-4 sm:p-8 lg:p-10 shadow-sm border border-gray-100">
+      <div data-tour="new-invoice-form" className="bg-white rounded-md p-4 sm:p-8 lg:p-10 shadow-sm border border-gray-100">
         {/* Top Section: Organization Info & Client / Invoice Details */}
         <div className="flex flex-col lg:flex-row justify-between gap-10 mb-12">
           {/* Left: Seller Organization Info */}

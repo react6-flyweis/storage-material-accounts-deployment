@@ -169,6 +169,7 @@ export const HeaderSearch: React.FC<HeaderSearchProps> = ({
 
   return (
     <div
+      data-tour="header-search"
       ref={containerRef}
       className={cn(
         "relative hidden md:block flex-1 max-w-sm lg:max-w-md",

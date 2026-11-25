@@ -317,6 +317,7 @@ export default function QuotationProfitLossPage() {
           </button>
 
           <button
+            data-tour="quotation-pl-upload"
             type="button"
             onClick={() => handleOpenUploadModal()}
             className="inline-flex items-center gap-2 px-4 py-2 bg-[#3B66BD] hover:bg-[#2F54A0] text-white rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
@@ -328,7 +329,7 @@ export default function QuotationProfitLossPage() {
       </div>
 
       {/* 2. 5 Summary Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div data-tour="quotation-pl-stats" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {/* Card 1: Total Quotations */}
         <div className="bg-white rounded-2xl p-5 shadow-xs border border-slate-100 relative overflow-hidden flex flex-col justify-between">
           <p className="text-xs text-slate-500 font-medium">Total Quotations</p>
@@ -391,7 +392,7 @@ export default function QuotationProfitLossPage() {
       </div>
 
       {/* 3. Main Records Table Card */}
-      <div className="bg-white rounded-2xl shadow-xs border border-slate-100 p-5 sm:p-6 space-y-5">
+      <div data-tour="quotation-pl-table" className="bg-white rounded-2xl shadow-xs border border-slate-100 p-5 sm:p-6 space-y-5">
         {/* Table Toolbar */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-center gap-2">
@@ -654,6 +655,7 @@ export default function QuotationProfitLossPage() {
 
                           {/* View Detail */}
                           <button
+                            data-tour="quotation-pl-view"
                             onClick={() => handleOpenDetail(rec.quotationId)}
                             className="p-1 rounded-md text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
                             title="View P&L Details"
@@ -719,12 +721,13 @@ export default function QuotationProfitLossPage() {
       {/* Upload / Override Modal */}
       {isUploadOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 transition-opacity animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 relative animate-in zoom-in-95 duration-150">
+          <div data-tour="quotation-pl-upload-modal" className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 relative animate-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
               <h2 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
                 Upload / Override Quotation P&L
               </h2>
               <button
+                data-tour="quotation-pl-upload-close"
                 type="button"
                 onClick={() => setIsUploadOpen(false)}
                 className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
@@ -839,7 +842,7 @@ export default function QuotationProfitLossPage() {
       {/* Detail Modal */}
       {isDetailOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 transition-opacity animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 relative animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
+          <div data-tour="quotation-pl-modal" className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 relative animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <FileSpreadsheet className="w-5 h-5 text-blue-600" />
@@ -848,6 +851,7 @@ export default function QuotationProfitLossPage() {
                 </h2>
               </div>
               <button
+                data-tour="quotation-pl-close"
                 type="button"
                 onClick={() => setIsDetailOpen(false)}
                 className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"

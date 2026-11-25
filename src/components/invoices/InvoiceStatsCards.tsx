@@ -64,7 +64,7 @@ export const InvoiceStatsCards: React.FC<InvoiceStatsCardsProps> = ({
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div data-tour="invoice-stats" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {cardItems.map((card, idx) => (
         <div
           key={idx}

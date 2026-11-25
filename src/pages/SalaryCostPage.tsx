@@ -394,7 +394,7 @@ export const SalaryCostPage: React.FC = () => {
         {/* Header Actions */}
         <div className="flex items-center gap-2.5 self-start sm:self-auto">
           {/* Export Dropdown */}
-          <div className="relative">
+          <div data-tour="salary-export" className="relative">
             <button
               type="button"
               onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
@@ -437,6 +437,7 @@ export const SalaryCostPage: React.FC = () => {
 
           {/* Add Salary Entry Button */}
           <button
+            data-tour="salary-add"
             type="button"
             onClick={() => navigate("/cost/salary-cost/add")}
             className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#1D51A4] hover:bg-[#163e7c] text-white text-xs sm:text-sm font-semibold shadow-xs transition-colors cursor-pointer"
@@ -450,7 +451,7 @@ export const SalaryCostPage: React.FC = () => {
       </div>
 
       {/* Top 3 Stat Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-5">
+      <div data-tour="salary-stats" className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-5">
         <CostStatCard
           title="Total Salary Cost"
           value={
@@ -490,7 +491,7 @@ export const SalaryCostPage: React.FC = () => {
       </div>
 
       {/* Main Card: Employee Salary List */}
-      <div className={`bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden transition-opacity ${isRecordsLoading ? "opacity-70" : "opacity-100"}`}>
+      <div data-tour="salary-table" className={`bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden transition-opacity ${isRecordsLoading ? "opacity-70" : "opacity-100"}`}>
         {/* Table Header Filter Bar */}
         <div className="p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-slate-100">
           <h2 className="text-base sm:text-lg font-bold text-slate-900">
@@ -829,6 +830,7 @@ export const SalaryCostPage: React.FC = () => {
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                         <button
+                          data-tour="salary-row-view"
                           type="button"
                           onClick={() => setSelectedDetailEntry(row)}
                           aria-label={`View details for ${row.name}`}

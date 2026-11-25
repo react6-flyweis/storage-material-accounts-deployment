@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { keepOpenDuringTour } from "@/modules/tour/keep-open-during-tour";
 import { useForm, Controller } from "react-hook-form";
 import { Loader2 } from "lucide-react";
 import {
@@ -129,7 +130,7 @@ export const AddIncomeModal: React.FC<AddIncomeModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-lg p-0 gap-0 overflow-hidden bg-white border border-slate-200 shadow-xl rounded-2xl">
+      <DialogContent data-tour="income-add-modal" onInteractOutside={keepOpenDuringTour} className="sm:max-w-lg p-0 gap-0 overflow-hidden bg-white border border-slate-200 shadow-xl rounded-2xl">
         <DialogHeader className="px-6 py-4 border-b border-slate-100 bg-white">
           <DialogTitle className="text-lg font-bold text-slate-900">
             {isPending ? "Add Pending Payment" : "Add Received Payment"}

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { keepOpenDuringTour } from "@/modules/tour/keep-open-during-tour";
 import { Badge } from "@/components/ui/badge";
 import {
   Sheet,
@@ -334,6 +335,8 @@ export default function TaxDetailsSheet({
     <>
       <Sheet open={isOpen && !isPaymentDialogOpen} onOpenChange={handleSheetOpenChange}>
         <SheetContent
+          data-tour="tax-details-sheet"
+          onInteractOutside={keepOpenDuringTour}
           side="right"
           className="sm:max-w-md w-full p-0 overflow-y-auto bg-white border-l z-60"
         >

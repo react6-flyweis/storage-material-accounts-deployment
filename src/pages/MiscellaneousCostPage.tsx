@@ -256,6 +256,7 @@ export const MiscellaneousCostPage: React.FC = () => {
 
           {/* Add Miscellaneous Cost Button */}
           <button
+            data-tour="misc-cost-add"
             type="button"
             onClick={() => navigate("/cost/miscellaneous-cost/add")}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1D51A4] hover:bg-[#163e7c] text-white text-xs sm:text-sm font-semibold shadow-xs transition-colors cursor-pointer"
@@ -269,7 +270,7 @@ export const MiscellaneousCostPage: React.FC = () => {
       </div>
 
       {/* 2. Top 4 Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5">
+      <div data-tour="misc-cost-stats" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5">
         <CostStatCard
           title="Total Miscellaneous Cost"
           value={
@@ -321,7 +322,7 @@ export const MiscellaneousCostPage: React.FC = () => {
       </div>
 
       {/* 3. Middle Section: Chart + Category Distribution */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+      <div data-tour="misc-cost-charts" className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* Left Column (7 cols): Miscellaneous Cost Overview */}
         <div className="lg:col-span-7 bg-white rounded-2xl border border-slate-100 shadow-xs p-5 flex flex-col justify-between">
           <div>
@@ -493,7 +494,7 @@ export const MiscellaneousCostPage: React.FC = () => {
       </div>
 
       {/* 4. Table 1: Project-wise Miscellaneous Cost */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden">
+      <div data-tour="misc-cost-projects" className="bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden">
         {/* Table 1 Header Filter Bar */}
         <div className="p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-slate-100">
           <h2 className="text-base sm:text-lg font-bold text-slate-900">
@@ -802,7 +803,7 @@ export const MiscellaneousCostPage: React.FC = () => {
       </div>
 
       {/* 5. Table 2: Miscellaneous Expense Records */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden">
+      <div data-tour="misc-cost-records" className="bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden">
         {/* Table 2 Header Filter Bar */}
         <div className="p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-slate-100">
           <h2 className="text-base sm:text-lg font-bold text-slate-900">
