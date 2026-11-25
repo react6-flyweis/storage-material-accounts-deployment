@@ -433,6 +433,7 @@ export default function ProjectInvoicesPage() {
             </div>
           )}
           <Button
+            data-tour="project-invoice-create"
             type="button"
             onClick={() =>
               navigate("/payments/new-invoice", {
@@ -451,7 +452,7 @@ export default function ProjectInvoicesPage() {
       </div>
 
       {/* 2. 4 Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div data-tour="project-invoices-stats" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((stat) => (
           <div
             key={stat.title}
@@ -509,7 +510,7 @@ export default function ProjectInvoicesPage() {
       )}
 
       {/* 3. Toolbar: Search, Filter & Sort */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div data-tour="project-invoices-toolbar" className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         {/* Left: Search input & Filter button */}
         <div className="flex items-center gap-3">
           <div className="relative">
@@ -704,7 +705,7 @@ export default function ProjectInvoicesPage() {
       </div>
 
       {/* 4. Table Card */}
-      <div className="bg-white rounded-2xl shadow-xs border border-slate-100 overflow-hidden">
+      <div data-tour="project-invoices-table" className="bg-white rounded-2xl shadow-xs border border-slate-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
