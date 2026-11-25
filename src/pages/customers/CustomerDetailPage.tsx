@@ -248,10 +248,12 @@ export default function CustomerDetailPage() {
       )}
 
       {/* Customer Profile Card */}
-      <ProfileCard profile={profileData} isLoading={isLoading} />
+      <div data-tour="customer-profile">
+        <ProfileCard profile={profileData} isLoading={isLoading} />
+      </div>
 
       {/* 4 Primary Top Colored Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+      <div data-tour="customer-kpis" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
         {primaryKpiCards.map((card) => (
           <div
             key={card.title}
@@ -299,7 +301,7 @@ export default function CustomerDetailPage() {
       </div>
 
       {/* All Projects Card */}
-      <div className="bg-white rounded-2xl shadow-xs border border-slate-100 p-5">
+      <div data-tour="customer-projects" className="bg-white rounded-2xl shadow-xs border border-slate-100 p-5">
         <h2 className="text-base sm:text-lg font-bold text-slate-900 mb-5">
           All Projects
         </h2>
@@ -363,6 +365,7 @@ export default function CustomerDetailPage() {
                       </td>
                       <td className="py-4 px-4 text-center">
                         <button
+                          data-tour="customer-project-view"
                           type="button"
                           onClick={() => {
                             const targetId = p.leadId ;
@@ -416,7 +419,7 @@ export default function CustomerDetailPage() {
       </div>
 
       {/* SECTION 1: CUSTOMER PROFITABILITY OVERVIEW */}
-      <div className="bg-white rounded-2xl shadow-xs border border-slate-100 p-5">
+      <div data-tour="customer-profitability" className="bg-white rounded-2xl shadow-xs border border-slate-100 p-5">
         <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900 mb-5">
           CUSTOMER PROFITABILITY OVERVIEW
         </h2>
@@ -488,7 +491,7 @@ export default function CustomerDetailPage() {
       </div>
 
       {/* SECTION 2: CUSTOMER REVENUE */}
-      <div className="space-y-3.5">
+      <div data-tour="customer-revenue" className="space-y-3.5">
         <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900">
           CUSTOMER REVENUE
         </h2>
@@ -519,7 +522,7 @@ export default function CustomerDetailPage() {
       </div>
 
       {/* SECTION 3: INVOICE LIST */}
-      <div className="bg-white rounded-2xl shadow-xs border border-slate-100 p-6 sm:p-8">
+      <div data-tour="customer-invoices" className="bg-white rounded-2xl shadow-xs border border-slate-100 p-6 sm:p-8">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-base sm:text-lg font-bold text-slate-900">
             Invoice List
