@@ -195,6 +195,7 @@ const PaymentApprovalDetailsModal: React.FC<PaymentApprovalDetailsModalProps> = 
 
   return (
     <Modal
+      tourId="payment-approval-modal"
       isOpen={isOpen}
       onClose={onClose}
       hideHeader={true}
