@@ -161,6 +161,7 @@ export const ProfitLossDetailModal: React.FC<ProfitLossDetailModalProps> = ({
 
   return (
     <Modal
+      tourId="margin-analysis-modal"
       isOpen={isOpen}
       onClose={onClose}
       hideHeader={true}
