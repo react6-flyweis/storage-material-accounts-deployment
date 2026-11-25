@@ -204,19 +204,21 @@ export default function ProjectQuotationPage() {
       </div>
 
       {/* Quotation List Table Component */}
-      <QuotationListTable
-        quotations={quotations}
-        isLoading={isQuotationsLoading}
-        isError={isQuotationsError}
-        onRetry={refetchQuotations}
-        onSelectQuotation={handleSelectQuotation}
-        statusFilter={statusFilter}
-        onStatusFilterChange={setStatusFilter}
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        projectName={displayProjectName}
-        total={totalQuotations}
-      />
+      <div data-tour="project-quotations">
+        <QuotationListTable
+          quotations={quotations}
+          isLoading={isQuotationsLoading}
+          isError={isQuotationsError}
+          onRetry={refetchQuotations}
+          onSelectQuotation={handleSelectQuotation}
+          statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          projectName={displayProjectName}
+          total={totalQuotations}
+        />
+      </div>
     </div>
   );
 }
